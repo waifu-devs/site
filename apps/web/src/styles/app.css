@@ -347,6 +347,67 @@ body {
 @property --ring-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes ring { to { --ring-angle: 360deg; } }
 
+/* ───────────────────────── Projects ───────────────────────── */
+
+/* A glow that follows the pointer (--mx/--my, set by ProjectCard) around the
+   card's border and, softer, across its face. */
+.spotlight { position: relative; isolation: isolate; }
+.spotlight::before,
+.spotlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.spotlight::before {
+  padding: 1.5px;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), var(--primary), transparent 45%);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: 1;
+}
+.spotlight::after {
+  background: radial-gradient(520px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--primary) 9%, transparent), transparent 60%);
+  z-index: -1;
+}
+.spotlight:hover::before,
+.spotlight:hover::after { opacity: 1; }
+
+/* A springy hop on hover, for letters and chips. */
+.hop { transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.5, 1), color 0.3s ease, border-color 0.3s ease; }
+.hop:hover { transform: translateY(-0.12em) rotate(-6deg); color: var(--primary); }
+.group:hover .group-wiggle { animation: wiggle 0.5s ease-in-out; }
+
+/* Wires in the fuwa diagram, with a packet running down each one. */
+.wire { position: relative; overflow: hidden; border-radius: 9999px; background: var(--border); transition: background-color 0.3s ease; }
+.wire[data-active="true"] { background: color-mix(in srgb, var(--primary) 45%, var(--border)); }
+.wire::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+  animation: 1.8s cubic-bezier(0.5, 0, 0.5, 1) var(--delay, 0s) infinite;
+}
+.wire-x::after { inset-block: 0; left: 0; width: 45%; animation-name: wire-x; }
+.wire-y::after { inset-inline: 0; top: 0; height: 45%; animation-name: wire-y; }
+@keyframes wire-x { from { translate: -100% 0; } to { translate: 250% 0; } }
+@keyframes wire-y { from { translate: 0 -100%; } to { translate: 0 250%; } }
+
+.db-pulse { animation: db-pulse 1.6s ease-in-out infinite; }
+@keyframes db-pulse { 50% { transform: scale(1.2); } }
+
+/* "someone is typing" dots. */
+.typing-dots { display: inline-flex; gap: 0.2rem; }
+.typing-dots i { width: 0.3rem; height: 0.3rem; border-radius: 9999px; background: currentColor; animation: typing 1s ease-in-out infinite; }
+.typing-dots i:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-3px); opacity: 1; } }
+
 /* ───────────────────────── Profile banners ─────────────────────────
    Drawn only from theme tokens, so each banner suits every theme. */
 .banner {
