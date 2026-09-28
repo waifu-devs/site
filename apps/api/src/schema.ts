@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { ThemeVariant } from "./themes";
+import type { ThemeVariant } from "@waifu-devs/domain/api";
 
-// Column names are derived from the keys in snake_case (see `casing` in lib/db.ts
+// Column names are derived from the keys in snake_case (see `casing` in src/Db.ts
 // and drizzle.config.ts). Change this file, then `pnpm db:generate` a migration.
 
 const createdAt = () => timestamp({ withTimezone: true }).notNull().defaultNow();

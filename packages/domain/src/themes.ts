@@ -66,7 +66,8 @@ export const TOKEN_LABELS: Record<Token, string> = {
   ring: "Focus ring",
 };
 
-const HEX = /^#[0-9a-f]{6}$/i;
+/** A #rrggbb color. */
+export const HEX = /^#[0-9a-f]{6}$/i;
 
 /** Mixes `a` into `b` by `amount` (0..1) in sRGB. */
 export function mix(a: string, b: string, amount: number): string {
@@ -159,21 +160,6 @@ export const DEFAULT_THEME = BUILTIN_THEMES[0];
 
 export const RADIUS_MIN = 0;
 export const RADIUS_MAX = 1.5;
-
-/** Returns a validated variant, or null if any token is missing or not a #rrggbb hex. */
-export function parseVariant(input: unknown): ThemeVariant | null {
-  if (!input || typeof input !== "object") return null;
-  const { tokens, radius } = input as { tokens?: Record<string, unknown>; radius?: unknown };
-  if (!tokens || typeof tokens !== "object") return null;
-  const out = {} as ThemeTokens;
-  for (const key of TOKENS) {
-    const value = tokens[key];
-    if (typeof value !== "string" || !HEX.test(value)) return null;
-    out[key] = value.toLowerCase();
-  }
-  const r = typeof radius === "number" && Number.isFinite(radius) ? radius : 0.75;
-  return { tokens: out, radius: Math.min(RADIUS_MAX, Math.max(RADIUS_MIN, Math.round(r * 8) / 8)) };
-}
 
 /** The inline style that applies a theme variant to an element and everything inside it. */
 export function themeStyle(variant: ThemeVariant): Record<string, string> {
