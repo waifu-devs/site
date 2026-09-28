@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* Every color on the site comes from these variables, so a theme is just a set of values for them.
+   The defaults match the built-in Sakura theme; the layout and profile pages override them inline. */
+:root {
+  --theme-bg: #fff5f8;
+  --theme-surface: #ffffff;
+  --theme-text: #3b2330;
+  --theme-muted: #8a6577;
+  --theme-accent: #f06292;
+  --theme-accent-text: #ffffff;
+  --theme-border: #f8d3e0;
+}
+
+@theme inline {
+  --color-bg: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-ink: var(--theme-text);
+  --color-muted: var(--theme-muted);
+  --color-accent: var(--theme-accent);
+  --color-on-accent: var(--theme-accent-text);
+  --color-line: var(--theme-border);
+  --font-sans: "M PLUS Rounded 1c", ui-rounded, ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--theme-bg);
+  color: var(--theme-text);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: inherit;
+}
+
+.themed {
+  background: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+/* A few drifting petals in the page background. Purely decorative. */
+.petals {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.petals span {
+  position: absolute;
+  top: -2rem;
+  width: 0.8rem;
+  height: 0.6rem;
+  border-radius: 80% 0 80% 0;
+  background: var(--theme-accent);
+  opacity: 0.18;
+  animation: fall linear infinite;
+}
+@keyframes fall {
+  to {
+    transform: translate(-4rem, 110vh) rotate(540deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .petals {
+    display: none;
+  }
+}
