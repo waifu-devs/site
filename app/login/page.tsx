@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   if (await currentUser()) redirect("/settings");
   const { next } = await searchParams;
-  const href = `/api/auth/github${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+  const href = `/api/auth/login${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
   return (
     <main data-sparkle-zone className="mx-auto max-w-md px-4 py-20">

@@ -4,7 +4,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { canUseTheme, db, UUID } from "./db";
-import { deleteSession, requireUser, SESSION_COOKIE } from "./session";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "./auth/client";
+import { revokeRefreshToken } from "./auth/storage";
+import { requireUser } from "./session";
 import { parseVariant, TOKENS } from "./themes";
 
 function text(form: FormData, key: string, max: number): string | null {
@@ -28,9 +30,10 @@ function url(form: FormData, key: string): string | null {
 
 export async function signOut() {
   const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (token) await deleteSession(token);
-  jar.delete(SESSION_COOKIE);
+  const refresh = jar.get(REFRESH_COOKIE)?.value;
+  if (refresh) await revokeRefreshToken(db(), refresh);
+  jar.delete(ACCESS_COOKIE);
+  jar.delete(REFRESH_COOKIE);
   revalidatePath("/", "layout");
   redirect("/");
 }

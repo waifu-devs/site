@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import postgres from "postgres";
+import postgres, { type Sql } from "postgres";
 import { cache } from "react";
 import { BUILTIN_THEMES, DEFAULT_THEME, parseVariant, type Theme } from "./themes";
 
@@ -58,14 +58,20 @@ export async function countMembers(): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** Creates the user on first login, otherwise refreshes the GitHub-owned fields. */
-export async function upsertGithubUser(gh: {
-  id: number;
-  login: string;
-  name: string | null;
-  avatar_url: string;
-}): Promise<User> {
-  return db().begin(async (sql) => {
+export async function getUserById(id: string): Promise<User | null> {
+  const [user] = await db()<User[]>`SELECT * FROM users WHERE id = ${id}`;
+  return user ?? null;
+}
+
+/**
+ * Creates the user on first login, otherwise refreshes the GitHub-owned fields.
+ * Takes its own client because it runs in the OpenAuth issuer, outside a render.
+ */
+export async function upsertGithubUser(
+  client: Sql,
+  gh: { id: number; login: string; name: string | null; avatar_url: string },
+): Promise<User> {
+  return client.begin(async (sql) => {
     // GitHub logins can be renamed and later reclaimed by someone else. Free the
     // login from any stale account so the unique index doesn't block sign-in.
     await sql`

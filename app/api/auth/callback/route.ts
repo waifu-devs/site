@@ -1,9 +1,7 @@
-import { env } from "cloudflare:workers";
-import { upsertGithubUser } from "@/lib/db";
-import { createSession, SESSION_COOKIE } from "@/lib/session";
-import { OAUTH_STATE_COOKIE, safeNext } from "@/lib/oauth";
+import { ACCESS_COOKIE, authClient, REFRESH_COOKIE, tokenCookie } from "@/lib/auth/client";
+import { LOGIN_COOKIE, safeNext } from "@/lib/oauth";
 
-type GithubUser = { id: number; login: string; name: string | null; avatar_url: string };
+type LoginState = { state?: string; verifier?: string; next?: string };
 
 function readCookie(request: Request, name: string): string | undefined {
   const header = request.headers.get("cookie") ?? "";
@@ -13,54 +11,37 @@ function readCookie(request: Request, name: string): string | undefined {
   }
 }
 
+function readLoginState(request: Request): LoginState {
+  try {
+    return JSON.parse(decodeURIComponent(readCookie(request, LOGIN_COOKIE) ?? "")) as LoginState;
+  } catch {
+    return {};
+  }
+}
+
 function fail(message: string, status = 400) {
   return new Response(`Sign-in failed: ${message}`, { status });
 }
 
+/** OpenAuth sends the browser back here with a code to trade for tokens. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
+  const error = url.searchParams.get("error_description") ?? url.searchParams.get("error");
+  if (error) return fail(error);
 
-  const stored = readCookie(request, OAUTH_STATE_COOKIE);
-  const sep = stored?.indexOf(":") ?? -1;
-  if (!code || !state || !stored || sep < 0 || stored.slice(0, sep) !== state) {
+  const code = url.searchParams.get("code");
+  const login = readLoginState(request);
+  if (!code || !login.state || login.state !== url.searchParams.get("state")) {
     return fail("the login link expired or was tampered with. Please try again.");
   }
-  const next = safeNext(decodeURIComponent(stored.slice(sep + 1)));
 
-  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: env.GITHUB_CLIENT_ID,
-      client_secret: env.GITHUB_CLIENT_SECRET,
-      code,
-      redirect_uri: `${url.origin}/api/auth/callback`,
-    }),
-  });
-  const token = (await tokenRes.json()) as { access_token?: string; error_description?: string };
-  if (!token.access_token) return fail(token.error_description ?? "GitHub did not return a token.", 502);
+  const exchanged = await authClient(url.origin).exchange(code, `${url.origin}/api/auth/callback`, login.verifier);
+  if (exchanged.err) return fail("the sign-in code was rejected. Please try again.", 502);
 
-  const userRes = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${token.access_token}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "waifu-devs-site",
-    },
-  });
-  if (!userRes.ok) return fail("could not read your GitHub profile.", 502);
-  const gh = (await userRes.json()) as GithubUser;
-
-  const user = await upsertGithubUser(gh);
-  const session = await createSession(user.id);
-
-  const secure = url.protocol === "https:" ? "; Secure" : "";
-  const headers = new Headers({ Location: next });
-  headers.append(
-    "Set-Cookie",
-    `${SESSION_COOKIE}=${session.token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session.maxAge}${secure}`,
-  );
-  headers.append("Set-Cookie", `${OAUTH_STATE_COOKIE}=; Path=/api/auth; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
+  const secure = url.protocol === "https:";
+  const headers = new Headers({ Location: safeNext(login.next ?? null) });
+  headers.append("Set-Cookie", tokenCookie(ACCESS_COOKIE, exchanged.tokens.access, secure));
+  headers.append("Set-Cookie", tokenCookie(REFRESH_COOKIE, exchanged.tokens.refresh, secure));
+  headers.append("Set-Cookie", `${LOGIN_COOKIE}=; Path=/api/auth; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`);
   return new Response(null, { status: 302, headers });
 }
