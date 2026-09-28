@@ -1,6 +1,5 @@
 import { HttpApiBuilder, HttpServer } from "@effect/platform";
 import { ConfigProvider, Layer } from "effect";
-import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,8 +16,7 @@ const config = ConfigProvider.fromMap(
     ["LAKE_LOCAL_DIRECTORY", directory],
     ["ANALYTICS_READ_TOKEN", TOKEN],
     ["INGEST_FLUSH_INTERVAL", "100 millis"],
-    ["INGEST_MAX_PENDING", "20"],
-  ]),
+      ]),
 ).pipe(ConfigProvider.orElse(() => ConfigProvider.fromEnv()));
 
 let web: ReturnType<typeof HttpApiBuilder.toWebHandler>;
@@ -34,9 +32,9 @@ afterAll(async () => {
 
 const post = (body: unknown) =>
   web.handler(
-    new Request("http://analytics.test/v1/fuwa/events", {
+    new Request("http://analytics.test/v1/fuwa/signals", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "user-agent": "fuwa/0.1.0" },
       body: JSON.stringify(body),
     }),
   );
@@ -44,29 +42,36 @@ const post = (body: unknown) =>
 const summary = (token = TOKEN) =>
   web.handler(new Request("http://analytics.test/v1/fuwa/summary?days=7", { headers: { authorization: `Bearer ${token}` } }));
 
-const heartbeat = (at: Date, messages: number) => ({
-  id: randomUUID(),
-  type: "heartbeat",
-  at: at.toISOString(),
-  uptime_seconds: 60,
-  period_seconds: 86_400,
-  config: { standalone_accounts: true, linked_accounts: true, signups: "open" },
-  totals: {
-    servers: 2,
-    channels: 9,
-    members: 30,
-    accounts_standalone: 20,
-    accounts_linked: 5,
-    messages: 1_000,
-    storage_bytes: 4_096,
-    upload_bytes: 0,
-  },
-  period: { messages, active_accounts: 4, new_accounts: 1, new_servers: 0 },
-  // Fields a newer fuwa may add are ignored.
-  something_new: true,
-});
+// A ULID: 26 characters of Crockford base32.
+const ulid = () => Array.from({ length: 26 }, () => "0123456789ABCDEFGHJKMNPQRSTVWXYZ"[Math.floor(Math.random() * 32)]).join("");
 
-const install = { id: randomUUID(), version: "0.1.0", os: "linux", arch: "x86_64", hosting: "self_hosted" };
+const signal = (installId: string, sentAt: Date, messagesSent: number, extra: object = {}) => ({
+  schema: "fuwa.signal.v1",
+  install_id: installId,
+  sent_at: sentAt.getTime(),
+  version: "0.1.0",
+  os: "linux",
+  arch: "x86_64",
+  uptime_seconds: 60,
+  config: { local_accounts: "open", linked_accounts: false, server_creation: "everyone", encryption: false, limits_configured: false },
+  totals: {
+    accounts: 12,
+    accounts_active_1d: 3,
+    accounts_active_30d: 9,
+    servers: 2,
+    discoverable_servers: 1,
+    members: 14,
+    channels: 6,
+    messages: 1_200,
+    messages_sent: messagesSent,
+    message_bytes: 90_000,
+    attachments: 0,
+    attachment_bytes: 0,
+    events: 1_700,
+    storage_bytes: 1_048_576,
+  },
+  ...extra,
+});
 
 /** Polls until the flushed rows show up in the summary. */
 const waitForSummary = async (ready: (body: Summary) => boolean) => {
@@ -79,55 +84,59 @@ const waitForSummary = async (ready: (body: Summary) => boolean) => {
 };
 
 describe("ingest", () => {
-  it("stores heartbeats once, however often a batch is retried", async () => {
-    const now = new Date();
-    const batch = {
-      schema: 1,
-      install,
-      events: [heartbeat(now, 7), { id: randomUUID(), type: "server.created", at: now.toISOString(), template: "cozy" }],
-    };
-    const first = await post(batch);
+  it("counts each signal once and activity from the lifetime counters", async () => {
+    const install = ulid();
+    const now = Date.now();
+    const earlier = signal(install, new Date(now - 60_000), 1_500);
+    // A field a newer fuwa might add rides along in the raw JSON.
+    const later = signal(install, new Date(now), 1_540, { hosting: "self_hosted", voice_minutes: 3 });
+    const first = await post(earlier);
     expect(first.status).toBe(202);
-    expect(await first.json()).toEqual({ accepted: 2 });
-    expect((await post(batch)).status).toBe(202);
+    expect(await first.json()).toEqual({ accepted: 1 });
+    // Delivered twice, counted once.
+    expect((await post(later)).status).toBe(202);
+    expect((await post(later)).status).toBe(202);
+    // Our hosted instance.
+    expect((await post(signal(ulid(), new Date(now), 10, { hosting: "hosted" }))).status).toBe(202);
 
-    const body = await waitForSummary((body) => body.days.length > 0);
-    expect(body.days).toEqual([
-      {
-        day: now.toISOString().slice(0, 10),
-        hosting: "self_hosted",
-        installs: 1,
-        servers: 2,
-        channels: 9,
-        members: 30,
-        accounts: 25,
-        messages: 1_000,
-        storage_bytes: 4_096,
-        upload_bytes: 0,
-        messages_sent: 7,
-        new_accounts: 1,
-        new_servers: 0,
-      },
+    const body = await waitForSummary((body) => body.days.length === 2);
+    const today = new Date(now).toISOString().slice(0, 10);
+    expect(body.days.find((day) => day.hosting === "self_hosted")).toEqual({
+      day: today,
+      hosting: "self_hosted",
+      installs: 1,
+      accounts: 12,
+      accounts_active_1d: 3,
+      accounts_active_30d: 9,
+      servers: 2,
+      members: 14,
+      channels: 6,
+      messages: 1_200,
+      message_bytes: 90_000,
+      attachments: 0,
+      attachment_bytes: 0,
+      storage_bytes: 1_048_576,
+      messages_sent: 40,
+      events: 0,
+    });
+    expect(body.days.find((day) => day.hosting === "hosted")?.installs).toBe(1);
+    expect(body.versions).toEqual([
+      { version: "0.1.0", hosting: "hosted", installs: 1 },
+      { version: "0.1.0", hosting: "self_hosted", installs: 1 },
     ]);
-    expect(body.versions).toEqual([{ version: "0.1.0", hosting: "self_hosted", installs: 1 }]);
   });
 
-  it("refuses payloads that don't match the contract", async () => {
-    const valid = heartbeat(new Date(), 1);
+  it("refuses signals that don't match the contract", async () => {
+    const valid = signal(ulid(), new Date(), 1);
     const cases = [
-      { schema: 2, install, events: [valid] },
-      { schema: 1, install: { ...install, id: "my-hostname" }, events: [valid] },
-      { schema: 1, install, events: [] },
-      { schema: 1, install, events: [{ ...valid, totals: { ...valid.totals, messages: -1 } }] },
-      { schema: 1, install, events: [{ ...valid, period: undefined }] },
-      { schema: 1, install, events: [heartbeat(new Date(Date.now() + 3 * 86_400_000), 1)] },
+      { ...valid, schema: "fuwa.signal.v2" },
+      { ...valid, install_id: "my-hostname" },
+      { ...valid, hosting: "cloud" },
+      { ...valid, totals: { ...valid.totals, messages: -1 } },
+      { ...valid, config: undefined },
+      signal(ulid(), new Date(Date.now() + 3 * 86_400_000), 1),
     ];
     for (const body of cases) expect((await post(body)).status).toBe(400);
-  });
-
-  it("asks senders to come back later when the buffer is full", async () => {
-    const batch = { schema: 1, install, events: Array.from({ length: 21 }, () => heartbeat(new Date(), 1)) };
-    expect((await post(batch)).status).toBe(503);
   });
 });
 

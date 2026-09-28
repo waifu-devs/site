@@ -1,93 +1,100 @@
 /**
- * The lake's tables and views, all in the `fuwa` schema of the DuckLake. Rows
- * are append-only; a retried batch can land twice, so the views count each
- * event id once.
+ * The lake's table and views, all in the `fuwa` schema of the DuckLake. Rows
+ * are append-only; a signal delivered twice lands twice, so the views count
+ * each (install_id, sent_at) once.
  */
 import type { DuckDBValue } from "@duckdb/node-api";
 import { Effect } from "effect";
 import { Lake } from "./Lake.ts";
-import { type Batch, isHeartbeat } from "./Signals.ts";
+import type { Signal } from "./Signals.ts";
 
-/** Columns every row carries: the event, when it arrived, and who sent it. */
-const ENVELOPE = [
-  ["event_id", "UUID"],
+/** One row per signal. New columns go at the end (and into `migrate`). */
+const SIGNAL_COLUMNS = [
   ["received_at", "TIMESTAMPTZ"],
-  ["recorded_at", "TIMESTAMPTZ"],
-  ["schema_version", "INTEGER"],
-  ["install_id", "UUID"],
+  ["sent_at", "TIMESTAMPTZ"],
+  ["schema_id", "VARCHAR"],
+  ["install_id", "VARCHAR"],
+  ["hosting", "VARCHAR"],
   ["version", "VARCHAR"],
   ["os", "VARCHAR"],
   ["arch", "VARCHAR"],
-  ["hosting", "VARCHAR"],
-] as const;
-
-/** One row per heartbeat. New columns go at the end (and into `migrate`). */
-const HEARTBEAT_COLUMNS = [
-  ...ENVELOPE,
   ["uptime_seconds", "BIGINT"],
-  ["period_seconds", "BIGINT"],
-  ["standalone_accounts", "BOOLEAN"],
+  ["local_accounts", "VARCHAR"],
   ["linked_accounts", "BOOLEAN"],
-  ["signups", "VARCHAR"],
+  ["server_creation", "VARCHAR"],
+  ["encryption", "BOOLEAN"],
+  ["limits_configured", "BOOLEAN"],
+  ["accounts", "BIGINT"],
+  ["accounts_active_1d", "BIGINT"],
+  ["accounts_active_30d", "BIGINT"],
   ["servers", "BIGINT"],
-  ["channels", "BIGINT"],
+  ["discoverable_servers", "BIGINT"],
   ["members", "BIGINT"],
-  ["accounts_standalone", "BIGINT"],
-  ["accounts_linked", "BIGINT"],
+  ["channels", "BIGINT"],
   ["messages", "BIGINT"],
+  ["messages_sent", "BIGINT"],
+  ["message_bytes", "BIGINT"],
+  ["attachments", "BIGINT"],
+  ["attachment_bytes", "BIGINT"],
+  ["events", "BIGINT"],
   ["storage_bytes", "BIGINT"],
-  ["upload_bytes", "BIGINT"],
-  ["period_messages", "BIGINT"],
-  ["period_active_accounts", "BIGINT"],
-  ["period_new_accounts", "BIGINT"],
-  ["period_new_servers", "BIGINT"],
+  /** The whole signal as sent, including fields added since these columns. */
+  ["raw", "JSON"],
 ] as const;
-
-/** Event types this ingest doesn't know yet, kept whole. */
-const EVENT_COLUMNS = [...ENVELOPE, ["type", "VARCHAR"], ["payload", "JSON"]] as const;
 
 type Columns = ReadonlyArray<readonly [name: string, type: string]>;
-type Row<C extends Columns> = { [K in C[number] as K[0]]: unknown };
-export type HeartbeatRow = Row<typeof HEARTBEAT_COLUMNS>;
-export type EventRow = Row<typeof EVENT_COLUMNS>;
+export type SignalRow = { [K in (typeof SIGNAL_COLUMNS)[number] as K[0]]: unknown };
 
 const definition = (columns: Columns) => columns.map(([name, type]) => `${name} ${type}`).join(", ");
 
+/** Totals summed per day over each install's last signal that day. */
+const SNAPSHOT_TOTALS = [
+  "accounts",
+  "accounts_active_1d",
+  "accounts_active_30d",
+  "servers",
+  "members",
+  "channels",
+  "messages",
+  "message_bytes",
+  "attachments",
+  "attachment_bytes",
+  "storage_bytes",
+];
+
 const VIEWS = {
-  // Each heartbeat once, however many times it was delivered.
-  heartbeats_unique: `
-    SELECT * FROM heartbeats
-    QUALIFY row_number() OVER (PARTITION BY event_id ORDER BY received_at) = 1`,
-  // Each event of another type once.
-  events_unique: `
-    SELECT * FROM events
-    QUALIFY row_number() OVER (PARTITION BY event_id ORDER BY received_at) = 1`,
-  // Every install as of its latest heartbeat.
+  // Each signal once, however many times it was delivered.
+  signals_unique: `
+    SELECT * FROM signals
+    QUALIFY row_number() OVER (PARTITION BY install_id, sent_at ORDER BY received_at) = 1`,
+  // Every install as of its latest signal.
   installs: `
-    SELECT * EXCLUDE (event_id), recorded_at AS last_seen FROM heartbeats_unique
-    QUALIFY row_number() OVER (PARTITION BY install_id ORDER BY recorded_at DESC) = 1`,
+    SELECT * EXCLUDE (raw), sent_at AS last_seen FROM signals_unique
+    QUALIFY row_number() OVER (PARTITION BY install_id ORDER BY sent_at DESC) = 1`,
+  // Each signal with what happened since the install's previous one, from its
+  // lifetime counters. An install's first signal counts nothing, and a counter
+  // that went backwards (a reset) counts as zero.
+  activity: `
+    SELECT *,
+      greatest(messages_sent - coalesce(lag(messages_sent) OVER previous, messages_sent), 0) AS messages_sent_since,
+      greatest(events - coalesce(lag(events) OVER previous, events), 0) AS events_since
+    FROM signals_unique
+    WINDOW previous AS (PARTITION BY install_id ORDER BY sent_at)`,
   // Per UTC day and kind of hosting: installs that reported, their totals as of
-  // each install's last heartbeat that day, and what happened during the day.
+  // each install's last signal that day, and the activity the day's signals cover.
   daily: `
     WITH days AS (
-      SELECT *, CAST(recorded_at AS DATE) AS day,
-        row_number() OVER (PARTITION BY install_id, CAST(recorded_at AS DATE) ORDER BY recorded_at DESC) = 1 AS latest
-      FROM heartbeats_unique
+      SELECT *, CAST(sent_at AS DATE) AS day,
+        row_number() OVER (PARTITION BY install_id, CAST(sent_at AS DATE) ORDER BY sent_at DESC) = 1 AS latest
+      FROM activity
     )
     SELECT
       day,
       hosting,
       count(DISTINCT install_id) AS installs,
-      sum(servers) FILTER (latest) AS servers,
-      sum(channels) FILTER (latest) AS channels,
-      sum(members) FILTER (latest) AS members,
-      sum(accounts_standalone + accounts_linked) FILTER (latest) AS accounts,
-      sum(messages) FILTER (latest) AS messages,
-      sum(storage_bytes) FILTER (latest) AS storage_bytes,
-      sum(upload_bytes) FILTER (latest) AS upload_bytes,
-      sum(period_messages) AS messages_sent,
-      sum(period_new_accounts) AS new_accounts,
-      sum(period_new_servers) AS new_servers
+      ${SNAPSHOT_TOTALS.map((column) => `sum(${column}) FILTER (latest) AS ${column}`).join(",\n      ")},
+      sum(messages_sent_since) AS messages_sent,
+      sum(events_since) AS events
     FROM days
     GROUP BY day, hosting`,
 } as const;
@@ -98,75 +105,63 @@ export const migrate = Effect.gen(function* () {
   const existing = yield* lake.query(
     "SELECT table_name FROM duckdb_tables() WHERE database_name = 'lake' AND schema_name = 'fuwa'",
   );
-  const has = (table: string) => existing.some((row) => row.table_name === table);
 
   yield* lake.run("CREATE SCHEMA IF NOT EXISTS lake.fuwa");
-  if (!has("heartbeats")) {
+  if (!existing.some((row) => row.table_name === "signals")) {
     yield* lake.transaction([
-      [`CREATE TABLE IF NOT EXISTS lake.fuwa.heartbeats (${definition(HEARTBEAT_COLUMNS)})`],
+      [`CREATE TABLE IF NOT EXISTS lake.fuwa.signals (${definition(SIGNAL_COLUMNS)})`],
       // Monthly files, so reading a date range skips the rest.
-      ["ALTER TABLE lake.fuwa.heartbeats SET PARTITIONED BY (year(recorded_at), month(recorded_at))"],
-    ]);
-  }
-  if (!has("events")) {
-    yield* lake.transaction([
-      [`CREATE TABLE IF NOT EXISTS lake.fuwa.events (${definition(EVENT_COLUMNS)})`],
-      ["ALTER TABLE lake.fuwa.events SET PARTITIONED BY (year(recorded_at), month(recorded_at))"],
+      ["ALTER TABLE lake.fuwa.signals SET PARTITIONED BY (year(sent_at), month(sent_at))"],
     ]);
   }
   yield* lake.transaction(Object.entries(VIEWS).map(([name, sql]) => [`CREATE OR REPLACE VIEW lake.fuwa.${name} AS ${sql}`] as const));
 });
 
-/** A batch as table rows. */
-export const toRows = (batch: Batch, receivedAt: Date) => {
-  const heartbeats: HeartbeatRow[] = [];
-  const events: EventRow[] = [];
-  for (const event of batch.events) {
-    const envelope = {
-      event_id: event.id,
-      received_at: receivedAt.toISOString(),
-      recorded_at: event.at.toISOString(),
-      schema_version: batch.schema,
-      install_id: batch.install.id,
-      version: batch.install.version,
-      os: batch.install.os,
-      arch: batch.install.arch,
-      hosting: batch.install.hosting,
-    };
-    if (isHeartbeat(event)) {
-      heartbeats.push({
-        ...envelope,
-        uptime_seconds: event.uptime_seconds,
-        period_seconds: event.period_seconds,
-        standalone_accounts: event.config.standalone_accounts,
-        linked_accounts: event.config.linked_accounts,
-        signups: event.config.signups,
-        ...event.totals,
-        period_messages: event.period.messages,
-        period_active_accounts: event.period.active_accounts,
-        period_new_accounts: event.period.new_accounts,
-        period_new_servers: event.period.new_servers,
-      });
-    } else {
-      const { id: _id, type, at: _at, ...payload } = event;
-      events.push({ ...envelope, type, payload });
-    }
-  }
-  return { heartbeats, events };
+/** A signal as a table row. Fields beyond the known ones only go into `raw`. */
+export const toRow = (signal: Signal, receivedAt: Date): SignalRow => {
+  const { config, totals } = signal;
+  return {
+    received_at: receivedAt.toISOString(),
+    sent_at: new Date(signal.sent_at).toISOString(),
+    schema_id: signal.schema,
+    install_id: signal.install_id,
+    hosting: signal.hosting,
+    version: signal.version,
+    os: signal.os,
+    arch: signal.arch,
+    uptime_seconds: signal.uptime_seconds,
+    local_accounts: config.local_accounts,
+    linked_accounts: config.linked_accounts,
+    server_creation: config.server_creation,
+    encryption: config.encryption,
+    limits_configured: config.limits_configured,
+    accounts: totals.accounts,
+    accounts_active_1d: totals.accounts_active_1d,
+    accounts_active_30d: totals.accounts_active_30d,
+    servers: totals.servers,
+    discoverable_servers: totals.discoverable_servers,
+    members: totals.members,
+    channels: totals.channels,
+    messages: totals.messages,
+    messages_sent: totals.messages_sent,
+    message_bytes: totals.message_bytes,
+    attachments: totals.attachments,
+    attachment_bytes: totals.attachment_bytes,
+    events: totals.events,
+    storage_bytes: totals.storage_bytes,
+    raw: signal,
+  };
 };
 
-// The rows go in as one JSON parameter, cast to the table's columns.
-const insert = (table: string, columns: Columns, rows: ReadonlyArray<object>): [string, DuckDBValue[]] => [
-  `INSERT INTO lake.fuwa.${table} BY NAME SELECT unnest($1::JSON::STRUCT(${definition(columns)})[], recursive := true)`,
-  [JSON.stringify(rows)],
-];
-
 /** Writes the rows as one lake snapshot. */
-export const append = (rows: { heartbeats: ReadonlyArray<HeartbeatRow>; events: ReadonlyArray<EventRow> }) =>
+export const append = (rows: ReadonlyArray<SignalRow>) =>
   Effect.gen(function* () {
+    if (rows.length === 0) return;
     const lake = yield* Lake;
-    const statements = [];
-    if (rows.heartbeats.length > 0) statements.push(insert("heartbeats", HEARTBEAT_COLUMNS, rows.heartbeats));
-    if (rows.events.length > 0) statements.push(insert("events", EVENT_COLUMNS, rows.events));
-    if (statements.length > 0) yield* lake.transaction(statements);
+    // The rows go in as one JSON parameter, cast to the table's columns.
+    const insert: [string, DuckDBValue[]] = [
+      `INSERT INTO lake.fuwa.signals BY NAME SELECT unnest($1::JSON::STRUCT(${definition(SIGNAL_COLUMNS)})[], recursive := true)`,
+      [JSON.stringify(rows)],
+    ];
+    yield* lake.transaction([insert]);
   });

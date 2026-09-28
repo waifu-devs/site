@@ -1,7 +1,7 @@
 /** The analytics service's HTTP contract. */
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
 import { Schema } from "effect";
-import { Batch } from "./Signals.ts";
+import { Signal } from "./Signals.ts";
 
 // ---------------------------------------------------------------------------
 // Reading: a bearer token only we have (ANALYTICS_READ_TOKEN).
@@ -18,16 +18,20 @@ export const Day = Schema.Struct({
   day: Schema.String,
   hosting: Schema.String,
   installs: Count,
-  servers: Count,
-  channels: Count,
-  members: Count,
   accounts: Count,
+  accounts_active_1d: Count,
+  accounts_active_30d: Count,
+  servers: Count,
+  members: Count,
+  channels: Count,
   messages: Count,
+  message_bytes: Count,
+  attachments: Count,
+  attachment_bytes: Count,
   storage_bytes: Count,
-  upload_bytes: Count,
+  /** Sent during the period the day's signals cover. */
   messages_sent: Count,
-  new_accounts: Count,
-  new_servers: Count,
+  events: Count,
 });
 
 export const Summary = Schema.Struct({
@@ -43,10 +47,10 @@ export const Accepted = Schema.Struct({ accepted: Schema.Number });
 
 export class FuwaApi extends HttpApiGroup.make("fuwa")
   .add(
-    HttpApiEndpoint.post("ingest", "/v1/fuwa/events")
-      .setPayload(Batch)
+    HttpApiEndpoint.post("ingest", "/v1/fuwa/signals")
+      .setPayload(Signal)
       .addSuccess(Accepted, { status: 202 })
-      // An event dated more than a day ahead.
+      // A signal dated more than a day ahead.
       .addError(HttpApiError.BadRequest)
       // The lake is unreachable and the buffer is full; try again later.
       .addError(HttpApiError.ServiceUnavailable),

@@ -19,7 +19,6 @@ const BUCKET_REGION = "iad";
 
 const API_DOMAIN = "api.waifu.dev";
 const WEB_DOMAIN = "www.waifu.dev";
-const ANALYTICS_DOMAIN = "analytics.waifu.dev";
 const API_URL = `https://${API_DOMAIN}`;
 const WEB_URL = `https://${WEB_DOMAIN}`;
 
@@ -97,8 +96,11 @@ export default defineRailway((ctx) => {
     start: "node apps/analytics/dist/main.js",
     healthcheck: "/health",
     regions: { [REGION]: 1 },
-    domains: [{ domain: ANALYTICS_DOMAIN, port: 4100 }],
-    // Accepted events wait in memory for a few seconds; on shutdown they're written
+    // Its domain, analytics.waifu.dev (port 4100), is added in the dashboard: Railway
+    // configuration can't register a new custom domain. Once it exists, it's declared
+    // here like the others.
+
+    // Accepted signals wait in memory for a few seconds; on shutdown they're written
     // out before the process exits, so give that time to finish.
     deploy: { drainingSeconds: 30 },
     env: {

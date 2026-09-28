@@ -17,11 +17,9 @@ const FuwaLive = HttpApiBuilder.group(Api, "fuwa", (handlers) =>
       .handle("ingest", ({ payload }) =>
         Effect.gen(function* () {
           const now = yield* Clock.currentTimeMillis;
-          if (payload.events.some((event) => event.at.getTime() > now + MAX_CLOCK_SKEW_MS)) return yield* new HttpApiError.BadRequest();
-          const accepted = yield* ingest
-            .add(payload, new Date(now))
-            .pipe(Effect.catchTag("IngestFull", () => new HttpApiError.ServiceUnavailable()));
-          return { accepted };
+          if (payload.sent_at > now + MAX_CLOCK_SKEW_MS) return yield* new HttpApiError.BadRequest();
+          yield* ingest.add(payload, new Date(now)).pipe(Effect.catchTag("IngestFull", () => new HttpApiError.ServiceUnavailable()));
+          return { accepted: 1 };
         }),
       )
       .handle("summary", ({ urlParams }) => summary(urlParams.days ?? 30).pipe(Effect.provideService(Lake, lake), Effect.orDie));

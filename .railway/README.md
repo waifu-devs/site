@@ -33,3 +33,6 @@ railway config apply   # apply
 
 - The `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` and `ANALYTICS_READ_TOKEN` shared variables (secrets stay in Railway).
 - The DNS records for `api.waifu.dev`, `www.waifu.dev` and `analytics.waifu.dev` (they're at the registrar).
+- Registering a new custom domain: Railway configuration refuses to, so add it to the
+  service in the dashboard first (after the apply that creates the service), then
+  declare it in `railway.ts` so later applies keep it.
