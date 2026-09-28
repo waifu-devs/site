@@ -201,16 +201,14 @@ body {
 }
 .tilt:hover::after { opacity: 1; }
 
-/* Hero: animated gradient text and drifting blobs. */
+/* Hero: gradient text and drifting blobs. */
 .gradient-text {
-  background: linear-gradient(100deg, var(--primary), color-mix(in srgb, var(--primary) 45%, #a78bfa), var(--primary));
-  background-size: 200% auto;
+  /* Static on purpose: animating background-position under background-clip:text can drop the glyphs in Chromium. */
+  background: linear-gradient(100deg, var(--primary), color-mix(in srgb, var(--primary) 45%, #a78bfa));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: shimmer 5s linear infinite;
 }
-@keyframes shimmer { to { background-position: 200% center; } }
 
 .blob {
   position: absolute;
@@ -227,6 +225,64 @@ body {
   50% { transform: translate(60px, -40px) scale(1.15); }
   100% { transform: translate(-40px, 30px) scale(0.9); }
 }
+
+/* ───────────────────────── Landing ───────────────────────── */
+
+/* A faint grid that fades out from the top and slowly pans. */
+.grid-floor {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--primary) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--primary) 14%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 20%, transparent 75%);
+  animation: grid-pan 12s linear infinite;
+}
+@keyframes grid-pan { to { background-position: 0 56px; } }
+
+.spin-slow { animation: spin-slow 60s linear infinite; }
+@keyframes spin-slow { to { rotate: 360deg; } }
+
+/* Code window syntax colors, all drawn from the theme. */
+.tok-kw { color: var(--primary); font-weight: 700; }
+.tok-fn { color: color-mix(in srgb, var(--primary) 55%, var(--foreground)); }
+.tok-str { color: color-mix(in srgb, var(--primary) 45%, #8b5cf6); }
+.tok-cm { color: var(--muted-foreground); font-style: italic; }
+.caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.15em;
+  margin-left: 1px;
+  vertical-align: -0.2em;
+  background: var(--primary);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--primary) 70%, transparent);
+}
+/* Gradient text whose width is driven by scroll (background-size set inline). */
+.fill-text {
+  background-image: linear-gradient(100deg, var(--primary), color-mix(in srgb, var(--primary) 45%, #a78bfa));
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* A drop that keeps sliding down the scroll cue's line. */
+.scroll-line { position: relative; }
+.scroll-line::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 40%;
+  background: var(--primary);
+  animation: scroll-drop 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes scroll-drop { from { translate: 0 -100%; } to { translate: 0 250%; } }
 
 @keyframes float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(3deg); } }
 .float { animation: float 4s ease-in-out infinite; }
