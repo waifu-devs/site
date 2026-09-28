@@ -36,7 +36,9 @@ type ThemeRow = {
  */
 export const db = cache(() =>
   postgres(env.HYPERDRIVE.connectionString, {
-    max: 5,
+    // These are connections to Hyperdrive, not to PlanetScale; Hyperdrive's own
+    // origin pool is what the (small) database sees. Keep this low anyway.
+    max: 3,
     // Skips a round trip on connect; we don't use custom array types.
     fetch_types: false,
   }),

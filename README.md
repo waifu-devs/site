@@ -53,6 +53,8 @@ One-time setup:
 2. In PlanetScale, create the Postgres database and a role for the app, and copy its connection string.
 3. Create the schema: `DATABASE_URL=<planetscale connection string> pnpm db:migrate`.
 4. Create a Hyperdrive config pointing at PlanetScale, in the dashboard (Workers & Pages → Hyperdrive → Create) or with `cf hyperdrive create`. The connection string lives inside Hyperdrive, so the Worker never holds the database password. Copy the Hyperdrive id.
+
+   We run on PlanetScale's smallest ($5) Postgres instance, which allows only a handful of connections. Hyperdrive is what keeps us inside that: every Worker request shares its pool instead of opening its own database connection. When creating the config, set its maximum origin connections well below the instance's limit (check with `SHOW max_connections;`, and leave room for migrations and your own psql sessions). If PlanetScale offers a PgBouncer connection string for the database, give that one to Hyperdrive.
 5. Create a production GitHub OAuth app with callback URL `https://<your-domain>/api/auth/callback`.
 6. Deploy once with `HYPERDRIVE_ID=<id> pnpm deploy`, then add the secrets `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the `waifu-devs-site` Worker (Dashboard → Workers & Pages → waifu-devs-site → Settings → Variables and Secrets). You can also hardcode the Hyperdrive id in `cloudflare.config.ts` instead of passing `HYPERDRIVE_ID`, since it isn't secret.
 
