@@ -34,7 +34,10 @@ export const Route = createRootRoute({
 
 /** The HTML document. It also renders error pages, so it can't count on the loader having run. */
 function RootDocument({ children }: { children: ReactNode }) {
-  const theme = useMatch({ from: "__root__", shouldThrow: false })?.loaderData?.theme ?? DEFAULT_THEME;
+  const viewerTheme = useMatch({ from: "__root__", shouldThrow: false })?.loaderData?.theme ?? DEFAULT_THEME;
+  // A profile dresses the whole page, header and all, in the theme its owner picked for it.
+  const profileTheme = useMatch({ from: "/u/$username", shouldThrow: false })?.loaderData?.theme;
+  const theme = profileTheme ?? viewerTheme;
   return (
     <html lang="en" data-theme={theme.id} style={themeStyle(theme.variant)}>
       <head>

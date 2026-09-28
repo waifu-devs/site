@@ -15,12 +15,12 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 ## What's here
 
 - **Accounts** via GitHub only (`/login`). Your GitHub login and avatar refresh every time you sign in.
-- **Profiles** at `/u/<github-login>` with display name, pronouns, favorite waifu, website and bio. Edit at `/settings`.
-- **Themes**: five built-ins (Sakura, Yoru, Matcha, Sora, Tsundere) plus community themes made in the live editor at `/themes/new`. The theme you wear styles the site for you, and your profile for everyone who visits it. Themes can be public or private.
+- **Profiles** at `/u/<github-login>` with display name, status, pronouns, location, favorite waifu, bio, skills, website and links, an animated banner, and a profile theme. Customize them at `/settings`, with a live preview.
+- **Themes**: five built-ins (Sakura, Yoru, Matcha, Sora, Tsundere) plus community themes made in the live editor at `/themes/new`. The theme you wear styles the site for you. Your profile shows the profile theme you picked (or the theme you wear, if you didn't pick one) to everyone who visits it, header and all. Themes can be public or private.
 - **Members** directory at `/members`.
 - **News** at `/news`: a Hacker News style board. Members post a link, some text, or both (`/news/submit`), give posts a heart (one per member; your own post starts with yours), and talk in threaded comments on each post's page. **Top** ranks like HN, hearts divided by (hours old + 2)^1.8; **New** is newest first.
 
-**Themes are shadcn theme variants**: every theme, built-in or member-made, is a full set of values for the shadcn tokens (`--background`, `--primary`, `--muted-foreground`, …, plus `--radius`), stored as `{ tokens, radius }`. The root route applies the viewer's variant to `<html>`, and profile pages apply the owner's. Stick to shadcn token classes (`bg-card`, `text-muted-foreground`, `bg-primary`, …) instead of fixed colors so every theme works. shadcn/ui components live in `apps/web/src/components/ui`, Animate UI ones in `apps/web/src/components/animate-ui`.
+**Themes are shadcn theme variants**: every theme, built-in or member-made, is a full set of values for the shadcn tokens (`--background`, `--primary`, `--muted-foreground`, …, plus `--radius`), stored as `{ tokens, radius }`. The root route applies the viewer's variant to `<html>`, except on profile pages, where it applies the owner's profile theme. Stick to shadcn token classes (`bg-card`, `text-muted-foreground`, `bg-primary`, …) instead of fixed colors so every theme works. shadcn/ui components live in `apps/web/src/components/ui`, Animate UI ones in `apps/web/src/components/animate-ui`.
 
 ## The API
 

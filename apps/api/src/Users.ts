@@ -36,10 +36,11 @@ export class Users extends Effect.Service<Users>()("Users", {
       .from(users)
       .pipe(Effect.map((rows) => rows[0]?.n ?? 0));
 
-    const update = (id: string, fields: Partial<ProfileUpdate & { themeId: string }>) =>
+    // Fields left undefined are not touched.
+    const update = (id: string, { skills, links, ...fields }: Partial<ProfileUpdate & { themeId: string }>) =>
       db
         .update(users)
-        .set(fields)
+        .set({ ...fields, skills: skills && [...skills], links: links && [...links] })
         .where(eq(users.id, id))
         .returning()
         .pipe(Effect.map((rows) => rows[0] as User));

@@ -32,7 +32,15 @@ const MeLive = HttpApiBuilder.group(Api, "me", (handlers) =>
     const themes = yield* Themes;
     return handlers
       .handle("get", () => CurrentUser)
-      .handle("update", ({ payload }) => CurrentUser.pipe(Effect.flatMap((me) => Effect.orDie(users.update(me.id, payload)))))
+      .handle("update", ({ payload }) =>
+        Effect.gen(function* () {
+          const me = yield* CurrentUser;
+          // A profile can be shown in any theme its owner could wear.
+          const themeId = payload.profileThemeId;
+          if (themeId && !(yield* Effect.orDie(themes.canWear(me.id, themeId)))) return yield* new HttpApiError.Forbidden();
+          return yield* Effect.orDie(users.update(me.id, payload));
+        }),
+      )
       .handle("wear", ({ payload }) =>
         Effect.gen(function* () {
           const me = yield* CurrentUser;
