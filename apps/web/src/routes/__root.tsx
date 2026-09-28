@@ -56,16 +56,20 @@ function RootLayout() {
       <Sparkles />
       <div className="relative z-10 flex min-h-screen flex-col">
         <header className="sticky top-0 z-40 border-b bg-card/75 backdrop-blur-md">
-          <nav className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
+          <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
             <Link to="/" className="group shrink-0 text-lg font-extrabold tracking-tight">
               <span className="heartbeat text-primary">♡</span> Waifu Devs
             </Link>
-            <div className="flex gap-4 text-sm font-bold text-muted-foreground">
+            {/* On phones the links drop to their own row so Sign in never gets pushed off screen. */}
+            <div className="order-last flex w-full gap-4 text-sm font-bold text-muted-foreground sm:order-none sm:w-auto">
               <Link to="/members" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
                 Members
               </Link>
               <Link to="/themes" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
                 Themes
+              </Link>
+              <Link to="/news" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
+                News
               </Link>
             </div>
             <div className="ml-auto flex items-center gap-3 text-sm">

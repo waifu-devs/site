@@ -2,12 +2,13 @@
  * Server functions: every read and write the pages do, as Effects against the API.
  * They run on the server only; the client calls them over RPC.
  */
-import { notFound, redirect } from "@tanstack/react-router";
+import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { NewTheme, ProfileUpdate, Theme, User } from "@waifu-devs/domain/api";
 import { BUILTIN_THEMES, DEFAULT_THEME, TOKENS } from "@waifu-devs/domain/themes";
 import { Effect, Option } from "effect";
 import { ApiClient } from "./Api.ts";
+import { asUser, formData, orNotFound, text, url } from "./helpers.ts";
 import { run } from "./runtime.ts";
 import { Session } from "./Session.ts";
 
@@ -26,16 +27,6 @@ const requireUser = (next: string) =>
     Effect.flatMap((session) => session.currentUser),
     Effect.flatMap(Option.match({ onNone: () => Effect.die(redirect({ to: "/login", search: { next } })), onSome: Effect.succeed })),
   );
-
-/** An API client acting as the signed-in user. */
-const asUser = Effect.gen(function* () {
-  const session = yield* Session;
-  const token = yield* session.accessToken;
-  if (Option.isNone(token)) return yield* Effect.die(redirect({ to: "/login" }));
-  return yield* (yield* ApiClient).as(token.value);
-});
-
-const orNotFound = <A, E, R>(effect: Effect.Effect<A, E, R>) => effect.pipe(Effect.catchAll(() => Effect.die(notFound())));
 
 // ---------------------------------------------------------------------------
 // Reads
@@ -116,30 +107,6 @@ export const getAccount = createServerFn({ method: "GET" })
 
 // ---------------------------------------------------------------------------
 // Writes (forms post FormData)
-
-const formData = (data: unknown) => {
-  if (!(data instanceof FormData)) throw new Error("Expected form data");
-  return data;
-};
-
-function text(form: FormData, key: string, max: number): string | null {
-  const value = form.get(key);
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim().slice(0, max);
-  return trimmed.length ? trimmed : null;
-}
-
-function url(form: FormData, key: string): string | null {
-  const value = text(form, key, 200);
-  if (!value) return null;
-  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
-  try {
-    const parsed = new URL(withScheme);
-    return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.toString() : null;
-  } catch {
-    return null;
-  }
-}
 
 export const updateProfile = createServerFn({ method: "POST" })
   .validator(formData)

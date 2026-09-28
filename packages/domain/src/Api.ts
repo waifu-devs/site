@@ -3,7 +3,7 @@
  * (which calls it through a typed HttpApiClient).
  */
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
-import { Context, Schema } from "effect";
+import { Context, type Option, Schema } from "effect";
 import { HEX, RADIUS_MAX, RADIUS_MIN, TOKENS } from "./themes.ts";
 
 // ---------------------------------------------------------------------------
@@ -67,6 +67,68 @@ export const ProfileUpdate = Schema.Struct({
 export type ProfileUpdate = typeof ProfileUpdate.Type;
 
 // ---------------------------------------------------------------------------
+// News: link and text posts, upvotes and threaded comments.
+
+/** The bits of a member shown next to what they wrote. */
+export const Byline = Schema.Struct({
+  username: Schema.String,
+  avatarUrl: Schema.NullOr(Schema.String),
+});
+export type Byline = typeof Byline.Type;
+
+export const Post = Schema.Struct({
+  id: Schema.UUID,
+  title: Schema.String,
+  url: Schema.NullOr(Schema.String),
+  body: Schema.NullOr(Schema.String),
+  author: Byline,
+  score: Schema.Number,
+  commentCount: Schema.Number,
+  createdAt: Schema.Date,
+  /** Whether the member asking has upvoted it (always false when signed out). */
+  voted: Schema.Boolean,
+});
+export type Post = typeof Post.Type;
+
+export const Comment = Schema.Struct({
+  id: Schema.UUID,
+  parentId: Schema.NullOr(Schema.UUID),
+  body: Schema.String,
+  author: Byline,
+  createdAt: Schema.Date,
+});
+export type Comment = typeof Comment.Type;
+
+export const POST_TITLE_MAX = 120;
+export const POST_URL_MAX = 2000;
+export const POST_BODY_MAX = 10_000;
+export const COMMENT_MAX = 5_000;
+
+/** A title, plus a link, some text, or both (like "Ask HN" posts, text alone is fine). */
+export const NewPost = Schema.Struct({
+  title: Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(POST_TITLE_MAX)),
+  url: Schema.NullOr(Schema.String.pipe(Schema.maxLength(POST_URL_MAX), Schema.pattern(/^https?:\/\/\S+$/))),
+  body: Schema.NullOr(Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(POST_BODY_MAX))),
+});
+export type NewPost = typeof NewPost.Type;
+
+export const NewComment = Schema.Struct({
+  body: Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(COMMENT_MAX)),
+  /** The comment being replied to; null for a top-level comment. */
+  parentId: Schema.NullOr(Schema.UUID),
+});
+export type NewComment = typeof NewComment.Type;
+
+export const PostSort = Schema.Literal("top", "new");
+export type PostSort = typeof PostSort.Type;
+
+export const PostPage = Schema.Struct({ posts: Schema.Array(Post), hasMore: Schema.Boolean });
+export type PostPage = typeof PostPage.Type;
+
+export const VoteResult = Schema.Struct({ score: Schema.Number, voted: Schema.Boolean });
+export type VoteResult = typeof VoteResult.Type;
+
+// ---------------------------------------------------------------------------
 // Authentication: an OpenAuth access token, sent as a bearer token.
 
 export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, User>() {}
@@ -74,6 +136,14 @@ export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, User>()
 export class Authentication extends HttpApiMiddleware.Tag<Authentication>()("Authentication", {
   failure: HttpApiError.Unauthorized,
   provides: CurrentUser,
+  security: { bearer: HttpApiSecurity.bearer },
+}) {}
+
+/** Who is asking, on endpoints anyone may call: None when signed out or the token is bad. */
+export class Viewer extends Context.Tag("Viewer")<Viewer, Option.Option<User>>() {}
+
+export class OptionalAuthentication extends HttpApiMiddleware.Tag<OptionalAuthentication>()("OptionalAuthentication", {
+  provides: Viewer,
   security: { bearer: HttpApiSecurity.bearer },
 }) {}
 
@@ -116,8 +186,57 @@ export class ThemesApi extends HttpApiGroup.make("themes")
   .add(HttpApiEndpoint.post("create", "/themes").setPayload(NewTheme).addSuccess(Theme).middleware(Authentication))
   .add(HttpApiEndpoint.del("delete", "/themes/:id").setPath(ThemeId).addError(HttpApiError.NotFound).middleware(Authentication)) {}
 
+const PostId = Schema.Struct({ id: Schema.UUID });
+
+export class PostsApi extends HttpApiGroup.make("posts")
+  .add(
+    HttpApiEndpoint.get("list", "/posts")
+      .setUrlParams(
+        Schema.Struct({
+          sort: Schema.optional(PostSort),
+          page: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 100))),
+        }),
+      )
+      .addSuccess(PostPage)
+      .middleware(OptionalAuthentication),
+  )
+  .add(
+    HttpApiEndpoint.get("get", "/posts/:id")
+      .setPath(PostId)
+      .addSuccess(Schema.Struct({ post: Post, comments: Schema.Array(Comment) }))
+      .addError(HttpApiError.NotFound)
+      .middleware(OptionalAuthentication),
+  )
+  .add(HttpApiEndpoint.post("create", "/posts").setPayload(NewPost).addSuccess(Post).middleware(Authentication))
+  .add(HttpApiEndpoint.del("delete", "/posts/:id").setPath(PostId).addError(HttpApiError.NotFound).middleware(Authentication))
+  // Voting on your own post is refused: it already carries your vote.
+  .add(
+    HttpApiEndpoint.put("upvote", "/posts/:id/vote")
+      .setPath(PostId)
+      .addSuccess(VoteResult)
+      .addError(HttpApiError.NotFound)
+      .addError(HttpApiError.Forbidden)
+      .middleware(Authentication),
+  )
+  .add(
+    HttpApiEndpoint.del("unvote", "/posts/:id/vote")
+      .setPath(PostId)
+      .addSuccess(VoteResult)
+      .addError(HttpApiError.NotFound)
+      .addError(HttpApiError.Forbidden)
+      .middleware(Authentication),
+  )
+  .add(
+    HttpApiEndpoint.post("comment", "/posts/:id/comments")
+      .setPath(PostId)
+      .setPayload(NewComment)
+      .addSuccess(Comment)
+      .addError(HttpApiError.NotFound)
+      .middleware(Authentication),
+  ) {}
+
 export class SessionApi extends HttpApiGroup.make("session")
   // Signing out: the refresh token itself is the credential, so no bearer token is needed.
   .add(HttpApiEndpoint.post("revoke", "/session/revoke").setPayload(Schema.Struct({ refreshToken: Schema.String }))) {}
 
-export class Api extends HttpApi.make("waifu-devs").add(UsersApi).add(MeApi).add(ThemesApi).add(SessionApi) {}
+export class Api extends HttpApi.make("waifu-devs").add(UsersApi).add(MeApi).add(ThemesApi).add(PostsApi).add(SessionApi) {}
