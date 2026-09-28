@@ -20,19 +20,24 @@ export class Users extends Effect.Service<Users>()("Users", {
     // This API's public URL, where uploaded pictures are served (see Media.ts).
     const media = yield* mediaUrl;
 
-    /** A row as the API shows it: uploaded pictures win over the GitHub avatar. */
-    const toUser = (row: Row): User => ({
+    /**
+     * A row as the API shows it: uploaded pictures win over the GitHub avatar,
+     * and a country nobody chose to show is only in the member's own copy.
+     */
+    const toUser = (row: Row, self: boolean): User => ({
       ...row,
       avatarUrl: row.avatarKey ? media(row.avatarKey) : row.avatarUrl,
       customAvatar: row.avatarKey !== null,
       bannerUrl: row.bannerKey ? media(row.bannerKey) : null,
+      country: self || row.showCountry ? row.country : null,
     });
 
-    const first = (rows: ReadonlyArray<Row>) => Option.fromNullable(rows[0]).pipe(Option.map(toUser));
+    const first = (rows: ReadonlyArray<Row>, self: boolean) => Option.fromNullable(rows[0]).pipe(Option.map((row) => toUser(row, self)));
 
+    /** By id: the member themselves, so their own hidden fields come back. */
     const byId = (id: string) =>
       isUuid(id)
-        ? db.select().from(users).where(eq(users.id, id)).pipe(Effect.map(first))
+        ? db.select().from(users).where(eq(users.id, id)).pipe(Effect.map((rows) => first(rows, true)))
         : Effect.succeed(Option.none());
 
     const byUsername = (username: string) =>
@@ -40,7 +45,7 @@ export class Users extends Effect.Service<Users>()("Users", {
         .select()
         .from(users)
         .where(sql`lower(${users.username}) = lower(${username})`)
-        .pipe(Effect.map(first));
+        .pipe(Effect.map((rows) => first(rows, false)));
 
     const list = (limit: number) =>
       db
@@ -48,7 +53,7 @@ export class Users extends Effect.Service<Users>()("Users", {
         .from(users)
         .orderBy(desc(users.createdAt))
         .limit(limit)
-        .pipe(Effect.map((rows) => rows.map(toUser)));
+        .pipe(Effect.map((rows) => rows.map((row) => toUser(row, false))));
 
     const countAll = db
       .select({ n: count() })
@@ -62,7 +67,7 @@ export class Users extends Effect.Service<Users>()("Users", {
         .set({ ...fields, skills: skills && [...skills], links: links && [...links] })
         .where(eq(users.id, id))
         .returning()
-        .pipe(Effect.map((rows) => toUser(rows[0])));
+        .pipe(Effect.map((rows) => toUser(rows[0], true)));
 
     /** Points a member's avatar or banner at a stored picture (or none); returns the key it replaced. */
     const setImage = (id: string, kind: ImageKind, key: string | null) =>
@@ -75,7 +80,7 @@ export class Users extends Effect.Service<Users>()("Users", {
             .set(kind === "avatar" ? { avatarKey: key } : { bannerKey: key })
             .where(eq(users.id, id))
             .returning();
-          return { user: toUser(row), previous: before?.key ?? null };
+          return { user: toUser(row, true), previous: before?.key ?? null };
         }),
       );
 

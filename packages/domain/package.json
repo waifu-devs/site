@@ -6,7 +6,8 @@
   "exports": {
     "./themes": "./src/themes.ts",
     "./profile": "./src/profile.ts",
-    "./api": "./src/Api.ts"
+    "./api": "./src/Api.ts",
+    "./countries": "./src/countries.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

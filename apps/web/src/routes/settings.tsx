@@ -10,9 +10,11 @@ import { ImageDrop, type ImageUpload, useImageUpload } from "@/components/ImageU
 import { Markdown } from "@/components/Markdown";
 import { ProfileBanner } from "@/components/ProfileBanner";
 import { ProfileCard, type ProfileView } from "@/components/ProfileCard";
-import { LinksInput, PickerOption, SkillsInput, TextField } from "@/components/ProfileFields";
+import { CountryPicker, LinksInput, PickerOption, SkillsInput, TextField } from "@/components/ProfileFields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { title } from "@/lib/head";
 import { getProfileEditor, updateProfile } from "@/server/functions";
 
@@ -26,6 +28,9 @@ type Draft = {
   displayName: string;
   pronouns: string;
   location: string;
+  /** An ISO 3166-1 alpha-2 code, or null for no country. */
+  country: string | null;
+  showCountry: boolean;
   status: string;
   bio: string;
   favoriteWaifu: string;
@@ -41,6 +46,8 @@ const draftOf = (user: User): Draft => ({
   displayName: user.displayName ?? "",
   pronouns: user.pronouns ?? "",
   location: user.location ?? "",
+  country: user.country,
+  showCountry: user.showCountry,
   status: user.status ?? "",
   bio: user.bio ?? "",
   favoriteWaifu: user.favoriteWaifu ?? "",
@@ -82,6 +89,7 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
     displayName: orNull(draft.displayName),
     pronouns: orNull(draft.pronouns),
     location: orNull(draft.location),
+    country: draft.showCountry ? draft.country : null,
     status: orNull(draft.status),
     favoriteWaifu: orNull(draft.favoriteWaifu),
     website: previewUrl(draft.website),
@@ -193,6 +201,26 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
               <div className="grid gap-5 sm:grid-cols-2">
                 <TextField id="pronouns" label="Pronouns" max={30} value={draft.pronouns} onChange={set("pronouns")} />
                 <TextField id="location" label="Location" max={60} value={draft.location} onChange={set("location")} placeholder="Tokyo, or the cloud" />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
+                {/* Picking a country shows it; the switch is how you keep it private. */}
+                <CountryPicker
+                  value={draft.country}
+                  onChange={(country) => setDraft((d) => ({ ...d, country, showCountry: country ? (d.country ? d.showCountry : true) : false }))}
+                />
+                <label className="flex items-center justify-between gap-4 rounded-xl border p-3 sm:mt-8">
+                  <span className="grid gap-0.5">
+                    <Label htmlFor="show_country">Show my country</Label>
+                    <span className="text-xs text-muted-foreground">Off keeps it to yourself.</span>
+                  </span>
+                  <Switch
+                    id="show_country"
+                    name="show_country"
+                    checked={draft.showCountry}
+                    disabled={!draft.country}
+                    onCheckedChange={set("showCountry")}
+                  />
+                </label>
               </div>
               <TextField id="favorite_waifu" label="Favorite waifu" max={80} value={draft.favoriteWaifu} onChange={set("favoriteWaifu")} placeholder="Best girl goes here" />
               <TextField id="bio" label="Bio" max={500} rows={5} value={draft.bio} onChange={set("bio")} />

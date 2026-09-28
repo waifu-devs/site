@@ -4,6 +4,7 @@
  */
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, HttpApiSecurity } from "@effect/platform";
 import { Context, type Option, Schema } from "effect";
+import { isCountryCode } from "./countries.ts";
 import { BANNERS, DEFAULT_BANNER, IMAGE_KINDS, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "./profile.ts";
 import { HEX, RADIUS_MAX, RADIUS_MIN, TOKENS } from "./themes.ts";
 
@@ -66,6 +67,9 @@ export const User = Schema.Struct({
   banner: Schema.optionalWith(Banner, { default: () => DEFAULT_BANNER }),
   status: nullByDefault,
   location: nullByDefault,
+  /** The member's country as an ISO 3166-1 alpha-2 code. Null unless they show it. */
+  country: nullByDefault,
+  showCountry: Schema.optionalWith(Schema.Boolean, { default: () => false }),
   skills: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] }),
   links: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] }),
   /** True when avatarUrl is an uploaded picture rather than the GitHub avatar. */
@@ -86,6 +90,7 @@ export class ImageRejected extends Schema.TaggedError<ImageRejected>()(
 ) {}
 
 const optionalText = (max: number) => Schema.NullOr(Schema.Trim.pipe(Schema.maxLength(max)));
+const CountryCode = Schema.String.pipe(Schema.filter(isCountryCode, { description: "an ISO 3166-1 alpha-2 country code" }));
 const Url = Schema.String.pipe(Schema.maxLength(MAX_LINK_LENGTH), Schema.pattern(/^https?:\/\/\S+$/));
 
 export const ProfileUpdate = Schema.Struct({
@@ -97,6 +102,8 @@ export const ProfileUpdate = Schema.Struct({
   // Optional so older clients can still save the fields above; a missing field is left as it is.
   status: Schema.optional(optionalText(80)),
   location: Schema.optional(optionalText(60)),
+  country: Schema.optional(Schema.NullOr(CountryCode)),
+  showCountry: Schema.optional(Schema.Boolean),
   skills: Schema.optional(
     Schema.Array(Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(MAX_SKILL_LENGTH))).pipe(Schema.maxItems(MAX_SKILLS)),
   ),

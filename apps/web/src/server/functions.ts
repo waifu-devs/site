@@ -17,6 +17,7 @@ import {
   MAX_SKILL_LENGTH,
   MAX_SKILLS,
 } from "@waifu-devs/domain/profile";
+import { isCountryCode } from "@waifu-devs/domain/countries";
 import { BUILTIN_THEMES, DEFAULT_THEME, TOKENS } from "@waifu-devs/domain/themes";
 import { Effect, Option } from "effect";
 import { ApiClient } from "./Api.ts";
@@ -186,6 +187,8 @@ export const updateProfile = createServerFn({ method: "POST" })
           favoriteWaifu: text(form, "favorite_waifu", 80),
           status: text(form, "status", 80),
           location: text(form, "location", 60),
+          country: isCountryCode(form.get("country")) ? (form.get("country") as string) : null,
+          showCountry: form.get("show_country") === "on",
           skills: list(form, "skill", MAX_SKILLS, (skill) => skill.slice(0, MAX_SKILL_LENGTH) || null),
           links: list(form, "link", MAX_LINKS, toUrl),
           banner: BANNERS.includes(banner as Banner) ? (banner as Banner) : DEFAULT_BANNER,
