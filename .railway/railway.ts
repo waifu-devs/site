@@ -5,14 +5,22 @@ import { defineRailway, github, postgres, project, service } from "railway/iac";
  * OpenAuth issuer) and the TanStack Start site. Pull requests that touch .railway/ get
  * a plan comment; merging applies it (.github/workflows/railway-config.yml).
  *
- * Set once by hand, not here:
- * - Shared variables GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET (the GitHub OAuth app).
- * - A generated Railway domain for `api` and for `web` (IaC doesn't manage those).
- *   The URLs below resolve from them.
+ * Set once by hand, not here: the shared variables GITHUB_CLIENT_ID and
+ * GITHUB_CLIENT_SECRET (the GitHub OAuth app, whose callback is API_URL + /github/callback).
+ * The DNS records for the domains live with the waifu.dev registrar.
  */
+
+/** Railway's US East (Virginia) region. Everything runs here, next to the database. */
+const REGION = "us-east4-eqdc4a";
+
+const API_DOMAIN = "api.waifu.dev";
+const WEB_DOMAIN = "www.waifu.dev";
+const API_URL = `https://${API_DOMAIN}`;
+const WEB_URL = `https://${WEB_DOMAIN}`;
+
 export default defineRailway((ctx) => {
   const repo = github("waifu-devs/site", { branch: "main" });
-  const db = postgres("postgres");
+  const db = postgres("postgres", { region: REGION });
 
   const api = service("api", {
     source: repo,
@@ -24,14 +32,16 @@ export default defineRailway((ctx) => {
     preDeploy: "pnpm --filter @waifu-devs/api db:migrate",
     start: "node apps/api/dist/main.js",
     healthcheck: "/health",
+    regions: { [REGION]: 1 },
+    domains: [{ domain: API_DOMAIN, port: 4000 }],
     env: {
       NODE_ENV: "production",
       PORT: "4000",
       DATABASE_URL: db.env.DATABASE_URL,
       // The API is the OpenAuth issuer; tokens carry this URL as `iss`.
-      ISSUER_URL: "https://${{RAILWAY_PUBLIC_DOMAIN}}",
+      ISSUER_URL: API_URL,
       // Only this site may use the issuer's redirects.
-      WEB_URL: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
+      WEB_URL,
       GITHUB_CLIENT_ID: ctx.shared.GITHUB_CLIENT_ID,
       GITHUB_CLIENT_SECRET: ctx.shared.GITHUB_CLIENT_SECRET,
     },
@@ -46,12 +56,14 @@ export default defineRailway((ctx) => {
     },
     start: "node apps/web/.output/server/index.mjs",
     healthcheck: "/api/health",
+    regions: { [REGION]: 1 },
+    domains: [{ domain: WEB_DOMAIN, port: 3000 }],
     env: {
       NODE_ENV: "production",
       PORT: "3000",
-      WEB_URL: "https://${{RAILWAY_PUBLIC_DOMAIN}}",
+      WEB_URL,
       // The browser goes to the API's public URL to sign in...
-      API_URL: "https://${{api.RAILWAY_PUBLIC_DOMAIN}}",
+      API_URL,
       // ...while the web server calls it over the private network.
       API_INTERNAL_URL: "http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}",
     },

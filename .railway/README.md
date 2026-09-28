@@ -1,6 +1,7 @@
 # Railway infrastructure
 
-`railway.ts` describes the whole Railway project (Postgres, `api`, `web`) with
+`railway.ts` describes the whole Railway project (Postgres, `api`, `web`, their
+region and their custom domains) with
 [Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code).
 It's the single source of truth: a resource or variable removed from the file is
 removed from Railway on the next apply.
@@ -29,4 +30,4 @@ railway config apply   # apply
 ## Not managed here
 
 - The `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` shared variables (secrets stay in Railway).
-- Generated `*.up.railway.app` domains for `api` and `web`.
+- The DNS records for `api.waifu.dev` and `www.waifu.dev` (they're at the registrar).
