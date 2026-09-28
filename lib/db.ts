@@ -1,9 +1,11 @@
 import { env } from "cloudflare:workers";
+import postgres from "postgres";
+import { cache } from "react";
 import { BUILTIN_THEMES, DEFAULT_THEME, parseColors, type Theme } from "./themes";
 
 export type User = {
   id: string;
-  github_id: number;
+  github_id: string;
   username: string;
   display_name: string | null;
   avatar_url: string | null;
@@ -12,8 +14,8 @@ export type User = {
   website: string | null;
   favorite_waifu: string | null;
   theme_id: string;
-  created_at: number;
-  updated_at: number;
+  created_at: Date;
+  updated_at: Date;
 };
 
 type ThemeRow = {
@@ -22,33 +24,35 @@ type ThemeRow = {
   owner_username: string;
   name: string;
   description: string | null;
-  colors: string;
-  is_public: number;
-  created_at: number;
+  colors: unknown;
+  is_public: boolean;
+  created_at: Date;
 };
 
-export function db(): D1Database {
-  return env.DB;
-}
-
-export function newId(): string {
-  return crypto.randomUUID();
-}
+/**
+ * One Postgres client per request, over Hyperdrive. Workers can't share
+ * sockets between requests, and Hyperdrive keeps the real connections to
+ * PlanetScale warm, so a fresh client per request is cheap.
+ */
+export const db = cache(() =>
+  postgres(env.HYPERDRIVE.connectionString, {
+    max: 5,
+    // Skips a round trip on connect; we don't use custom array types.
+    fetch_types: false,
+  }),
+);
 
 export async function getUserByUsername(username: string): Promise<User | null> {
-  return db().prepare("SELECT * FROM users WHERE username = ?").bind(username).first<User>();
+  const [user] = await db()<User[]>`SELECT * FROM users WHERE lower(username) = lower(${username})`;
+  return user ?? null;
 }
 
 export async function listMembers(limit = 60): Promise<User[]> {
-  const { results } = await db()
-    .prepare("SELECT * FROM users ORDER BY created_at DESC LIMIT ?")
-    .bind(limit)
-    .all<User>();
-  return results;
+  return db()<User[]>`SELECT * FROM users ORDER BY created_at DESC LIMIT ${limit}`;
 }
 
 export async function countMembers(): Promise<number> {
-  const row = await db().prepare("SELECT COUNT(*) AS n FROM users").first<{ n: number }>();
+  const [row] = await db()<{ n: number }[]>`SELECT count(*)::int AS n FROM users`;
   return row?.n ?? 0;
 }
 
@@ -59,34 +63,20 @@ export async function upsertGithubUser(gh: {
   name: string | null;
   avatar_url: string;
 }): Promise<User> {
-  // GitHub logins can be renamed and later reclaimed by someone else. Free the
-  // login from any stale account so the UNIQUE constraint doesn't block sign-in.
-  await db()
-    .prepare("UPDATE users SET username = username || '-' || github_id WHERE username = ? AND github_id != ?")
-    .bind(gh.login, gh.id)
-    .run();
-
-  const existing = await db()
-    .prepare("SELECT * FROM users WHERE github_id = ?")
-    .bind(gh.id)
-    .first<User>();
-
-  if (existing) {
-    await db()
-      .prepare("UPDATE users SET username = ?, avatar_url = ?, updated_at = unixepoch() WHERE id = ?")
-      .bind(gh.login, gh.avatar_url, existing.id)
-      .run();
-    return { ...existing, username: gh.login, avatar_url: gh.avatar_url };
-  }
-
-  const id = newId();
-  await db()
-    .prepare(
-      "INSERT INTO users (id, github_id, username, display_name, avatar_url) VALUES (?, ?, ?, ?, ?)",
-    )
-    .bind(id, gh.id, gh.login, gh.name, gh.avatar_url)
-    .run();
-  return (await db().prepare("SELECT * FROM users WHERE id = ?").bind(id).first<User>())!;
+  return db().begin(async (sql) => {
+    // GitHub logins can be renamed and later reclaimed by someone else. Free the
+    // login from any stale account so the unique index doesn't block sign-in.
+    await sql`
+      UPDATE users SET username = username || '-' || github_id
+      WHERE lower(username) = lower(${gh.login}) AND github_id <> ${gh.id}`;
+    const [user] = await sql<User[]>`
+      INSERT INTO users (github_id, username, display_name, avatar_url)
+      VALUES (${gh.id}, ${gh.login}, ${gh.name}, ${gh.avatar_url})
+      ON CONFLICT (github_id) DO UPDATE
+        SET username = excluded.username, avatar_url = excluded.avatar_url, updated_at = now()
+      RETURNING *`;
+    return user;
+  });
 }
 
 function rowToTheme(row: ThemeRow): Theme {
@@ -94,46 +84,49 @@ function rowToTheme(row: ThemeRow): Theme {
     id: row.id,
     name: row.name,
     description: row.description,
-    colors: parseColors(JSON.parse(row.colors)) ?? DEFAULT_THEME.colors,
+    colors: parseColors(row.colors) ?? DEFAULT_THEME.colors,
     builtin: false,
-    isPublic: row.is_public === 1,
+    isPublic: row.is_public,
     ownerUsername: row.owner_username,
   };
 }
 
-const THEME_SELECT =
-  "SELECT themes.*, users.username AS owner_username FROM themes JOIN users ON users.id = themes.owner_id";
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function getTheme(id: string | null | undefined): Promise<Theme> {
   if (!id) return DEFAULT_THEME;
   const builtin = BUILTIN_THEMES.find((t) => t.id === id);
   if (builtin) return builtin;
-  const row = await db().prepare(`${THEME_SELECT} WHERE themes.id = ?`).bind(id).first<ThemeRow>();
+  if (!UUID.test(id)) return DEFAULT_THEME;
+  const [row] = await db()<ThemeRow[]>`
+    SELECT themes.*, users.username AS owner_username
+    FROM themes JOIN users ON users.id = themes.owner_id
+    WHERE themes.id = ${id}`;
   return row ? rowToTheme(row) : DEFAULT_THEME;
 }
 
 export async function listCommunityThemes(limit = 48): Promise<Theme[]> {
-  const { results } = await db()
-    .prepare(`${THEME_SELECT} WHERE themes.is_public = 1 ORDER BY themes.created_at DESC LIMIT ?`)
-    .bind(limit)
-    .all<ThemeRow>();
-  return results.map(rowToTheme);
+  const rows = await db()<ThemeRow[]>`
+    SELECT themes.*, users.username AS owner_username
+    FROM themes JOIN users ON users.id = themes.owner_id
+    WHERE themes.is_public
+    ORDER BY themes.created_at DESC LIMIT ${limit}`;
+  return rows.map(rowToTheme);
 }
 
 export async function listThemesByOwner(ownerId: string): Promise<Theme[]> {
-  const { results } = await db()
-    .prepare(`${THEME_SELECT} WHERE themes.owner_id = ? ORDER BY themes.created_at DESC`)
-    .bind(ownerId)
-    .all<ThemeRow>();
-  return results.map(rowToTheme);
+  const rows = await db()<ThemeRow[]>`
+    SELECT themes.*, users.username AS owner_username
+    FROM themes JOIN users ON users.id = themes.owner_id
+    WHERE themes.owner_id = ${ownerId}
+    ORDER BY themes.created_at DESC`;
+  return rows.map(rowToTheme);
 }
 
 /** A user may wear any built-in theme, any public theme, or their own private ones. */
 export async function canUseTheme(userId: string, themeId: string): Promise<boolean> {
   if (BUILTIN_THEMES.some((t) => t.id === themeId)) return true;
-  const row = await db()
-    .prepare("SELECT 1 FROM themes WHERE id = ? AND (is_public = 1 OR owner_id = ?)")
-    .bind(themeId, userId)
-    .first();
-  return row !== null;
+  if (!UUID.test(themeId)) return false;
+  const rows = await db()`SELECT 1 FROM themes WHERE id = ${themeId} AND (is_public OR owner_id = ${userId})`;
+  return rows.length > 0;
 }

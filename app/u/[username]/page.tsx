@@ -24,7 +24,7 @@ export default async function ProfilePage({ params }: Props) {
   const [viewer, theme, themes] = await Promise.all([currentUser(), getTheme(user.theme_id), listThemesByOwner(user.id)]);
   const isMe = viewer?.id === user.id;
   const visibleThemes = isMe ? themes : themes.filter((t) => t.isPublic);
-  const joined = new Date(user.created_at * 1000).toLocaleDateString("en", { month: "long", year: "numeric" });
+  const joined = new Date(user.created_at).toLocaleDateString("en", { month: "long", year: "numeric" });
 
   // The profile is always shown in its owner's theme, whatever the visitor is wearing.
   return (

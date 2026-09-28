@@ -2,7 +2,7 @@
 
 The community site for Waifu Devs: GitHub sign-in, member profiles, and custom themes that restyle the whole site.
 
-Built with [vinext](https://github.com/cloudflare/vinext) (the Next.js App Router API on Vite) and deployed to Cloudflare Workers, with Cloudflare D1 for data.
+Built with [vinext](https://github.com/cloudflare/vinext) (the Next.js App Router API on Vite) and deployed to Cloudflare Workers, with PlanetScale Postgres for data (reached through Cloudflare Hyperdrive using [postgres.js](https://github.com/porsager/postgres)).
 
 ## What's here
 
@@ -17,39 +17,43 @@ Built with [vinext](https://github.com/cloudflare/vinext) (the Next.js App Route
 | --- | --- |
 | `app/` | Pages, layout, and the GitHub OAuth route handlers (`app/api/auth/*`) |
 | `components/` | Shared UI, including the client-side `ThemeEditor` |
-| `lib/db.ts` | D1 queries |
-| `lib/session.ts` | Cookie sessions (tokens are stored hashed in D1) |
+| `lib/db.ts` | Postgres queries (one postgres.js client per request, over Hyperdrive) |
+| `lib/session.ts` | Cookie sessions (tokens are stored hashed in Postgres) |
 | `lib/actions.ts` | Server actions: edit profile, create/wear/delete themes, sign out |
 | `lib/themes.ts` | Theme palette shape, built-in themes, validation |
-| `migrations/` | D1 schema migrations |
-| `cloudflare.config.ts` | Worker config and bindings (`DB`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`) |
+| `migrations/` | Postgres schema migrations, applied by `pnpm db:migrate` |
+| `cloudflare.config.ts` | Worker config and bindings (`HYPERDRIVE`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`) |
 
 A theme is seven colors exposed as CSS variables (`--theme-bg`, `--theme-accent`, …) and mapped to Tailwind colors (`bg-bg`, `bg-surface`, `text-ink`, `text-muted`, `bg-accent`, `text-on-accent`, `border-line`) in `app/globals.css`. Use those classes instead of fixed colors so every theme works.
 
 ## Local development
 
+You need a Postgres database: a local one (`postgres://postgres:postgres@localhost:5432/waifu`), or a PlanetScale development branch.
+
 1. Create a GitHub OAuth app for development at <https://github.com/settings/developers> with
    - Homepage URL: `http://localhost:5173`
    - Authorization callback URL: `http://localhost:5173/api/auth/callback`
 2. `cp .dev.vars.example .dev.vars` and fill in its client ID and secret.
-3. Install and run:
+3. Install, migrate and run:
 
    ```sh
    pnpm install
+   export DATABASE_URL=postgres://postgres:postgres@localhost:5432/waifu
+   pnpm db:migrate
    pnpm dev                 # http://localhost:5173
-   pnpm db:migrate:local    # in another terminal, while dev is running
    ```
 
-`pnpm typecheck` generates Worker types and runs `tsc`.
+In dev, the `HYPERDRIVE` binding connects straight to `DATABASE_URL` (see `cloudflare.config.ts`). `pnpm typecheck` generates Worker types and runs `tsc`.
 
 ## Deploying to Cloudflare
 
 One-time setup:
 
 1. Log in: `pnpm exec cf auth login` (or set `CLOUDFLARE_API_TOKEN`), and set `CLOUDFLARE_ACCOUNT_ID` or `accountId` in `cloudflare.config.ts`.
-2. Create the database: `pnpm exec cf d1 create --name waifu-devs-site`, then put the returned `id` on the `DB` binding in `cloudflare.config.ts`.
-3. Apply migrations: `D1_DATABASE_ID=<id> pnpm db:migrate:remote`.
-4. Create a production GitHub OAuth app with callback URL `https://<your-domain>/api/auth/callback`.
-5. Deploy once with `pnpm deploy`, then add the secrets `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the `waifu-devs-site` Worker (Dashboard → Workers & Pages → waifu-devs-site → Settings → Variables and Secrets).
+2. In PlanetScale, create the Postgres database and a role for the app, and copy its connection string.
+3. Create the schema: `DATABASE_URL=<planetscale connection string> pnpm db:migrate`.
+4. Create a Hyperdrive config pointing at PlanetScale, in the dashboard (Workers & Pages → Hyperdrive → Create) or with `cf hyperdrive create`. The connection string lives inside Hyperdrive, so the Worker never holds the database password. Copy the Hyperdrive id.
+5. Create a production GitHub OAuth app with callback URL `https://<your-domain>/api/auth/callback`.
+6. Deploy once with `HYPERDRIVE_ID=<id> pnpm deploy`, then add the secrets `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the `waifu-devs-site` Worker (Dashboard → Workers & Pages → waifu-devs-site → Settings → Variables and Secrets). You can also hardcode the Hyperdrive id in `cloudflare.config.ts` instead of passing `HYPERDRIVE_ID`, since it isn't secret.
 
-After that, `pnpm deploy` builds and ships. New schema changes go in a new `migrations/000N_*.sql` file and are applied with `pnpm db:migrate:remote` before deploying code that needs them.
+After that, `HYPERDRIVE_ID=<id> pnpm deploy` builds and ships. Schema changes go in a new `migrations/000N_*.sql` file and are applied with `pnpm db:migrate` before deploying code that needs them.

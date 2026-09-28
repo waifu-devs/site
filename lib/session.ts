@@ -18,27 +18,25 @@ export function randomToken(bytes = 32): string {
 /** Creates a session row and returns the raw token to put in the cookie. */
 export async function createSession(userId: string): Promise<{ token: string; maxAge: number }> {
   const token = randomToken();
-  await db()
-    .prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, unixepoch() + ?)")
-    .bind(await sha256(token), userId, SESSION_TTL_SECONDS)
-    .run();
+  const sql = db();
+  await sql`
+    INSERT INTO sessions (id, user_id, expires_at)
+    VALUES (${await sha256(token)}, ${userId}, now() + make_interval(secs => ${SESSION_TTL_SECONDS}))`;
   // Opportunistic cleanup so the table doesn't grow forever.
-  await db().prepare("DELETE FROM sessions WHERE expires_at < unixepoch()").run();
+  await sql`DELETE FROM sessions WHERE expires_at < now()`;
   return { token, maxAge: SESSION_TTL_SECONDS };
 }
 
 export async function deleteSession(token: string): Promise<void> {
-  await db().prepare("DELETE FROM sessions WHERE id = ?").bind(await sha256(token)).run();
+  await db()`DELETE FROM sessions WHERE id = ${await sha256(token)}`;
 }
 
 export async function getUserFromToken(token: string | undefined): Promise<User | null> {
   if (!token) return null;
-  return db()
-    .prepare(
-      "SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.id = ? AND sessions.expires_at > unixepoch()",
-    )
-    .bind(await sha256(token))
-    .first<User>();
+  const [user] = await db()<User[]>`
+    SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id
+    WHERE sessions.id = ${await sha256(token)} AND sessions.expires_at > now()`;
+  return user ?? null;
 }
 
 /** The signed-in user for the current request, or null. */

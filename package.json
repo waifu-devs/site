@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
     "@vinext/cloudflare": "^1.0.0",
+    "postgres": "^3.4.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-server-dom-webpack": "^19.3.0",
@@ -30,7 +31,6 @@
     "start": "vite preview",
     "deploy": "vinext-cloudflare deploy",
     "typecheck": "cf workers types && tsc --noEmit",
-    "db:migrate:local": "node scripts/migrate-local.mjs",
-    "db:migrate:remote": "cf d1 migrations apply $D1_DATABASE_ID"
+    "db:migrate": "node scripts/migrate.mjs"
   }
 }
