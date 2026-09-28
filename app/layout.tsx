@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
+import { Sparkles } from "@/components/motion";
 import { Petals } from "@/components/Petals";
 import { signOut } from "@/lib/actions";
 import { getTheme } from "@/lib/db";
@@ -32,30 +33,31 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen">
         <Petals />
+        <Sparkles />
         <div className="relative z-10 flex min-h-screen flex-col">
-          <header className="border-b border-line bg-surface/80 backdrop-blur">
+          <header className="sticky top-0 z-40 border-b border-line bg-surface/75 backdrop-blur-md">
             <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-              <Link href="/" className="text-lg font-extrabold tracking-tight">
-                <span className="text-accent">♡</span> Waifu Devs
+              <Link href="/" className="group text-lg font-extrabold tracking-tight">
+                <span className="heartbeat text-accent group-hover:scale-125">♡</span> Waifu Devs
               </Link>
               <div className="flex gap-4 text-sm font-bold text-muted">
-                <Link href="/members" className="hover:text-accent">Members</Link>
-                <Link href="/themes" className="hover:text-accent">Themes</Link>
+                <Link href="/members" className="nav-link hover:text-accent">Members</Link>
+                <Link href="/themes" className="nav-link hover:text-accent">Themes</Link>
               </div>
               <div className="ml-auto flex items-center gap-3 text-sm">
                 {user ? (
                   <>
-                    <Link href={`/u/${user.username}`} className="flex items-center gap-2 font-bold hover:text-accent">
+                    <Link href={`/u/${user.username}`} className="wiggle-hover flex items-center gap-2 font-bold hover:text-accent">
                       <Avatar src={user.avatar_url} name={user.username} size={28} />
                       <span className="hidden sm:inline">{user.display_name ?? user.username}</span>
                     </Link>
-                    <Link href="/settings" className="text-muted hover:text-accent">Settings</Link>
+                    <Link href="/settings" className="nav-link text-muted hover:text-accent">Settings</Link>
                     <form action={signOut}>
-                      <button className="cursor-pointer text-muted hover:text-accent" type="submit">Sign out</button>
+                      <button className="nav-link cursor-pointer text-muted hover:text-accent" type="submit">Sign out</button>
                     </form>
                   </>
                 ) : (
-                  <Link href="/login" className="rounded-full bg-accent px-4 py-1.5 font-bold text-on-accent hover:opacity-90">
+                  <Link href="/login" className="btn rounded-full bg-accent px-4 py-1.5 font-bold text-on-accent">
                     Sign in
                   </Link>
                 )}

@@ -4,11 +4,19 @@ import { useState } from "react";
 import { createTheme } from "@/lib/actions";
 import { BUILTIN_THEMES, THEME_KEYS, THEME_LABELS, type ThemeColors, themeStyle } from "@/lib/themes";
 
-const field = "w-full rounded-xl border border-line bg-bg px-3 py-2 outline-none focus:border-accent";
+const field =
+  "w-full rounded-xl border border-line bg-bg px-3 py-2 outline-none transition-all duration-200 focus:-translate-y-0.5 focus:border-accent";
 
 export function ThemeEditor({ initial }: { initial: ThemeColors }) {
   const [colors, setColors] = useState<ThemeColors>(initial);
   const [name, setName] = useState("");
+  // Bumped on every change so the matching swatch replays its "pop" animation.
+  const [changed, setChanged] = useState<{ key: string; n: number }>({ key: "", n: 0 });
+
+  function set(next: ThemeColors, key = "all") {
+    setColors(next);
+    setChanged((c) => ({ key, n: c.n + 1 }));
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
@@ -28,8 +36,8 @@ export function ThemeEditor({ initial }: { initial: ThemeColors }) {
             <button
               key={t.id}
               type="button"
-              onClick={() => setColors(t.colors)}
-              className="cursor-pointer rounded-full border px-3 py-1 text-xs font-bold"
+              onClick={() => set(t.colors)}
+              className="btn cursor-pointer rounded-full border px-3 py-1 text-xs font-bold"
               style={{ background: t.colors.bg, color: t.colors.text, borderColor: t.colors.accent }}
             >
               {t.name}
@@ -39,17 +47,22 @@ export function ThemeEditor({ initial }: { initial: ThemeColors }) {
 
         <div className="grid grid-cols-2 gap-3">
           {THEME_KEYS.map((key) => (
-            <label key={key} className="flex items-center gap-2 rounded-xl border border-line p-2">
+            <label key={key} className="flex cursor-pointer items-center gap-2 rounded-xl border border-line p-2 transition-colors hover:border-accent">
               <input
                 type="color"
                 name={key}
                 value={colors[key]}
-                onChange={(e) => setColors({ ...colors, [key]: e.target.value })}
+                onChange={(e) => set({ ...colors, [key]: e.target.value }, key)}
                 className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent"
               />
               <span className="flex flex-col text-sm">
                 <span className="font-bold">{THEME_LABELS[key]}</span>
-                <span className="font-mono text-xs text-muted">{colors[key]}</span>
+                <span
+                  key={changed.key === key || changed.key === "all" ? changed.n : 0}
+                  className="pop inline-block origin-left font-mono text-xs text-muted"
+                >
+                  {colors[key]}
+                </span>
               </span>
             </label>
           ))}
@@ -59,7 +72,7 @@ export function ThemeEditor({ initial }: { initial: ThemeColors }) {
           <input type="checkbox" name="is_public" defaultChecked className="accent-(--theme-accent)" />
           Share with the community
         </label>
-        <button type="submit" className="self-start rounded-full bg-accent px-6 py-2 font-bold text-on-accent hover:opacity-90">
+        <button type="submit" className="btn self-start rounded-full bg-accent px-6 py-2 font-bold text-on-accent">
           Save and wear it
         </button>
       </form>
@@ -71,10 +84,12 @@ export function ThemeEditor({ initial }: { initial: ThemeColors }) {
 
 function Preview({ colors, name }: { colors: ThemeColors; name: string }) {
   return (
-    <div className="themed flex flex-col gap-4 rounded-3xl border border-line p-6" style={themeStyle(colors)}>
+    <div className="themed flex flex-col gap-4 rounded-3xl border border-line p-6 lg:sticky lg:top-20 lg:self-start" style={themeStyle(colors)}>
       <p className="text-xs font-bold uppercase tracking-wide text-muted">Live preview</p>
       <div className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4">
-        <span className="grid h-14 w-14 place-items-center rounded-full bg-accent text-2xl text-on-accent">♡</span>
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-accent text-2xl text-on-accent">
+          <span className="heartbeat">♡</span>
+        </span>
         <div>
           <p className="text-xl font-extrabold">{name}</p>
           <p className="text-sm text-muted">@you · she/her · joined today</p>
@@ -86,8 +101,8 @@ function Preview({ colors, name }: { colors: ThemeColors; name: string }) {
         <p className="mt-3 font-bold text-accent">waifu.dev ↗</p>
       </div>
       <div className="flex gap-2">
-        <span className="rounded-full bg-accent px-4 py-2 text-sm font-bold text-on-accent">Primary button</span>
-        <span className="rounded-full border border-line bg-surface px-4 py-2 text-sm font-bold">Secondary</span>
+        <span data-burst className="btn cursor-pointer rounded-full bg-accent px-4 py-2 text-sm font-bold text-on-accent">Primary button</span>
+        <span className="btn cursor-pointer rounded-full border border-line bg-surface px-4 py-2 text-sm font-bold">Secondary</span>
       </div>
     </div>
   );
