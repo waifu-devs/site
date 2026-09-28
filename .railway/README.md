@@ -9,8 +9,10 @@ removed from Railway on the next apply.
 
 1. Open a pull request that edits `.railway/`.
 2. The `Railway config` workflow comments the plan (what will change) on the PR.
-3. Merging applies exactly that plan. If the environment changed in the meantime,
-   the apply fails and the PR needs a fresh plan (push any commit to it).
+3. Merging applies exactly that plan. If the environment changed in the meantime
+   (say, a variable edited in the dashboard), the apply refuses the stale plan.
+   Before merging, push any commit to the PR to re-plan. After merging, open a
+   new PR that touches `.railway/` and merge that one.
 
 Code changes deploy on their own: Railway builds `main` whenever the files in a
 service's watch patterns change.
