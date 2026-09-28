@@ -4,12 +4,13 @@ import { POST_BODY_MAX, POST_TITLE_MAX, POST_URL_MAX, type Post } from "@waifu-d
 import { ArrowLeft, Loader2, Send } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { Markdown } from "@/components/Markdown";
+import { MarkdownField } from "@/components/MarkdownField";
 import { PostRow } from "@/components/news/PostRow";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { title } from "@/lib/head";
 import { cn } from "@/lib/utils";
 import { getAccount } from "@/server/functions";
@@ -80,6 +81,7 @@ function SubmitPage() {
   const url = normalizeUrl(fields.url);
   const ready = fields.title.trim().length > 0 && url !== false;
   const set = (key: keyof typeof fields) => (e: { currentTarget: { value: string } }) => setFields({ ...fields, [key]: e.currentTarget.value });
+  const setBody = (body: string) => setFields((f) => ({ ...f, body }));
 
   const preview: Post = {
     id: "00000000-0000-4000-8000-000000000000",
@@ -162,7 +164,7 @@ function SubmitPage() {
               <Label htmlFor="body" className="font-bold">
                 Text <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>
-              <Textarea id="body" name="body" rows={6} maxLength={POST_BODY_MAX} value={fields.body} onChange={set("body")} placeholder="Context, a question for the community, what you learned..." className="max-h-[28rem]" />
+              <MarkdownField id="body" name="body" rows={6} maxLength={POST_BODY_MAX} onValueChange={setBody} placeholder="Context, a question for the community, what you learned..." />
             </div>
 
             <AnimatePresence initial={false}>
@@ -188,7 +190,9 @@ function SubmitPage() {
           <AnimatePresence initial={false}>
             {preview.body ? (
               <motion.div initial={shut} animate={open} exit={shut} className="overflow-hidden">
-                <p className="line-clamp-6 whitespace-pre-line rounded-2xl border border-dashed bg-card/60 p-4 text-sm text-muted-foreground">{preview.body}</p>
+                <div className="max-h-80 overflow-y-auto rounded-2xl border border-dashed bg-card/60 p-4 text-sm">
+                  <Markdown>{preview.body}</Markdown>
+                </div>
               </motion.div>
             ) : null}
           </AnimatePresence>

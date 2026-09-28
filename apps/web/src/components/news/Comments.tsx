@@ -3,13 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { COMMENT_MAX } from "@waifu-devs/domain/api";
 import { Loader2, MessageCircleReply, Minus, Plus, Send } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { UserAvatar } from "@/components/Avatar";
+import { Markdown } from "@/components/Markdown";
+import { MarkdownField } from "@/components/MarkdownField";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { addComment } from "@/server/news";
-import { type CommentNode, Linkify, TimeAgo } from "./format";
+import { type CommentNode, TimeAgo } from "./format";
 
 /** Past this depth replies stop stepping right, so deep threads stay readable on a phone. */
 const MAX_INDENT = 5;
@@ -18,7 +19,7 @@ const open = { height: "auto", opacity: 1 };
 const shut = { height: 0, opacity: 0 };
 const spring = { type: "spring", stiffness: 380, damping: 34 } as const;
 
-/** A comment box: top-level on the post, or a reply under a comment. */
+/** A comment box: top-level on the post, or a reply under a comment. Markdown works. */
 export function CommentComposer({
   postId,
   parentId = null,
@@ -34,24 +35,23 @@ export function CommentComposer({
   const send = useServerFn(addComment);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [length, setLength] = useState(0);
-  const ref = useRef<HTMLFormElement>(null);
-  const near = length > COMMENT_MAX * 0.8;
+  const [empty, setEmpty] = useState(true);
+  // Bumped after sending, so the field starts over empty and back on Write.
+  const [round, setRound] = useState(0);
 
   return (
     <form
-      ref={ref}
       aria-busy={pending || undefined}
       className="flex flex-col gap-2"
       onSubmit={async (event) => {
         event.preventDefault();
-        const form = event.currentTarget;
+        if (empty) return;
         setPending(true);
         setError(null);
         try {
-          await send({ data: new FormData(form) });
-          form.reset();
-          setLength(0);
+          await send({ data: new FormData(event.currentTarget) });
+          setRound((r) => r + 1);
+          setEmpty(true);
           await router.invalidate();
           onDone?.();
         } catch {
@@ -63,22 +63,18 @@ export function CommentComposer({
     >
       <input type="hidden" name="post_id" value={postId} />
       {parentId ? <input type="hidden" name="parent_id" value={parentId} /> : null}
-      <Textarea
+      <MarkdownField
+        key={round}
         name="body"
         required
         maxLength={COMMENT_MAX}
         autoFocus={autoFocus}
         rows={parentId ? 2 : 3}
         placeholder={parentId ? "Write a reply..." : "Say something nice (or at least interesting)..."}
-        className="max-h-96 resize-none bg-card/80 text-base backdrop-blur transition-[box-shadow,border-color] focus-visible:shadow-[0_10px_30px_-18px_var(--primary)]"
-        onChange={(e) => setLength(e.currentTarget.value.length)}
-        onKeyDown={(e) => {
-          // Cmd/Ctrl+Enter sends.
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ref.current?.requestSubmit();
-        }}
+        onValueChange={(value) => setEmpty(value.trim().length === 0)}
       />
       <div className="flex items-center gap-3">
-        <Button type="submit" size="sm" disabled={pending || length === 0} className="btn rounded-full font-bold">
+        <Button type="submit" size="sm" disabled={pending || empty} className="btn rounded-full font-bold">
           {pending ? <Loader2 className="animate-spin" /> : <Send />}
           {parentId ? "Reply" : "Comment"}
         </Button>
@@ -87,18 +83,6 @@ export function CommentComposer({
             Cancel
           </Button>
         ) : null}
-        <AnimatePresence>
-          {near ? (
-            <motion.span
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className={cn("ml-auto text-xs tabular-nums", length >= COMMENT_MAX ? "text-destructive" : "text-muted-foreground")}
-            >
-              {COMMENT_MAX - length} left
-            </motion.span>
-          ) : null}
-        </AnimatePresence>
       </div>
       <AnimatePresence>
         {error ? (
@@ -175,9 +159,7 @@ function CommentItem({ node, depth, postId, postAuthor, signedIn }: ThreadProps 
           <AnimatePresence initial={false}>
             {!collapsed ? (
               <motion.div key="body" initial={shut} animate={open} exit={shut} transition={spring} className="overflow-hidden">
-                <p className="mt-1 whitespace-pre-line break-words leading-relaxed">
-                  <Linkify text={node.body} />
-                </p>
+                <Markdown className="mt-1 leading-relaxed">{node.body}</Markdown>
                 {signedIn ? (
                   <button
                     type="button"

@@ -1,5 +1,4 @@
 import type { Comment } from "@waifu-devs/domain/api";
-import { Fragment, type ReactNode } from "react";
 
 const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ["year", 365 * 24 * 60 * 60],
@@ -37,21 +36,6 @@ export function hostname(url: string): string | null {
   } catch {
     return null;
   }
-}
-
-const LINK = /(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?])/g;
-
-/** Plain text with its URLs turned into links. */
-export function Linkify({ text }: { text: string }): ReactNode {
-  return text.split(LINK).map((part, i) =>
-    i % 2 ? (
-      <a key={i} href={part} target="_blank" rel="nofollow noopener noreferrer" className="font-bold text-primary [overflow-wrap:anywhere] underline decoration-primary/30 underline-offset-2 hover:decoration-primary">
-        {part}
-      </a>
-    ) : (
-      <Fragment key={i}>{part}</Fragment>
-    ),
-  );
 }
 
 export type CommentNode = Comment & { replies: CommentNode[]; descendants: number };

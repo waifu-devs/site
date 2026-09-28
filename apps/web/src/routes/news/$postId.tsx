@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
 import { CommentComposer, CommentThread } from "@/components/news/Comments";
-import { commentTree, Linkify } from "@/components/news/format";
+import { Markdown } from "@/components/Markdown";
+import { commentTree } from "@/components/news/format";
 import { PostRow } from "@/components/news/PostRow";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -63,9 +64,7 @@ function PostPage() {
         <div aria-hidden className="blob -right-16 -top-20 -z-10 h-56 w-56" />
         <PostRow post={post} viewerUsername={user?.username ?? null} large />
         {post.body ? (
-          <div className="whitespace-pre-line break-words leading-relaxed sm:pl-16">
-            <Linkify text={post.body} />
-          </div>
+          <Markdown className="leading-relaxed sm:pl-16">{post.body}</Markdown>
         ) : null}
         {mine ? (
           <div className="flex justify-end">

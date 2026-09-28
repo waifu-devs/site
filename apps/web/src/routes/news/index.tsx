@@ -43,8 +43,14 @@ function NewsPage() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-12">
       <header data-sparkle-zone className="relative isolate">
-        <div aria-hidden className="blob -left-20 -top-24 -z-10 h-64 w-64" />
-        <div aria-hidden className="blob b2 -top-10 right-0 -z-10 h-44 w-44" />
+        {/* The glows drift past the content edges; this screen-wide layer clips them at the
+            screen's edges, so they never make the page wider than a phone. */}
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-x-clip">
+          <div className="relative mx-auto h-full max-w-3xl px-4">
+            <div className="blob -left-16 -top-24 h-64 w-64" />
+            <div className="blob b2 -top-10 right-4 h-44 w-44" />
+          </div>
+        </div>
         <div className="stagger flex flex-col gap-2">
           <p className="float w-fit text-2xl text-primary">(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧</p>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
