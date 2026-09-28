@@ -1,4 +1,4 @@
-import { defineRailway, github, postgres, project, service } from "railway/iac";
+import { bucket, defineRailway, github, postgres, project, ref, service } from "railway/iac";
 
 /**
  * Everything Waifu Devs runs on Railway: Postgres, the Effect API (which is also the
@@ -12,6 +12,8 @@ import { defineRailway, github, postgres, project, service } from "railway/iac";
 
 /** Railway's US East (Virginia) region. Everything runs here, next to the database. */
 const REGION = "us-east4-eqdc4a";
+/** Buckets have their own region names; this is Virginia too. It can't change once created. */
+const BUCKET_REGION = "iad";
 
 const API_DOMAIN = "api.waifu.dev";
 const WEB_DOMAIN = "www.waifu.dev";
@@ -21,6 +23,9 @@ const WEB_URL = `https://${WEB_DOMAIN}`;
 export default defineRailway((ctx) => {
   const repo = github("waifu-devs/site", { branch: "main" });
   const db = postgres("postgres", { region: REGION });
+  // Pictures members upload (avatars and banners). Railway buckets are private,
+  // so the api writes them and serves them at API_URL/media/<key>.
+  const uploads = bucket("uploads", { region: BUCKET_REGION });
 
   const api = service("api", {
     source: repo,
@@ -44,6 +49,11 @@ export default defineRailway((ctx) => {
       WEB_URL,
       GITHUB_CLIENT_ID: ctx.shared.GITHUB_CLIENT_ID,
       GITHUB_CLIENT_SECRET: ctx.shared.GITHUB_CLIENT_SECRET,
+      S3_ENDPOINT: ref(uploads, "ENDPOINT"),
+      S3_REGION: ref(uploads, "REGION"),
+      S3_BUCKET: ref(uploads, "BUCKET"),
+      S3_ACCESS_KEY_ID: ref(uploads, "ACCESS_KEY_ID"),
+      S3_SECRET_ACCESS_KEY: ref(uploads, "SECRET_ACCESS_KEY"),
     },
   });
 
@@ -69,5 +79,5 @@ export default defineRailway((ctx) => {
     },
   });
 
-  return project("waifu-devs", { resources: [db, api, web] });
+  return project("waifu-devs", { resources: [db, uploads, api, web] });
 });

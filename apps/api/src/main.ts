@@ -2,19 +2,22 @@ import { FetchHttpClient, HttpApiBuilder, HttpMiddleware, HttpServer } from "@ef
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Config, Layer } from "effect";
 import { createServer } from "node:http";
-import { AuthenticationLive, Issuer, IssuerRoutes } from "./Auth.ts";
+import { AuthenticationLive, Issuer, IssuerRoutes, OptionalAuthenticationLive } from "./Auth.ts";
 import { DbLive } from "./Db.ts";
 import { HttpLive } from "./Http.ts";
+import { MediaRoutes, MediaStoreLive } from "./Media.ts";
+import { Posts } from "./Posts.ts";
 import { Themes } from "./Themes.ts";
 import { Users } from "./Users.ts";
 
-const ServicesLive = Layer.mergeAll(Users.Default, Themes.Default).pipe(Layer.provideMerge(DbLive));
+const ServicesLive = Layer.mergeAll(Users.Default, Themes.Default, Posts.Default, MediaStoreLive).pipe(Layer.provideMerge(DbLive));
 const IssuerLive = Issuer.Default.pipe(Layer.provide(FetchHttpClient.layer), Layer.provideMerge(ServicesLive));
 
 const ServerLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(IssuerRoutes),
+  Layer.provide(MediaRoutes),
   Layer.provide(HttpLive),
-  Layer.provide(AuthenticationLive),
+  Layer.provide([AuthenticationLive, OptionalAuthenticationLive]),
   Layer.provide(IssuerLive),
   HttpServer.withLogAddress,
   Layer.provide(

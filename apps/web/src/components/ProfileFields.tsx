@@ -1,5 +1,6 @@
+import { countries } from "@waifu-devs/domain/countries";
 import { MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "@waifu-devs/domain/profile";
-import { Link2, Plus, X } from "lucide-react";
+import { Globe, Link2, Plus, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -201,5 +202,129 @@ export function PickerOption({
         {children}
       </span>
     </label>
+  );
+}
+
+/**
+ * A searchable country picker. Typing filters by name or code; arrows and
+ * Enter pick one. The chosen code travels in a hidden field, so it posts with
+ * the rest of the form.
+ */
+export function CountryPicker({ value, onChange }: { value: string | null; onChange: (code: string | null) => void }) {
+  const all = countries();
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const box = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+
+  const needle = query.trim().toLowerCase();
+  const matches = needle ? all.filter((c) => c.name.toLowerCase().includes(needle) || c.code.toLowerCase() === needle) : all;
+  const chosen = value ? all.find((c) => c.code === value) : undefined;
+
+  const pick = (code: string | null) => {
+    onChange(code);
+    setQuery("");
+    setOpen(false);
+  };
+  // Keep the highlighted country in view while arrowing through the list.
+  const highlight = (index: number) => {
+    setActive(index);
+    list.current?.children[index]?.scrollIntoView({ block: "nearest" });
+  };
+
+  return (
+    <div ref={box} className="relative grid gap-2" onBlur={(e) => !box.current?.contains(e.relatedTarget) && setOpen(false)}>
+      <Label htmlFor="country-search">Country</Label>
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          {/* The flag doubles as the input's icon once a country is picked. */}
+          <span aria-hidden className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-lg leading-none">
+            {chosen ? chosen.flag : <Globe className="size-4 text-muted-foreground" />}
+          </span>
+          <Input
+            id="country-search"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls="country-list"
+            aria-autocomplete="list"
+            autoComplete="country-name"
+            className={cn(lift, "pl-10")}
+            placeholder={chosen ? chosen.name : "Search for a country"}
+            value={open ? query : (chosen?.name ?? "")}
+            onFocus={() => {
+              setOpen(true);
+              highlight(Math.max(0, chosen ? all.indexOf(chosen) : 0));
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+              setActive(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                if (matches.length) highlight((active + (e.key === "ArrowDown" ? 1 : matches.length - 1)) % matches.length);
+              } else if (e.key === "Enter" && open) {
+                e.preventDefault();
+                if (matches[active]) pick(matches[active].code);
+              } else if (e.key === "Escape" && open) {
+                e.preventDefault();
+                setOpen(false);
+                setQuery("");
+              }
+            }}
+          />
+        </div>
+        {chosen ? (
+          <Button type="button" size="icon" variant="ghost" aria-label="Clear country" className="size-9 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => pick(null)}>
+            <X />
+          </Button>
+        ) : null}
+      </div>
+      <input type="hidden" name="country" value={value ?? ""} />
+      <AnimatePresence>
+        {open ? (
+          <motion.ul
+            id="country-list"
+            ref={list}
+            // A listbox, so screen readers announce it as one.
+            role="listbox"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }}
+            className="absolute top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg"
+          >
+            {matches.length ? (
+              matches.map((country, i) => (
+                <li key={country.code}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={country.code === value}
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => pick(country.code)}
+                    className={cn(
+                      "flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors",
+                      i === active && "bg-accent text-accent-foreground",
+                      country.code === value && "font-bold text-primary",
+                    )}
+                  >
+                    <span aria-hidden className="text-lg leading-none">
+                      {country.flag}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{country.name}</span>
+                    <span className="text-xs text-muted-foreground">{country.code}</span>
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className="px-2.5 py-2 text-sm text-muted-foreground">No country matches “{query.trim()}”.</li>
+            )}
+          </motion.ul>
+        ) : null}
+      </AnimatePresence>
+    </div>
   );
 }

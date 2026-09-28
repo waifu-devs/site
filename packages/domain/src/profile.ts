@@ -26,3 +26,17 @@ export const MAX_LINK_LENGTH = 200;
 export function linkLabel(url: string): string {
   return url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
 }
+
+/** Pictures members upload to replace their GitHub avatar or the animated banner. */
+export const IMAGE_KINDS = ["avatar", "banner"] as const;
+export type ImageKind = (typeof IMAGE_KINDS)[number];
+
+/** Largest upload accepted, before resizing. */
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+
+/** What uploads are resized (and cropped) to. */
+export const IMAGE_SIZES: Record<ImageKind, { width: number; height: number }> = {
+  avatar: { width: 512, height: 512 },
+  banner: { width: 1500, height: 500 },
+};

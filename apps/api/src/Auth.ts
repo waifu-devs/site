@@ -3,7 +3,7 @@ import { issuer } from "@openauthjs/openauth";
 import { createClient } from "@openauthjs/openauth/client";
 import { GithubProvider } from "@openauthjs/openauth/provider/github";
 import { createSubjects } from "@openauthjs/openauth/subject";
-import { Authentication } from "@waifu-devs/domain/api";
+import { Authentication, OptionalAuthentication } from "@waifu-devs/domain/api";
 import { Config, Effect, Layer, Option, Redacted, Runtime, Schema } from "effect";
 import { makeStorage } from "./Storage.ts";
 import { Users } from "./Users.ts";
@@ -128,6 +128,24 @@ export const AuthenticationLive = Layer.effect(
           Effect.flatMap((id) => Effect.orDie(users.byId(id))),
           Effect.flatMap(Option.match({ onNone: () => Effect.fail(new HttpApiError.Unauthorized()), onSome: Effect.succeed })),
         ),
+    };
+  }),
+);
+
+/** The same bearer tokens, on endpoints anyone may call: a missing or bad token is just nobody. */
+export const OptionalAuthenticationLive = Layer.effect(
+  OptionalAuthentication,
+  Effect.gen(function* () {
+    const issuer = yield* Issuer;
+    const users = yield* Users;
+    return {
+      bearer: (token) =>
+        Redacted.value(token)
+          ? issuer.verify(Redacted.value(token)).pipe(
+              Effect.option,
+              Effect.flatMap(Option.match({ onNone: () => Effect.succeedNone, onSome: (id) => Effect.orDie(users.byId(id)) })),
+            )
+          : Effect.succeedNone,
     };
   }),
 );

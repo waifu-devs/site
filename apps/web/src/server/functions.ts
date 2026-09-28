@@ -2,13 +2,26 @@
  * Server functions: every read and write the pages do, as Effects against the API.
  * They run on the server only; the client calls them over RPC.
  */
-import { notFound, redirect } from "@tanstack/react-router";
+import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { NewTheme, ProfileUpdate, Theme, User } from "@waifu-devs/domain/api";
-import { BANNERS, type Banner, DEFAULT_BANNER, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "@waifu-devs/domain/profile";
+import {
+  BANNERS,
+  type Banner,
+  DEFAULT_BANNER,
+  IMAGE_KINDS,
+  type ImageKind,
+  MAX_IMAGE_BYTES,
+  MAX_LINK_LENGTH,
+  MAX_LINKS,
+  MAX_SKILL_LENGTH,
+  MAX_SKILLS,
+} from "@waifu-devs/domain/profile";
+import { isCountryCode } from "@waifu-devs/domain/countries";
 import { BUILTIN_THEMES, DEFAULT_THEME, TOKENS } from "@waifu-devs/domain/themes";
 import { Effect, Option } from "effect";
 import { ApiClient } from "./Api.ts";
+import { asUser, formData, orNotFound, text } from "./helpers.ts";
 import { run } from "./runtime.ts";
 import { Session } from "./Session.ts";
 
@@ -27,16 +40,6 @@ const requireUser = (next: string) =>
     Effect.flatMap((session) => session.currentUser),
     Effect.flatMap(Option.match({ onNone: () => Effect.die(redirect({ to: "/login", search: { next } })), onSome: Effect.succeed })),
   );
-
-/** An API client acting as the signed-in user. */
-const asUser = Effect.gen(function* () {
-  const session = yield* Session;
-  const token = yield* session.accessToken;
-  if (Option.isNone(token)) return yield* Effect.die(redirect({ to: "/login" }));
-  return yield* (yield* ApiClient).as(token.value);
-});
-
-const orNotFound = <A, E, R>(effect: Effect.Effect<A, E, R>) => effect.pipe(Effect.catchAll(() => Effect.die(notFound())));
 
 // ---------------------------------------------------------------------------
 // Reads
@@ -140,18 +143,6 @@ export const getProfileEditor = createServerFn({ method: "GET" }).handler(() =>
 // ---------------------------------------------------------------------------
 // Writes (forms post FormData)
 
-const formData = (data: unknown) => {
-  if (!(data instanceof FormData)) throw new Error("Expected form data");
-  return data;
-};
-
-function text(form: FormData, key: string, max: number): string | null {
-  const value = form.get(key);
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim().slice(0, max);
-  return trimmed.length ? trimmed : null;
-}
-
 function url(form: FormData, key: string): string | null {
   return toUrl(text(form, key, 200));
 }
@@ -196,6 +187,8 @@ export const updateProfile = createServerFn({ method: "POST" })
           favoriteWaifu: text(form, "favorite_waifu", 80),
           status: text(form, "status", 80),
           location: text(form, "location", 60),
+          country: isCountryCode(form.get("country")) ? (form.get("country") as string) : null,
+          showCountry: form.get("show_country") === "on",
           skills: list(form, "skill", MAX_SKILLS, (skill) => skill.slice(0, MAX_SKILL_LENGTH) || null),
           links: list(form, "link", MAX_LINKS, toUrl),
           banner: BANNERS.includes(banner as Banner) ? (banner as Banner) : DEFAULT_BANNER,
@@ -204,6 +197,42 @@ export const updateProfile = createServerFn({ method: "POST" })
         };
         const user: User = yield* (yield* asUser).me.update({ payload });
         return yield* Effect.die(redirect({ to: "/u/$username", params: { username: user.username } }));
+      }),
+    ),
+  );
+
+const imageKind = (form: FormData): ImageKind | null => {
+  const kind = form.get("kind");
+  return IMAGE_KINDS.find((k) => k === kind) ?? null;
+};
+
+/** Uploads a new profile picture or banner. Resolves to why the API refused it, if it did. */
+export const uploadImage = createServerFn({ method: "POST" })
+  .validator(formData)
+  .handler(({ data: form }) =>
+    run(
+      Effect.gen(function* () {
+        const kind = imageKind(form);
+        const file = form.get("file");
+        if (!kind || !(file instanceof File)) return { error: "Pick an image to upload." };
+        if (file.size > MAX_IMAGE_BYTES) return { error: `That file is over ${MAX_IMAGE_BYTES / 1024 / 1024} MB.` };
+        const payload = new Uint8Array(yield* Effect.promise(() => file.arrayBuffer()));
+        return yield* (yield* asUser).me.uploadImage({ path: { kind }, payload }).pipe(
+          Effect.as({ error: null }),
+          Effect.catchTag("ImageRejected", (rejected) => Effect.succeed({ error: rejected.reason })),
+        );
+      }),
+    ),
+  );
+
+/** Goes back to the GitHub avatar, or takes the picture off the banner (its decoration stays). */
+export const removeImage = createServerFn({ method: "POST" })
+  .validator(formData)
+  .handler(({ data: form }) =>
+    run(
+      Effect.gen(function* () {
+        const kind = imageKind(form);
+        if (kind) yield* (yield* asUser).me.removeImage({ path: { kind } });
       }),
     ),
   );

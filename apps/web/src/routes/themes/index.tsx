@@ -22,7 +22,8 @@ export const Route = createFileRoute("/themes/")({
 function ThemeCard({ theme, user, mine }: { theme: Theme; user: User | null; mine: boolean }) {
   const wearing = user?.themeId === theme.id;
   return (
-    <Tilt className="rounded-xl">
+    // min-w-0: a long one-line description would otherwise widen its grid column past a phone screen.
+    <Tilt className="min-w-0 rounded-xl">
       <Card className="h-full gap-3 p-3">
         <ThemeSwatch theme={theme} />
         <div className="min-w-0">

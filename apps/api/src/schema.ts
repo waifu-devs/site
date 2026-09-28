@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, bigint, boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { ThemeVariant } from "@waifu-devs/domain/api";
 import { type Banner, DEFAULT_BANNER } from "@waifu-devs/domain/profile";
 
@@ -30,8 +30,14 @@ export const users = pgTable(
     banner: text().$type<Banner>().notNull().default(DEFAULT_BANNER),
     status: text(),
     location: text(),
+    // An ISO 3166-1 alpha-2 code, shown on the profile only when showCountry is on.
+    country: text(),
+    showCountry: boolean().notNull().default(false),
     skills: text().array().notNull().default(sql`'{}'`),
     links: text().array().notNull().default(sql`'{}'`),
+    // Uploaded pictures, as keys in the media store. avatarUrl stays the GitHub one.
+    avatarKey: text(),
+    bannerKey: text(),
     createdAt: createdAt(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
@@ -60,6 +66,61 @@ export const themes = pgTable(
     index("themes_owner_id").on(t.ownerId),
     index("themes_public_created").on(t.createdAt.desc()).where(sql`${t.isPublic}`),
   ],
+);
+
+/**
+ * News: link and text posts. `score` and `commentCount` are kept in step with
+ * post_votes and comments (in the same transaction) so listing never counts rows.
+ */
+export const posts = pgTable(
+  "posts",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    authorId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    url: text(),
+    body: text(),
+    // Starts at 1: the author's own vote.
+    score: integer().notNull().default(1),
+    commentCount: integer().notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index("posts_created_at").on(t.createdAt.desc()), index("posts_author_id").on(t.authorId)],
+);
+
+/** One upvote per member per post. */
+export const postVotes = pgTable(
+  "post_votes",
+  {
+    postId: uuid()
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.postId, t.userId] }), index("post_votes_user_id").on(t.userId)],
+);
+
+/** Threaded comments: a null parentId is a top-level comment on the post. */
+export const comments = pgTable(
+  "comments",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    postId: uuid()
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    parentId: uuid().references((): AnyPgColumn => comments.id, { onDelete: "cascade" }),
+    authorId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("comments_post_id").on(t.postId, t.createdAt)],
 );
 
 /** OpenAuth's storage: signing keys, authorization codes and refresh tokens. */
