@@ -10,11 +10,9 @@ export default defineConfig({
     env: {
       ASSETS: bindings.assets(),
       // Hyperdrive pools connections to the PlanetScale Postgres database.
-      // Paste the Hyperdrive config's id below (Dashboard → Hyperdrive → your
-      // config). It isn't secret. Locally the binding connects straight to
-      // DATABASE_URL instead.
+      // Locally the binding connects straight to DATABASE_URL instead.
       HYPERDRIVE: bindings.hyperdrive({
-        id: process.env.HYPERDRIVE_ID ?? "PASTE_HYPERDRIVE_ID_HERE",
+        id: "4756839e6fbc47c0af1082b0aa6db945",
         dev: { connectionString: process.env.DATABASE_URL },
       }),
       GITHUB_CLIENT_ID: bindings.secret(),
