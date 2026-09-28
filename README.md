@@ -7,10 +7,11 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 | Path | What |
 | --- | --- |
 | `apps/api` | The API: an Effect `HttpApi` server on Node, Drizzle on Postgres, and the [OpenAuth](https://openauth.js.org) issuer for GitHub sign-in |
+| `apps/analytics` | Anonymous usage signals from fuwa servers, stored in a [DuckLake](https://ducklake.select) with DuckDB (see [Analytics](#analytics)) |
 | `apps/web` | The site: [TanStack Start](https://tanstack.com/start) (React, SSR), shadcn/ui and [Animate UI](https://animate-ui.com); its server side calls the API through a typed Effect client |
 | `packages/domain` | Shared between the two: the API contract (`Api.ts`, Effect Schema) and the theme system (`themes.ts`) |
-| `.railway/` | Railway Infrastructure as Code: Postgres, `api`, `web` |
-| `.github/workflows` | `ci.yml` (typecheck + build) and `railway-config.yml` (plan on PR, apply on merge) |
+| `.railway/` | Railway Infrastructure as Code: Postgres, `api`, `web`, `analytics`, and the `uploads` and `lake` buckets |
+| `.github/workflows` | `ci.yml` (typecheck, build, test) and `railway-config.yml` (plan on PR, apply on merge) |
 
 ## What's here
 
@@ -40,6 +41,26 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 
 The schema is in `apps/api/src/schema.ts`; Drizzle Kit writes migrations into `apps/api/migrations`, and Railway runs them before each API deploy.
 
+## Analytics
+
+fuwa servers send a small anonymous heartbeat home once a day, unless their operator turns it off. `apps/analytics` (at `analytics.waifu.dev`) receives it and keeps it in a DuckLake: an embedded DuckDB whose catalog is the `ducklake` schema of our Postgres and whose Parquet files live in the private `lake` Railway bucket.
+
+A heartbeat carries a random install id, the fuwa version, OS, architecture and whether it's our hosted instance, plus counts: servers, channels, members, accounts, messages, storage and upload bytes, and what changed since the last one. Nothing identifies a person or a community, and the lake keeps no IP addresses. The contract is in `apps/analytics/src/Signals.ts`:
+
+```http
+POST /v1/fuwa/events
+{ "schema": 1, "install": { "id", "version", "os", "arch", "hosting" }, "events": [{ "id", "type": "heartbeat", "at", ... }] }
+```
+
+Batches of up to 100 events and 64 KB answer `202 {"accepted": n}`. Invalid ones get `400` (don't retry), and a `503` means try again later. Event ids make retries safe, and event types the service doesn't know yet are kept raw in `fuwa.events`.
+
+Accepted events are buffered and written every 30 seconds as one lake snapshot, and whatever is left is written on shutdown. Small writes stay inline in Postgres until the nightly `CHECKPOINT` (04:00 UTC) moves them into monthly Parquet files, merges small files and expires snapshots older than 30 days.
+
+Reading it:
+
+- `GET /v1/fuwa/summary?days=30` with `Authorization: Bearer $ANALYTICS_READ_TOKEN` returns installs, totals and activity per day and kind of hosting, plus which versions installs run.
+- For any other question, open a read-only SQL console next to the lake with `railway ssh --service analytics`, then `node apps/analytics/dist/sql.js "FROM daily ORDER BY day DESC"`. The views are `heartbeats_unique`, `events_unique`, `installs` (each install as of its last heartbeat) and `daily`.
+
 ## How sign-in works
 
 The API hosts the OpenAuth issuer (at the root, because OpenAuth hardcodes its paths); the web app is its only client (`waifu-devs-web`).
@@ -64,23 +85,24 @@ You need Node 22 and a local Postgres (`postgres://postgres:postgres@localhost:5
    ```sh
    pnpm install
    DATABASE_URL=postgres://postgres:postgres@localhost:5432/waifu pnpm db:migrate
-   pnpm dev          # web on http://localhost:3000, API on http://localhost:4000
+   pnpm dev          # web on http://localhost:3000, API on http://localhost:4000, analytics on http://localhost:4100
    ```
 
-`pnpm typecheck` and `pnpm build` check and build everything. To change the schema, edit `apps/api/src/schema.ts`, run `pnpm db:generate`, and commit the new migration.
+`pnpm typecheck` and `pnpm build` check and build everything, and `pnpm -r test` runs the tests. Analytics needs no setup locally: without `DATABASE_URL` and `S3_BUCKET` its lake lives in `apps/analytics/.lake`. To change the schema, edit `apps/api/src/schema.ts`, run `pnpm db:generate`, and commit the new migration.
 
 ## Infrastructure
 
-The Railway project is public, so anyone can check out the live infrastructure behind the site at <https://railway.com/project/c1d0e00f-7c4c-408f-8422-41cd680bc304>. It's what `.railway/railway.ts` declares: Postgres plus the `api` and `web` services.
+The Railway project is public, so anyone can check out the live infrastructure behind the site at <https://railway.com/project/c1d0e00f-7c4c-408f-8422-41cd680bc304>. It's what `.railway/railway.ts` declares: Postgres, the `api`, `web` and `analytics` services, and the `uploads` and `lake` buckets.
 
 ## Deploying on Railway
 
-Everything lives in the **waifu-devs** Railway project, production environment, in the US East (Virginia) region. `.railway/railway.ts` declares Postgres and the `api` and `web` services (built from `main` of this repo with Railpack) along with their domains, `api.waifu.dev` and `www.waifu.dev`; a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
+Everything lives in the **waifu-devs** Railway project, production environment, in the US East (Virginia) region. `.railway/railway.ts` declares Postgres, the `uploads` and `lake` buckets, and the `api`, `web` and `analytics` services (built from `main` of this repo with Railpack) along with their domains, `api.waifu.dev`, `www.waifu.dev` and `analytics.waifu.dev`; a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
 
 One-time setup:
 
 1. **Railway GitHub App**: install it on the `waifu-devs` org with access to this repo, so Railway can build it (<https://github.com/apps/railway-app>).
 2. **Project token**: in the Railway project, Settings → Tokens, create a token for the production environment and save it as the `RAILWAY_TOKEN` repository secret here.
 3. **GitHub OAuth app** for production, with the callback URL `https://api.waifu.dev/github/callback`. Put its credentials in the production environment's **shared variables** `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` (Project Settings → Shared Variables).
-4. Merge a pull request that touches `.railway/` (the first one creates everything).
-5. **DNS**: at the `waifu.dev` registrar, point `api` and `www` at the CNAME targets Railway shows in each service's Settings → Networking.
+4. **Analytics read token**: a shared variable `ANALYTICS_READ_TOKEN` holding a long random string (for example `openssl rand -hex 32`). Until it exists, nobody can read the summary.
+5. Merge a pull request that touches `.railway/` (the first one creates everything).
+6. **DNS**: at the `waifu.dev` registrar, point `api`, `www` and `analytics` at the CNAME targets Railway shows in each service's Settings → Networking.

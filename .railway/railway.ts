@@ -2,11 +2,13 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
 
 /**
  * Everything Waifu Devs runs on Railway: Postgres, the Effect API (which is also the
- * OpenAuth issuer) and the TanStack Start site. Pull requests that touch .railway/ get
- * a plan comment; merging applies it (.github/workflows/railway-config.yml).
+ * OpenAuth issuer), the TanStack Start site, and the analytics service that keeps the
+ * anonymous usage signals fuwa servers send in a DuckLake. Pull requests that touch
+ * .railway/ get a plan comment; merging applies it (.github/workflows/railway-config.yml).
  *
  * Set once by hand, not here: the shared variables GITHUB_CLIENT_ID and
- * GITHUB_CLIENT_SECRET (the GitHub OAuth app, whose callback is API_URL + /github/callback).
+ * GITHUB_CLIENT_SECRET (the GitHub OAuth app, whose callback is API_URL + /github/callback)
+ * and ANALYTICS_READ_TOKEN (the bearer token for reading analytics).
  * The DNS records for the domains live with the waifu.dev registrar.
  */
 
@@ -17,6 +19,7 @@ const BUCKET_REGION = "iad";
 
 const API_DOMAIN = "api.waifu.dev";
 const WEB_DOMAIN = "www.waifu.dev";
+const ANALYTICS_DOMAIN = "analytics.waifu.dev";
 const API_URL = `https://${API_DOMAIN}`;
 const WEB_URL = `https://${WEB_DOMAIN}`;
 
@@ -79,5 +82,38 @@ export default defineRailway((ctx) => {
     },
   });
 
-  return project("waifu-devs", { resources: [db, uploads, api, web] });
+  // The analytics DuckLake: its catalog is the `ducklake` schema in Postgres, and its
+  // Parquet files go in this bucket, which only the analytics service can reach.
+  const lake = bucket("lake", { region: BUCKET_REGION });
+
+  const analytics = service("analytics", {
+    source: repo,
+    build: {
+      builder: "RAILPACK",
+      // Also downloads the DuckDB extensions it loads (DuckLake, Postgres, httpfs).
+      buildCommand: "pnpm --filter @waifu-devs/analytics build",
+      watchPatterns: ["apps/analytics/**", "pnpm-lock.yaml"],
+    },
+    start: "node apps/analytics/dist/main.js",
+    healthcheck: "/health",
+    regions: { [REGION]: 1 },
+    domains: [{ domain: ANALYTICS_DOMAIN, port: 4100 }],
+    // Accepted events wait in memory for a few seconds; on shutdown they're written
+    // out before the process exits, so give that time to finish.
+    deploy: { drainingSeconds: 30 },
+    env: {
+      NODE_ENV: "production",
+      PORT: "4100",
+      DATABASE_URL: db.env.DATABASE_URL,
+      S3_ENDPOINT: ref(lake, "ENDPOINT"),
+      S3_REGION: ref(lake, "REGION"),
+      S3_BUCKET: ref(lake, "BUCKET"),
+      S3_ACCESS_KEY_ID: ref(lake, "ACCESS_KEY_ID"),
+      S3_SECRET_ACCESS_KEY: ref(lake, "SECRET_ACCESS_KEY"),
+      // Reading (GET /v1/fuwa/summary) needs this as a bearer token; while unset, nobody can read.
+      ANALYTICS_READ_TOKEN: ctx.shared.ANALYTICS_READ_TOKEN,
+    },
+  });
+
+  return project("waifu-devs", { resources: [db, uploads, lake, api, web, analytics] });
 });
