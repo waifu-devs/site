@@ -1,6 +1,6 @@
 # Waifu Devs community site (✿◕‿◕✿)
 
-The community site for Waifu Devs: GitHub sign-in, member profiles, and custom themes that restyle the whole site.
+The community site for Waifu Devs: GitHub sign-in, member profiles, custom themes that restyle the whole site, and a Hacker News style news board.
 
 It's a pnpm monorepo with a separate API and web app, both written with [Effect](https://effect.website), hosted on [Railway](https://railway.com) and described as code in [`.railway/railway.ts`](.railway/railway.ts).
 
@@ -18,6 +18,7 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 - **Profiles** at `/u/<github-login>` with display name, status, pronouns, location, favorite waifu, bio, skills, website and links, an animated banner, and a profile theme. Customize them at `/settings`, with a live preview.
 - **Themes**: five built-ins (Sakura, Yoru, Matcha, Sora, Tsundere) plus community themes made in the live editor at `/themes/new`. The theme you wear styles the site for you. Your profile shows the profile theme you picked (or the theme you wear, if you didn't pick one) to everyone who visits it, header and all. Themes can be public or private.
 - **Members** directory at `/members`.
+- **News** at `/news`: a Hacker News style board. Members post a link, some text, or both (`/news/submit`), give posts a heart (one per member; your own post starts with yours), and talk in threaded comments on each post's page. **Top** ranks like HN, hearts divided by (hours old + 2)^1.8; **New** is newest first.
 
 **Themes are shadcn theme variants**: every theme, built-in or member-made, is a full set of values for the shadcn tokens (`--background`, `--primary`, `--muted-foreground`, …, plus `--radius`), stored as `{ tokens, radius }`. The root route applies the viewer's variant to `<html>`, except on profile pages, where it applies the owner's profile theme. Stick to shadcn token classes (`bg-card`, `text-muted-foreground`, `bg-primary`, …) instead of fixed colors so every theme works. shadcn/ui components live in `apps/web/src/components/ui`, Animate UI ones in `apps/web/src/components/animate-ui`.
 
@@ -31,6 +32,8 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 | `GET /themes`, `/themes/:id` | Community and built-in themes |
 | `GET/PATCH /me`, `PUT /me/theme`, `GET /me/themes` | The signed-in member (bearer token) |
 | `POST /themes`, `DELETE /themes/:id` | Make or delete your themes |
+| `GET /posts?sort=top\|new&page=`, `/posts/:id` | News posts, and one post with its comments (a bearer token is optional; with one, `voted` says whether you hearted it) |
+| `POST /posts`, `DELETE /posts/:id`, `PUT/DELETE /posts/:id/vote`, `POST /posts/:id/comments` | Post, delete your post, heart or unheart, comment or reply |
 | `POST /session/revoke` | Sign out (revokes a refresh token) |
 | `/authorize`, `/token`, `/github/*`, `/.well-known/*` | The OpenAuth issuer |
 | `GET /health` | Healthcheck |

@@ -71,6 +71,9 @@ function RootLayout() {
               <Link to="/themes" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
                 Themes
               </Link>
+              <Link to="/news" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
+                News
+              </Link>
             </div>
             <div className="ml-auto flex items-center gap-3 text-sm">
               {user ? (

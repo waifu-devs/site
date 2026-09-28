@@ -3,6 +3,7 @@ import { linkLabel } from "@waifu-devs/domain/profile";
 import { Globe, Link2, MapPin } from "lucide-react";
 import type { ReactNode } from "react";
 import { UserAvatar } from "@/components/Avatar";
+import { InlineMarkdown } from "@/components/Markdown";
 import { ProfileBanner } from "@/components/ProfileBanner";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -69,7 +70,7 @@ export function ProfileCard({ profile, actions, nameAs: Name = "h1" }: { profile
         {profile.status ? (
           <p className="inline-flex w-fit max-w-full items-center gap-2.5 rounded-full border bg-secondary px-3 py-1.5 text-sm text-secondary-foreground">
             <span className="status-dot shrink-0" />
-            <span className="min-w-0 break-words">{profile.status}</span>
+            <InlineMarkdown className="min-w-0 break-words">{profile.status}</InlineMarkdown>
           </p>
         ) : null}
 
@@ -77,7 +78,7 @@ export function ProfileCard({ profile, actions, nameAs: Name = "h1" }: { profile
           <div className="flex flex-wrap gap-2">
             {profile.favoriteWaifu ? (
               <Badge data-burst className="cursor-pointer px-3 py-1 text-sm transition-transform hover:scale-105">
-                <span className="heartbeat">♡</span> {profile.favoriteWaifu}
+                <span className="heartbeat">♡</span> <InlineMarkdown>{profile.favoriteWaifu}</InlineMarkdown>
               </Badge>
             ) : null}
             {profile.skills.map((skill) => (

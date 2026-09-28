@@ -1,6 +1,7 @@
 import { HttpApiBuilder, HttpApiError } from "@effect/platform";
-import { Api, CurrentUser } from "@waifu-devs/domain/api";
+import { Api, CurrentUser, Viewer } from "@waifu-devs/domain/api";
 import { Effect, Layer, Option } from "effect";
+import { Posts } from "./Posts.ts";
 import { revokeRefreshToken } from "./Storage.ts";
 import { Themes } from "./Themes.ts";
 import { Users } from "./Users.ts";
@@ -67,8 +68,39 @@ const ThemesLive = HttpApiBuilder.group(Api, "themes", (handlers) =>
   }),
 );
 
+const PostsLive = HttpApiBuilder.group(Api, "posts", (handlers) =>
+  Effect.gen(function* () {
+    const posts = yield* Posts;
+    const viewerId = Viewer.pipe(Effect.map((viewer) => Option.getOrNull(Option.map(viewer, (user) => user.id))));
+
+    const vote = (id: string, up: boolean) =>
+      Effect.gen(function* () {
+        const me = yield* CurrentUser;
+        // Your own post already carries your vote, and it stays.
+        if ((yield* orNotFound(posts.authorOf(id))) === me.id) return yield* new HttpApiError.Forbidden();
+        return yield* Effect.orDie(posts.vote(me.id, id, up));
+      });
+
+    return handlers
+      .handle("list", ({ urlParams }) =>
+        viewerId.pipe(Effect.flatMap((viewerId) => Effect.orDie(posts.list({ sort: urlParams.sort ?? "top", page: urlParams.page ?? 1, viewerId })))),
+      )
+      .handle("get", ({ path }) => viewerId.pipe(Effect.flatMap((viewerId) => orNotFound(posts.get(path.id, viewerId)))))
+      .handle("create", ({ payload }) => CurrentUser.pipe(Effect.flatMap((me) => Effect.orDie(posts.create(me, payload)))))
+      .handle("delete", ({ path }) =>
+        Effect.gen(function* () {
+          const me = yield* CurrentUser;
+          if (!(yield* Effect.orDie(posts.remove(me.id, path.id)))) return yield* new HttpApiError.NotFound();
+        }),
+      )
+      .handle("upvote", ({ path }) => vote(path.id, true))
+      .handle("unvote", ({ path }) => vote(path.id, false))
+      .handle("comment", ({ path, payload }) => CurrentUser.pipe(Effect.flatMap((me) => orNotFound(posts.comment(me, path.id, payload)))));
+  }),
+);
+
 const SessionLive = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("revoke", ({ payload }) => Effect.orDie(revokeRefreshToken(payload.refreshToken))),
 );
 
-export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([UsersLive, MeLive, ThemesLive, SessionLive]));
+export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([UsersLive, MeLive, ThemesLive, PostsLive, SessionLive]));

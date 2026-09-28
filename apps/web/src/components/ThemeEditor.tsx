@@ -76,7 +76,7 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" maxLength={140} placeholder="Optional" />
+              <Input id="description" name="description" maxLength={140} placeholder="Optional, Markdown works" />
             </div>
 
             <div className="grid gap-2">

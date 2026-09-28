@@ -15,6 +15,13 @@
       "when": 1790635504887,
       "tag": "0001_profile_customization",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790636423924,
+      "tag": "0002_news",
+      "breakpoints": true
     }
   ]
 }

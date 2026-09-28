@@ -14,6 +14,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as NewsIndexRouteImport } from './routes/news/index'
+import { Route as NewsPostIdRouteImport } from './routes/news/$postId'
+import { Route as NewsSubmitRouteImport } from './routes/news/submit'
 import { Route as ThemesIndexRouteImport } from './routes/themes/index'
 import { Route as ThemesNewRouteImport } from './routes/themes/new'
 import { Route as UUsernameRouteImport } from './routes/u/$username'
@@ -43,6 +46,21 @@ const SettingsRoute = SettingsRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsIndexRoute = NewsIndexRouteImport.update({
+  id: '/news/',
+  path: '/news/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsPostIdRoute = NewsPostIdRouteImport.update({
+  id: '/news/$postId',
+  path: '/news/$postId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsSubmitRoute = NewsSubmitRouteImport.update({
+  id: '/news/submit',
+  path: '/news/submit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ThemesIndexRoute = ThemesIndexRouteImport.update({
@@ -77,8 +95,11 @@ export interface FileRoutesByFullPath {
   '/members': typeof MembersRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/news/$postId': typeof NewsPostIdRoute
+  '/news/submit': typeof NewsSubmitRoute
   '/themes/new': typeof ThemesNewRoute
   '/u/$username': typeof UUsernameRoute
+  '/news/': typeof NewsIndexRoute
   '/themes/': typeof ThemesIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
@@ -89,8 +110,11 @@ export interface FileRoutesByTo {
   '/members': typeof MembersRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/news/$postId': typeof NewsPostIdRoute
+  '/news/submit': typeof NewsSubmitRoute
   '/themes/new': typeof ThemesNewRoute
   '/u/$username': typeof UUsernameRoute
+  '/news': typeof NewsIndexRoute
   '/themes': typeof ThemesIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
@@ -102,8 +126,11 @@ export interface FileRoutesById {
   '/members': typeof MembersRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/news/$postId': typeof NewsPostIdRoute
+  '/news/submit': typeof NewsSubmitRoute
   '/themes/new': typeof ThemesNewRoute
   '/u/$username': typeof UUsernameRoute
+  '/news/': typeof NewsIndexRoute
   '/themes/': typeof ThemesIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
@@ -116,8 +143,11 @@ export interface FileRouteTypes {
     | '/members'
     | '/settings'
     | '/api/health'
+    | '/news/$postId'
+    | '/news/submit'
     | '/themes/new'
     | '/u/$username'
+    | '/news/'
     | '/themes/'
     | '/api/auth/callback'
     | '/api/auth/login'
@@ -128,8 +158,11 @@ export interface FileRouteTypes {
     | '/members'
     | '/settings'
     | '/api/health'
+    | '/news/$postId'
+    | '/news/submit'
     | '/themes/new'
     | '/u/$username'
+    | '/news'
     | '/themes'
     | '/api/auth/callback'
     | '/api/auth/login'
@@ -140,8 +173,11 @@ export interface FileRouteTypes {
     | '/members'
     | '/settings'
     | '/api/health'
+    | '/news/$postId'
+    | '/news/submit'
     | '/themes/new'
     | '/u/$username'
+    | '/news/'
     | '/themes/'
     | '/api/auth/callback'
     | '/api/auth/login'
@@ -153,8 +189,11 @@ export interface RootRouteChildren {
   MembersRoute: typeof MembersRoute
   SettingsRoute: typeof SettingsRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  NewsPostIdRoute: typeof NewsPostIdRoute
+  NewsSubmitRoute: typeof NewsSubmitRoute
   ThemesNewRoute: typeof ThemesNewRoute
   UUsernameRoute: typeof UUsernameRoute
+  NewsIndexRoute: typeof NewsIndexRoute
   ThemesIndexRoute: typeof ThemesIndexRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
@@ -195,6 +234,27 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/': {
+      id: '/news/'
+      path: '/news'
+      fullPath: '/news/'
+      preLoaderRoute: typeof NewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/$postId': {
+      id: '/news/$postId'
+      path: '/news/$postId'
+      fullPath: '/news/$postId'
+      preLoaderRoute: typeof NewsPostIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/submit': {
+      id: '/news/submit'
+      path: '/news/submit'
+      fullPath: '/news/submit'
+      preLoaderRoute: typeof NewsSubmitRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/themes/': {
@@ -241,8 +301,11 @@ const rootRouteChildren: RootRouteChildren = {
   MembersRoute: MembersRoute,
   SettingsRoute: SettingsRoute,
   ApiHealthRoute: ApiHealthRoute,
+  NewsPostIdRoute: NewsPostIdRoute,
+  NewsSubmitRoute: NewsSubmitRoute,
   ThemesNewRoute: ThemesNewRoute,
   UUsernameRoute: UUsernameRoute,
+  NewsIndexRoute: NewsIndexRoute,
   ThemesIndexRoute: ThemesIndexRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
