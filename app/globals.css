@@ -237,10 +237,6 @@ body {
 @keyframes wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg) scale(1.06); } 75% { transform: rotate(8deg) scale(1.06); } }
 .wiggle-hover:hover { animation: wiggle 0.5s ease-in-out; }
 
-/* Typewriter caret. */
-.caret::after { content: "▍"; margin-left: 2px; color: var(--primary); animation: blink 1s steps(1) infinite; }
-@keyframes blink { 50% { opacity: 0; } }
-
 /* Sparkle trail and click bursts (spawned by <Sparkles>). */
 .sparkle {
   position: fixed;

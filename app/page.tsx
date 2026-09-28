@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { MemberCard } from "@/components/MemberCard";
-import { CountUp, Reveal, Tilt, Typewriter } from "@/components/motion";
+import { AvatarGroup, AvatarGroupTooltip } from "@/components/animate-ui/components/animate/avatar-group";
+import { BubbleBackground } from "@/components/animate-ui/components/backgrounds/bubble";
+import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
+import { RotatingText, RotatingTextContainer } from "@/components/animate-ui/primitives/texts/rotating";
+import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
+import { Reveal, Tilt } from "@/components/motion";
 import { ThemeSwatch } from "@/components/ThemeSwatch";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { countMembers, listCommunityThemes, listMembers } from "@/lib/db";
+import { countMembers, getTheme, listCommunityThemes, listMembers } from "@/lib/db";
 import { currentUser } from "@/lib/session";
-import { BUILTIN_THEMES } from "@/lib/themes";
+import { BUILTIN_THEMES, mix, type ThemeTokens } from "@/lib/themes";
 
 const PHRASES = ["ship together", "debug at 3am", "rewrite in Rust", "defend best girl", "deploy Fridays"];
 
@@ -18,43 +24,59 @@ export default async function Home() {
     countMembers(),
     listCommunityThemes(4),
   ]);
+  const theme = await getTheme(user?.theme_id);
   const themes = [...communityThemes, ...BUILTIN_THEMES].slice(0, 4);
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-20 px-4 py-14">
-      <section data-sparkle-zone className="relative isolate">
-        <div aria-hidden className="pointer-events-none absolute -inset-x-20 -top-20 -bottom-10 -z-10">
-          <div className="blob left-[5%] top-[10%] h-64 w-64" />
-          <div className="blob b2 right-[8%] top-[0%] h-72 w-72" />
-          <div className="blob b3 bottom-[0%] left-[40%] h-56 w-56" />
-        </div>
-
-        <div className="grid items-center gap-10 md:grid-cols-[1.4fr_1fr]">
+      <section data-sparkle-zone className="relative isolate overflow-hidden rounded-3xl border bg-card shadow-sm">
+        <BubbleBackground
+          interactive
+          colors={bubbleColors(theme.variant.tokens)}
+          className="absolute inset-0 -z-10 bg-none opacity-45"
+        />
+        <div className="grid items-center gap-10 p-6 sm:p-12 md:grid-cols-[1.4fr_1fr]">
           <div className="stagger flex flex-col items-start gap-5">
-            <Badge variant="outline" className="rounded-full bg-card px-3 py-1 text-primary">
-              (✿◕‿◕✿) <CountUp value={memberCount} /> {memberCount === 1 ? "dev" : "devs"} and counting
+            <Badge variant="outline" className="rounded-full bg-card/80 px-3 py-1 text-primary backdrop-blur">
+              (✿◕‿◕✿) <SlidingNumber number={memberCount} /> {memberCount === 1 ? "dev" : "devs"} and counting
             </Badge>
-            <h1 className="max-w-3xl text-4xl font-extrabold leading-tight sm:text-6xl">
-              Where devs who love their waifus{" "}
-              <span className="gradient-text block min-h-[1.25em]"><Typewriter phrases={PHRASES} /></span>
+            <h1 className="max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">
+              Where devs who love their waifus
+              <RotatingTextContainer text={PHRASES} duration={2600} className="min-h-[1.3em]">
+                <RotatingText className="gradient-text whitespace-nowrap" />
+              </RotatingTextContainer>
             </h1>
             <p className="max-w-2xl text-lg text-muted-foreground">
               Make a profile, show off your best girl, and dress the whole site in a theme you designed yourself.
             </p>
             <div className="flex flex-wrap gap-3">
-              {user ? (
+              <Magnetic strength={0.3}>
                 <Button asChild size="lg" className="btn rounded-full font-bold">
-                  <Link href={`/u/${user.username}`}>View my profile</Link>
+                  {user ? <Link href={`/u/${user.username}`}>View my profile</Link> : <Link href="/login">Join with GitHub ♡</Link>}
                 </Button>
-              ) : (
-                <Button asChild size="lg" className="btn rounded-full font-bold">
-                  <Link href="/login">Join with GitHub ♡</Link>
+              </Magnetic>
+              <Magnetic strength={0.3}>
+                <Button asChild size="lg" variant="outline" className="btn rounded-full bg-card/80 font-bold backdrop-blur">
+                  <Link href="/themes">Browse themes</Link>
                 </Button>
-              )}
-              <Button asChild size="lg" variant="outline" className="btn rounded-full font-bold">
-                <Link href="/themes">Browse themes</Link>
-              </Button>
+              </Magnetic>
             </div>
+            {members.length ? (
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <AvatarGroup className="h-10 -space-x-2">
+                  {members.slice(0, 6).map((m) => (
+                    <Avatar key={m.id} className="size-10 border-2 border-background">
+                      {m.avatar_url ? <AvatarImage src={`${m.avatar_url}?s=80`} alt="" /> : null}
+                      <AvatarFallback className="bg-primary font-bold text-primary-foreground">
+                        {m.username.slice(0, 1).toUpperCase()}
+                      </AvatarFallback>
+                      <AvatarGroupTooltip>u/{m.username}</AvatarGroupTooltip>
+                    </Avatar>
+                  ))}
+                </AvatarGroup>
+                <span>just joined</span>
+              </div>
+            ) : null}
           </div>
 
           <HeroCard />
@@ -115,6 +137,20 @@ export default async function Home() {
       </Reveal>
     </main>
   );
+}
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",");
+
+/** Bubble colors drawn from the viewer's theme, so the hero matches whatever they wear. */
+function bubbleColors(t: ThemeTokens) {
+  return {
+    first: rgb(t.primary),
+    second: rgb(mix(t.primary, "#a78bfa", 0.5)),
+    third: rgb(mix(t.primary, "#7dd3fc", 0.45)),
+    fourth: rgb(t.ring),
+    fifth: rgb(mix(t.primary, "#f9a8d4", 0.5)),
+    sixth: rgb(t.accent),
+  };
 }
 
 /** A floating mock profile card that shows off the current theme. */

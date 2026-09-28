@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Sparkles } from "@/components/motion";
 import { Petals } from "@/components/Petals";
 import { Button } from "@/components/ui/button";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserMenu } from "@/components/UserMenu";
 import { getTheme } from "@/lib/db";
 import { currentUser } from "@/lib/session";
@@ -33,7 +32,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
       </head>
       <body className="min-h-screen">
-        <TooltipProvider>
           <Petals />
           <Sparkles />
           <div className="relative z-10 flex min-h-screen flex-col">
@@ -63,7 +61,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               <a className="underline hover:text-primary" href="https://github.com/waifu-devs">GitHub</a>
             </footer>
           </div>
-        </TooltipProvider>
       </body>
     </html>
   );

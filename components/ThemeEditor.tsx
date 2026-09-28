@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsContents, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createTheme } from "@/lib/actions";
 import {
   BUILTIN_THEMES,
@@ -109,12 +109,14 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
                 <TabsTrigger value="quick">Quick</TabsTrigger>
                 <TabsTrigger value="all">All tokens</TabsTrigger>
               </TabsList>
-              <TabsContent value="quick" className="grid grid-cols-2 gap-3 pt-2">
-                {SEEDS.map((k) => swatch(k, (v) => setSeed(k, v)))}
-              </TabsContent>
-              <TabsContent value="all" className="grid grid-cols-2 gap-3 pt-2">
-                {TOKENS.map((k) => swatch(k, (v) => setTokens({ ...variant.tokens, [k]: v }, [k])))}
-              </TabsContent>
+              <TabsContents>
+                <TabsContent value="quick" className="grid grid-cols-2 gap-3 p-1 pt-2">
+                  {SEEDS.map((k) => swatch(k, (v) => setSeed(k, v)))}
+                </TabsContent>
+                <TabsContent value="all" className="grid grid-cols-2 gap-3 p-1 pt-2">
+                  {TOKENS.map((k) => swatch(k, (v) => setTokens({ ...variant.tokens, [k]: v }, [k])))}
+                </TabsContent>
+              </TabsContents>
             </Tabs>
 
             <div className="grid gap-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 const reducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -108,56 +108,4 @@ export function Sparkles() {
     };
   }, []);
   return null;
-}
-
-/** Types, holds, and deletes each phrase in turn. */
-export function Typewriter({ phrases }: { phrases: string[] }) {
-  const [text, setText] = useState(phrases[0]);
-  useEffect(() => {
-    if (reducedMotion()) return;
-    let i = 0;
-    let len = phrases[0].length;
-    let deleting = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      if (deleting) {
-        len--;
-        if (len === 0) {
-          deleting = false;
-          i = (i + 1) % phrases.length;
-        }
-      } else {
-        len++;
-      }
-      setText(phrases[i].slice(0, len));
-      let delay = deleting ? 35 : 70;
-      if (!deleting && len === phrases[i].length) {
-        deleting = true;
-        delay = 2200;
-      }
-      timer = setTimeout(tick, delay);
-    };
-    timer = setTimeout(tick, 2200);
-    return () => clearTimeout(timer);
-  }, [phrases]);
-  return <span className="caret">{text}</span>;
-}
-
-/** Counts up from 0 to `value` when first shown. */
-export function CountUp({ value }: { value: number }) {
-  const [n, setN] = useState(value);
-  useEffect(() => {
-    if (reducedMotion() || value === 0) return;
-    const start = performance.now();
-    const dur = 900;
-    let raf = 0;
-    const step = (t: number) => {
-      const p = Math.min(1, (t - start) / dur);
-      setN(Math.round(value * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [value]);
-  return <>{n}</>;
 }
