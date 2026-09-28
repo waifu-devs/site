@@ -52,14 +52,10 @@ export const getViewer = createServerFn({ method: "GET" }).handler(() =>
 
 export const getHome = createServerFn({ method: "GET" }).handler(() =>
   run(
-    Effect.gen(function* () {
-      const api = (yield* ApiClient).anonymous;
-      const [members, stats, community] = yield* Effect.all(
-        [api.users.list({ urlParams: { limit: 8 } }), api.users.stats(), api.themes.community()],
-        { concurrency: "unbounded" },
-      );
-      return { members, memberCount: stats.members, themes: [...community, ...BUILTIN_THEMES].slice(0, 4) as Theme[] };
-    }),
+    ApiClient.pipe(
+      Effect.flatMap((api) => api.anonymous.users.stats()),
+      Effect.map((stats) => ({ memberCount: stats.members })),
+    ),
   ),
 );
 
