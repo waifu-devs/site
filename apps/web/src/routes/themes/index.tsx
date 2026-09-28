@@ -87,7 +87,8 @@ function ThemesPage() {
         <div>
           <h1 className="text-3xl font-extrabold">Themes</h1>
           <p className="text-muted-foreground">
-            Each theme is a full shadcn/ui token set. Wear one to restyle the site for you, and your profile for everyone who visits it.
+            Each theme is a full shadcn/ui token set. Wear one to restyle the site for you. Your profile shows it too, unless you pick a
+            different profile theme when you customize your profile.
           </p>
         </div>
         <Button asChild className="btn rounded-full font-bold">

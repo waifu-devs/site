@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { ThemeVariant } from "@waifu-devs/domain/api";
+import { type Banner, DEFAULT_BANNER } from "@waifu-devs/domain/profile";
 
 // Column names are derived from the keys in snake_case (see `casing` in src/Db.ts
 // and drizzle.config.ts). Change this file, then `pnpm db:generate` a migration.
@@ -24,6 +25,13 @@ export const users = pgTable(
     website: text(),
     favoriteWaifu: text(),
     themeId: text().notNull().default("sakura"),
+    // Profile customization. A null profileThemeId shows the profile in themeId.
+    profileThemeId: text(),
+    banner: text().$type<Banner>().notNull().default(DEFAULT_BANNER),
+    status: text(),
+    location: text(),
+    skills: text().array().notNull().default(sql`'{}'`),
+    links: text().array().notNull().default(sql`'{}'`),
     createdAt: createdAt(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

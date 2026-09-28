@@ -4,6 +4,7 @@
  */
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
 import { Context, Schema } from "effect";
+import { BANNERS, DEFAULT_BANNER, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "./profile.ts";
 import { HEX, RADIUS_MAX, RADIUS_MIN, TOKENS } from "./themes.ts";
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,10 @@ export type NewTheme = typeof NewTheme.Type;
 // ---------------------------------------------------------------------------
 // Users
 
+export const Banner = Schema.Literal(...BANNERS);
+
+const nullByDefault = Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null });
+
 export const User = Schema.Struct({
   id: Schema.UUID,
   username: Schema.String,
@@ -50,19 +55,39 @@ export const User = Schema.Struct({
   pronouns: Schema.NullOr(Schema.String),
   website: Schema.NullOr(Schema.String),
   favoriteWaifu: Schema.NullOr(Schema.String),
+  /** The theme the member browses the site in. */
   themeId: Schema.String,
   createdAt: Schema.Date,
+  // Profile customization. These decode with defaults so a web deploy that
+  // lands before the API's can still read users.
+  /** The theme everyone sees the profile in; null means the one the member wears. */
+  profileThemeId: nullByDefault,
+  banner: Schema.optionalWith(Banner, { default: () => DEFAULT_BANNER }),
+  status: nullByDefault,
+  location: nullByDefault,
+  skills: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] }),
+  links: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] }),
 });
 export type User = typeof User.Type;
 
 const optionalText = (max: number) => Schema.NullOr(Schema.Trim.pipe(Schema.maxLength(max)));
+const Url = Schema.String.pipe(Schema.maxLength(MAX_LINK_LENGTH), Schema.pattern(/^https?:\/\/\S+$/));
 
 export const ProfileUpdate = Schema.Struct({
   displayName: optionalText(60),
   bio: optionalText(500),
   pronouns: optionalText(30),
-  website: Schema.NullOr(Schema.String.pipe(Schema.maxLength(200), Schema.pattern(/^https?:\/\/\S+$/))),
+  website: Schema.NullOr(Url),
   favoriteWaifu: optionalText(80),
+  // Optional so older clients can still save the fields above; a missing field is left as it is.
+  status: Schema.optional(optionalText(80)),
+  location: Schema.optional(optionalText(60)),
+  skills: Schema.optional(
+    Schema.Array(Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(MAX_SKILL_LENGTH))).pipe(Schema.maxItems(MAX_SKILLS)),
+  ),
+  links: Schema.optional(Schema.Array(Url).pipe(Schema.maxItems(MAX_LINKS))),
+  banner: Schema.optional(Banner),
+  profileThemeId: Schema.optional(Schema.NullOr(Schema.String)),
 });
 export type ProfileUpdate = typeof ProfileUpdate.Type;
 
@@ -100,7 +125,13 @@ export class UsersApi extends HttpApiGroup.make("users")
 
 export class MeApi extends HttpApiGroup.make("me")
   .add(HttpApiEndpoint.get("get", "/me").addSuccess(User))
-  .add(HttpApiEndpoint.patch("update", "/me").setPayload(ProfileUpdate).addSuccess(User))
+  .add(
+    HttpApiEndpoint.patch("update", "/me")
+      .setPayload(ProfileUpdate)
+      .addSuccess(User)
+      // The profile theme must be one the member could wear.
+      .addError(HttpApiError.Forbidden),
+  )
   .add(
     HttpApiEndpoint.put("wear", "/me/theme")
       .setPayload(Schema.Struct({ themeId: Schema.String }))
