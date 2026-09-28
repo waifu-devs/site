@@ -66,6 +66,10 @@ You need Node 22 and a local Postgres (`postgres://postgres:postgres@localhost:5
 
 `pnpm typecheck` and `pnpm build` check and build everything. To change the schema, edit `apps/api/src/schema.ts`, run `pnpm db:generate`, and commit the new migration.
 
+## Infrastructure
+
+The Railway project is public, so anyone can check out the live infrastructure behind the site at <https://railway.com/project/c1d0e00f-7c4c-408f-8422-41cd680bc304>. It's what `.railway/railway.ts` declares: Postgres plus the `api` and `web` services.
+
 ## Deploying on Railway
 
 Everything lives in the **waifu-devs** Railway project, production environment, in the US East (Virginia) region. `.railway/railway.ts` declares Postgres and the `api` and `web` services (built from `main` of this repo with Railpack) along with their domains, `api.waifu.dev` and `www.waifu.dev`; a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
