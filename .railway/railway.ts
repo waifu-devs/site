@@ -13,6 +13,12 @@ import { defineRailway, github, postgres, project, service } from "railway/iac";
 /** Railway's US East (Virginia) region. Everything runs here, next to the database. */
 const REGION = "us-east4-eqdc4a";
 
+/**
+ * Railway merges a service's regions into the ones it already has, so moving a service
+ * means naming the region it leaves as null. The services started out in "sfo".
+ */
+const placement = { multiRegionConfig: { sfo: null, [REGION]: { numReplicas: 1 } } };
+
 const API_DOMAIN = "api.waifu.dev";
 const WEB_DOMAIN = "www.waifu.dev";
 const API_URL = `https://${API_DOMAIN}`;
@@ -32,7 +38,7 @@ export default defineRailway((ctx) => {
     preDeploy: "pnpm --filter @waifu-devs/api db:migrate",
     start: "node apps/api/dist/main.js",
     healthcheck: "/health",
-    regions: { [REGION]: 1 },
+    deploy: placement,
     domains: [{ domain: API_DOMAIN, port: 4000 }],
     env: {
       NODE_ENV: "production",
@@ -56,7 +62,7 @@ export default defineRailway((ctx) => {
     },
     start: "node apps/web/.output/server/index.mjs",
     healthcheck: "/api/health",
-    regions: { [REGION]: 1 },
+    deploy: placement,
     domains: [{ domain: WEB_DOMAIN, port: 3000 }],
     env: {
       NODE_ENV: "production",
