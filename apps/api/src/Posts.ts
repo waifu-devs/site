@@ -3,6 +3,7 @@ import type { Comment, NewComment, NewPost, Post, PostSort, User } from "@waifu-
 import { and, asc, count, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { Effect, Option } from "effect";
 import { Db } from "./Db.ts";
+import { avatarColumn } from "./Media.ts";
 import { comments, postVotes, posts, users } from "./schema.ts";
 
 export const PAGE_SIZE = 30;
@@ -42,6 +43,8 @@ export class Posts extends Effect.Service<Posts>()("Posts", {
   effect: Effect.gen(function* () {
     const db = yield* Db;
     const client = yield* SqlClient.SqlClient;
+    // Uploaded profile pictures win over GitHub avatars here too.
+    const authorAvatarUrl = yield* avatarColumn;
 
     /** Posts with their author, and whether `viewerId` (if anyone) has upvoted each. */
     const select = (viewerId: string | null) =>
@@ -49,7 +52,7 @@ export class Posts extends Effect.Service<Posts>()("Posts", {
         .select({
           ...getTableColumns(posts),
           authorUsername: users.username,
-          authorAvatarUrl: users.avatarUrl,
+          authorAvatarUrl,
           voted: viewerId
             ? sql<boolean>`exists (select 1 from ${postVotes} where ${postVotes.postId} = ${posts.id} and ${postVotes.userId} = ${viewerId})`
             : sql<boolean>`false`,
@@ -71,7 +74,7 @@ export class Posts extends Effect.Service<Posts>()("Posts", {
         [
           select(viewerId).where(eq(posts.id, id)),
           db
-            .select({ ...getTableColumns(comments), authorUsername: users.username, authorAvatarUrl: users.avatarUrl })
+            .select({ ...getTableColumns(comments), authorUsername: users.username, authorAvatarUrl })
             .from(comments)
             .innerJoin(users, eq(users.id, comments.authorId))
             .where(eq(comments.postId, id))

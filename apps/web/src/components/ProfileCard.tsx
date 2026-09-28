@@ -21,6 +21,7 @@ export type ProfileView = Pick<
   | "skills"
   | "links"
   | "banner"
+  | "bannerUrl"
   | "createdAt"
 >;
 
@@ -40,7 +41,7 @@ export function ProfileCard({ profile, actions, nameAs: Name = "h1" }: { profile
 
   return (
     <Card className="relative isolate gap-0 overflow-hidden py-0">
-      <ProfileBanner banner={profile.banner} className="h-32 sm:h-40" />
+      <ProfileBanner banner={profile.banner} image={profile.bannerUrl} className="h-32 sm:h-40" />
       <div className="flex flex-col gap-4 px-6 pb-6">
         <div className="-mt-12 flex items-end justify-between gap-4 sm:-mt-14">
           <span className="rounded-full bg-card p-1 shadow-lg">

@@ -1,6 +1,8 @@
 import { HttpApiBuilder, HttpApiError } from "@effect/platform";
-import { Api, CurrentUser, Viewer } from "@waifu-devs/domain/api";
+import { Api, CurrentUser, type ImageKind, ImageRejected, Viewer } from "@waifu-devs/domain/api";
+import { MAX_IMAGE_BYTES } from "@waifu-devs/domain/profile";
 import { Effect, Layer, Option } from "effect";
+import { MediaStore, newKey, processImage } from "./Media.ts";
 import { Posts } from "./Posts.ts";
 import { revokeRefreshToken } from "./Storage.ts";
 import { Themes } from "./Themes.ts";
@@ -30,6 +32,15 @@ const MeLive = HttpApiBuilder.group(Api, "me", (handlers) =>
   Effect.gen(function* () {
     const users = yield* Users;
     const themes = yield* Themes;
+    const media = yield* MediaStore;
+
+    /** Points the avatar or banner at `key` (or none), then deletes the picture it replaced. */
+    const setImage = (userId: string, kind: ImageKind, key: string | null) =>
+      Effect.orDie(users.setImage(userId, kind, key)).pipe(
+        Effect.tap(({ previous }) => (previous ? media.remove(previous) : Effect.void)),
+        Effect.map(({ user }) => user),
+      );
+
     return handlers
       .handle("get", () => CurrentUser)
       .handle("update", ({ payload }) =>
@@ -48,7 +59,20 @@ const MeLive = HttpApiBuilder.group(Api, "me", (handlers) =>
           return yield* Effect.orDie(users.update(me.id, { themeId: payload.themeId }));
         }),
       )
-      .handle("themes", () => CurrentUser.pipe(Effect.flatMap((me) => Effect.orDie(themes.byOwner(me.id, { includePrivate: true })))));
+      .handle("themes", () => CurrentUser.pipe(Effect.flatMap((me) => Effect.orDie(themes.byOwner(me.id, { includePrivate: true })))))
+      .handle("uploadImage", ({ path, payload }) =>
+        Effect.gen(function* () {
+          const me = yield* CurrentUser;
+          if (payload.byteLength > MAX_IMAGE_BYTES) {
+            return yield* new ImageRejected({ reason: `That file is over ${MAX_IMAGE_BYTES / 1024 / 1024} MB.` });
+          }
+          const webp = yield* processImage(path.kind, payload);
+          const key = newKey(path.kind, me.id);
+          yield* Effect.orDie(media.put(key, webp));
+          return yield* setImage(me.id, path.kind, key);
+        }),
+      )
+      .handle("removeImage", ({ path }) => CurrentUser.pipe(Effect.flatMap((me) => setImage(me.id, path.kind, null))));
   }),
 );
 

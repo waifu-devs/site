@@ -487,3 +487,23 @@ body {
   font-size: 0.875em;
 }
 :where(.markdown, .markdown-inline) del { opacity: 0.7; }
+
+/* An uploaded banner picture sits under the decoration. It fades in, then
+   drifts and zooms very slowly. */
+.banner-image {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: banner-in 0.8s ease both, ken-burns 24s ease-in-out 0.8s infinite alternate;
+}
+/* Over a picture, the grid's horizon fades out so the photo shows above it. */
+.banner[data-image] .banner-grid { mask-image: linear-gradient(to bottom, transparent, black 60%); }
+@keyframes banner-in { from { opacity: 0; transform: scale(1.06); } }
+@keyframes ken-burns { to { transform: scale(1.08) translate(-1.5%, 1%); } }
+
+/* Refused uploads shake their message once. */
+@keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+.shake { animation: shake 0.4s ease; }

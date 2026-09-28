@@ -6,3 +6,4 @@ dist/
 .output/
 .nitro/
 .tanstack/
+apps/api/uploads/

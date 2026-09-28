@@ -32,6 +32,9 @@ export const users = pgTable(
     location: text(),
     skills: text().array().notNull().default(sql`'{}'`),
     links: text().array().notNull().default(sql`'{}'`),
+    // Uploaded pictures, as keys in the media store. avatarUrl stays the GitHub one.
+    avatarKey: text(),
+    bannerKey: text(),
     createdAt: createdAt(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

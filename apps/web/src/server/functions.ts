@@ -5,7 +5,18 @@
 import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { NewTheme, ProfileUpdate, Theme, User } from "@waifu-devs/domain/api";
-import { BANNERS, type Banner, DEFAULT_BANNER, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "@waifu-devs/domain/profile";
+import {
+  BANNERS,
+  type Banner,
+  DEFAULT_BANNER,
+  IMAGE_KINDS,
+  type ImageKind,
+  MAX_IMAGE_BYTES,
+  MAX_LINK_LENGTH,
+  MAX_LINKS,
+  MAX_SKILL_LENGTH,
+  MAX_SKILLS,
+} from "@waifu-devs/domain/profile";
 import { BUILTIN_THEMES, DEFAULT_THEME, TOKENS } from "@waifu-devs/domain/themes";
 import { Effect, Option } from "effect";
 import { ApiClient } from "./Api.ts";
@@ -183,6 +194,42 @@ export const updateProfile = createServerFn({ method: "POST" })
         };
         const user: User = yield* (yield* asUser).me.update({ payload });
         return yield* Effect.die(redirect({ to: "/u/$username", params: { username: user.username } }));
+      }),
+    ),
+  );
+
+const imageKind = (form: FormData): ImageKind | null => {
+  const kind = form.get("kind");
+  return IMAGE_KINDS.find((k) => k === kind) ?? null;
+};
+
+/** Uploads a new profile picture or banner. Resolves to why the API refused it, if it did. */
+export const uploadImage = createServerFn({ method: "POST" })
+  .validator(formData)
+  .handler(({ data: form }) =>
+    run(
+      Effect.gen(function* () {
+        const kind = imageKind(form);
+        const file = form.get("file");
+        if (!kind || !(file instanceof File)) return { error: "Pick an image to upload." };
+        if (file.size > MAX_IMAGE_BYTES) return { error: `That file is over ${MAX_IMAGE_BYTES / 1024 / 1024} MB.` };
+        const payload = new Uint8Array(yield* Effect.promise(() => file.arrayBuffer()));
+        return yield* (yield* asUser).me.uploadImage({ path: { kind }, payload }).pipe(
+          Effect.as({ error: null }),
+          Effect.catchTag("ImageRejected", (rejected) => Effect.succeed({ error: rejected.reason })),
+        );
+      }),
+    ),
+  );
+
+/** Goes back to the GitHub avatar, or takes the picture off the banner (its decoration stays). */
+export const removeImage = createServerFn({ method: "POST" })
+  .validator(formData)
+  .handler(({ data: form }) =>
+    run(
+      Effect.gen(function* () {
+        const kind = imageKind(form);
+        if (kind) yield* (yield* asUser).me.removeImage({ path: { kind } });
       }),
     ),
   );

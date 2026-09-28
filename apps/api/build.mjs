@@ -9,8 +9,9 @@ await build({
   target: "node22",
   format: "esm",
   sourcemap: true,
-  // pg optionally requires its native bindings; we don't use them.
-  external: ["pg-native"],
+  // pg optionally requires its native bindings, which we don't use; sharp is
+  // native and loads its prebuilt binary from node_modules at runtime.
+  external: ["pg-native", "sharp"],
   // Some bundled CommonJS dependencies call require() for Node builtins.
   banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
   logLevel: "info",

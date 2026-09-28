@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { Theme, User } from "@waifu-devs/domain/api";
-import { BANNER_LABELS, BANNERS, type Banner, MAX_SKILLS } from "@waifu-devs/domain/profile";
+import { BANNER_LABELS, BANNERS, type Banner, IMAGE_SIZES, MAX_IMAGE_BYTES, MAX_SKILLS } from "@waifu-devs/domain/profile";
 import { type ThemeVariant, themeStyle } from "@waifu-devs/domain/themes";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
+import { UserAvatar } from "@/components/Avatar";
+import { ImageDrop, type ImageUpload, useImageUpload } from "@/components/ImageUpload";
 import { Markdown } from "@/components/Markdown";
 import { ProfileBanner } from "@/components/ProfileBanner";
 import { ProfileCard, type ProfileView } from "@/components/ProfileCard";
@@ -57,8 +59,9 @@ const previewUrl = (value: string) => {
 
 function SettingsPage() {
   const data = Route.useLoaderData();
-  // Keyed on the saved values, so the editor starts over from them after a save.
-  return <ProfileEditor key={JSON.stringify(data.user)} {...data} />;
+  // Keyed on the saved values, so the editor starts over from them after a save
+  // (but not after a picture upload, which mustn't throw away unsaved edits).
+  return <ProfileEditor key={JSON.stringify(draftOf(data.user))} {...data} />;
 }
 
 type Themes = readonly Theme[];
@@ -68,11 +71,13 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
   const [draft, setDraft] = useState(initial);
   const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  const avatar = useImageUpload("avatar", { url: user.avatarUrl, custom: user.customAvatar });
+  const bannerImage = useImageUpload("banner", { url: user.bannerUrl, custom: user.bannerUrl !== null });
 
   const theme = (draft.profileThemeId && [...mine, ...builtin, ...community].find((t) => t.id === draft.profileThemeId)) || worn;
   const preview: ProfileView = {
     username: user.username,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: avatar.url,
     createdAt: user.createdAt,
     displayName: orNull(draft.displayName),
     pronouns: orNull(draft.pronouns),
@@ -83,6 +88,7 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
     skills: draft.skills,
     links: draft.links.flatMap((link) => previewUrl(link) ?? []),
     banner: draft.banner,
+    bannerUrl: bannerImage.url,
   };
 
   const themeOption = (t: Theme, value = t.id, label = t.name, sub?: string) => (
@@ -123,9 +129,11 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
               <Link className="text-primary hover:underline" to="/u/$username" params={{ username: user.username }}>
                 u/{user.username}
               </Link>{" "}
-              sees it just like the preview. Your avatar and username come from GitHub.
+              sees it just like the preview. Your username comes from GitHub, and so does your picture until you upload one.
             </p>
           </div>
+
+          <PicturesCard avatar={avatar} banner={bannerImage} username={user.username} decoration={draft.banner} themeVariant={theme.variant} />
 
           <Card>
             <CardHeader>
@@ -156,13 +164,13 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
               </fieldset>
 
               <fieldset className="flex min-w-0 flex-col gap-3">
-                <legend className="mb-3 text-sm font-bold">Banner</legend>
+                <legend className="mb-3 text-sm font-bold">Banner decoration</legend>
                 {/* Drawn in the profile theme, the way visitors will see it. */}
                 <div className="themed grid grid-cols-2 gap-1 rounded-xl border p-2 sm:grid-cols-3" style={themeStyle(theme.variant)}>
                   {BANNERS.map((b) => (
                     <PickerOption key={b} name="banner" value={b} ring="profile-banner" selected={draft.banner === b} onSelect={() => set("banner")(b)}>
-                      <ProfileBanner banner={b} className="h-14 rounded-lg border" />
-                      <span className="px-0.5 text-xs font-bold">{BANNER_LABELS[b]}</span>
+                      <ProfileBanner banner={b} image={bannerImage.url} className="h-14 rounded-lg border" />
+                      <span className="px-0.5 text-xs font-bold">{b === "plain" && bannerImage.url ? "Picture only" : BANNER_LABELS[b]}</span>
                     </PickerOption>
                   ))}
                 </div>
@@ -250,6 +258,81 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
         {!dirty ? <div className="flex justify-end lg:hidden">{saveButton}</div> : null}
       </ActionForm>
     </main>
+  );
+}
+
+const MB = MAX_IMAGE_BYTES / 1024 / 1024;
+const quiet = "rounded-full font-bold transition-transform hover:-translate-y-0.5";
+
+/**
+ * Profile picture and banner uploads. These save as soon as they're picked;
+ * everything else on the page waits for "Save profile".
+ */
+function PicturesCard({
+  avatar,
+  banner,
+  username,
+  decoration,
+  themeVariant,
+}: {
+  avatar: ImageUpload;
+  banner: ImageUpload;
+  username: string;
+  decoration: Banner;
+  themeVariant: ThemeVariant;
+}) {
+  const { width, height } = IMAGE_SIZES.banner;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Pictures</CardTitle>
+        <CardDescription>
+          Click or drop a JPEG, PNG, WebP or GIF (up to {MB} MB). GIFs stay animated. These save right away.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-6 sm:grid-cols-[auto_minmax(0,1fr)]">
+        <ImageDrop
+          upload={avatar}
+          label="Profile picture"
+          hint={avatar.custom ? "Your own picture, cropped to a square." : "Synced from GitHub."}
+          className="w-fit rounded-full"
+          actions={
+            avatar.custom ? (
+              <Button type="button" variant="outline" size="sm" className={quiet} disabled={avatar.pending} onClick={() => void avatar.remove()}>
+                Use GitHub's
+              </Button>
+            ) : null
+          }
+        >
+          <span className="avatar-ring block rounded-full p-1">
+            <UserAvatar src={avatar.url} name={username} size={88} />
+          </span>
+        </ImageDrop>
+
+        <ImageDrop
+          upload={banner}
+          label="Banner picture"
+          hint={
+            banner.custom
+              ? "Your banner decoration plays on top. Pick Picture only below to show just the picture."
+              : `Cropped to ${width}×${height}. Your banner decoration keeps playing on top of it.`
+          }
+          className="w-full rounded-xl"
+          actions={
+            banner.custom ? (
+              <Button type="button" variant="outline" size="sm" className={quiet} disabled={banner.pending} onClick={() => void banner.remove()}>
+                Remove picture
+              </Button>
+            ) : null
+          }
+        >
+          {/* Drawn in the profile theme, with the chosen decoration, as visitors will see it. */}
+          <span className="themed block overflow-hidden rounded-xl border" style={themeStyle(themeVariant)}>
+            <ProfileBanner banner={decoration} image={banner.url} className="aspect-[3/1] w-full" />
+          </span>
+        </ImageDrop>
+      </CardContent>
+    </Card>
   );
 }
 
