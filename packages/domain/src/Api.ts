@@ -2,9 +2,10 @@
  * The API contract shared by apps/api (which implements it) and apps/web
  * (which calls it through a typed HttpApiClient).
  */
-import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
+import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, HttpApiSecurity } from "@effect/platform";
 import { Context, type Option, Schema } from "effect";
-import { BANNERS, DEFAULT_BANNER, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "./profile.ts";
+import { isCountryCode } from "./countries.ts";
+import { BANNERS, DEFAULT_BANNER, IMAGE_KINDS, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "./profile.ts";
 import { HEX, RADIUS_MAX, RADIUS_MIN, TOKENS } from "./themes.ts";
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ export const User = Schema.Struct({
   id: Schema.UUID,
   username: Schema.String,
   displayName: Schema.NullOr(Schema.String),
+  /** The uploaded picture if there is one, otherwise the GitHub avatar. */
   avatarUrl: Schema.NullOr(Schema.String),
   bio: Schema.NullOr(Schema.String),
   pronouns: Schema.NullOr(Schema.String),
@@ -65,12 +67,30 @@ export const User = Schema.Struct({
   banner: Schema.optionalWith(Banner, { default: () => DEFAULT_BANNER }),
   status: nullByDefault,
   location: nullByDefault,
+  /** The member's country as an ISO 3166-1 alpha-2 code. Null unless they show it. */
+  country: nullByDefault,
+  showCountry: Schema.optionalWith(Schema.Boolean, { default: () => false }),
   skills: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] }),
   links: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] }),
+  /** True when avatarUrl is an uploaded picture rather than the GitHub avatar. */
+  customAvatar: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  /** An uploaded banner picture; the banner decoration plays on top of it. */
+  bannerUrl: nullByDefault,
 });
 export type User = typeof User.Type;
 
+export const ImageKind = Schema.Literal(...IMAGE_KINDS);
+export type ImageKind = typeof ImageKind.Type;
+
+/** An upload that isn't an image we take, or is too big; `reason` is shown to the member. */
+export class ImageRejected extends Schema.TaggedError<ImageRejected>()(
+  "ImageRejected",
+  { reason: Schema.String },
+  HttpApiSchema.annotations({ status: 422 }),
+) {}
+
 const optionalText = (max: number) => Schema.NullOr(Schema.Trim.pipe(Schema.maxLength(max)));
+const CountryCode = Schema.String.pipe(Schema.filter(isCountryCode, { description: "an ISO 3166-1 alpha-2 country code" }));
 const Url = Schema.String.pipe(Schema.maxLength(MAX_LINK_LENGTH), Schema.pattern(/^https?:\/\/\S+$/));
 
 export const ProfileUpdate = Schema.Struct({
@@ -82,6 +102,8 @@ export const ProfileUpdate = Schema.Struct({
   // Optional so older clients can still save the fields above; a missing field is left as it is.
   status: Schema.optional(optionalText(80)),
   location: Schema.optional(optionalText(60)),
+  country: Schema.optional(Schema.NullOr(CountryCode)),
+  showCountry: Schema.optional(Schema.Boolean),
   skills: Schema.optional(
     Schema.Array(Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(MAX_SKILL_LENGTH))).pipe(Schema.maxItems(MAX_SKILLS)),
   ),
@@ -209,6 +231,15 @@ export class MeApi extends HttpApiGroup.make("me")
       .addError(HttpApiError.Forbidden),
   )
   .add(HttpApiEndpoint.get("themes", "/me/themes").addSuccess(Schema.Array(Theme)))
+  // The image file itself is the request body; the API checks, resizes and stores it.
+  .add(
+    HttpApiEndpoint.put("uploadImage", "/me/images/:kind")
+      .setPath(Schema.Struct({ kind: ImageKind }))
+      .setPayload(HttpApiSchema.Uint8Array())
+      .addSuccess(User)
+      .addError(ImageRejected),
+  )
+  .add(HttpApiEndpoint.del("removeImage", "/me/images/:kind").setPath(Schema.Struct({ kind: ImageKind })).addSuccess(User))
   .middleware(Authentication) {}
 
 export class ThemesApi extends HttpApiGroup.make("themes")

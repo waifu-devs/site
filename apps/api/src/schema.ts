@@ -30,8 +30,14 @@ export const users = pgTable(
     banner: text().$type<Banner>().notNull().default(DEFAULT_BANNER),
     status: text(),
     location: text(),
+    // An ISO 3166-1 alpha-2 code, shown on the profile only when showCountry is on.
+    country: text(),
+    showCountry: boolean().notNull().default(false),
     skills: text().array().notNull().default(sql`'{}'`),
     links: text().array().notNull().default(sql`'{}'`),
+    // Uploaded pictures, as keys in the media store. avatarUrl stays the GitHub one.
+    avatarKey: text(),
+    bannerKey: text(),
     createdAt: createdAt(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

@@ -13,6 +13,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1142.0",
     "@effect/experimental": "^0.61.0",
     "@effect/platform": "^0.97.2",
     "@effect/platform-node": "^0.108.2",
@@ -25,7 +26,8 @@
     "drizzle-orm": "^0.45.3",
     "effect": "^3.22.2",
     "hono": "^4.13.10",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

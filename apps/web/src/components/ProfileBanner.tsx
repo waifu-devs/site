@@ -28,10 +28,15 @@ const STARS = [
 // Two periods of a wave across 1200 units; sliding by half loops seamlessly.
 const WAVE = "M0 60 Q 150 10 300 60 T 600 60 T 900 60 T 1200 60 V 120 H 0 Z";
 
-/** A profile's banner, animated and drawn in the surrounding theme's colors. */
-export function ProfileBanner({ banner, className }: { banner: Banner; className?: string }) {
+/**
+ * A profile's banner: the member's uploaded picture (drifting slowly), if any,
+ * with the chosen animated decoration playing on top of it. Decorations are
+ * drawn in the surrounding theme's colors, so they suit every theme.
+ */
+export function ProfileBanner({ banner, image, className }: { banner: Banner; image?: string | null; className?: string }) {
   return (
-    <div aria-hidden data-banner={banner} className={cn("banner", className)}>
+    <div aria-hidden data-banner={banner} data-image={image ? "" : undefined} className={cn("banner", className)}>
+      {image ? <img key={image} src={image} alt="" className="banner-image" /> : null}
       {banner === "blobs" ? (
         <>
           <span className="blob -left-10 -top-16 h-44 w-44" />

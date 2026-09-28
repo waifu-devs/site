@@ -1,4 +1,5 @@
 import type { User } from "@waifu-devs/domain/api";
+import { countryFlag, countryName } from "@waifu-devs/domain/countries";
 import { linkLabel } from "@waifu-devs/domain/profile";
 import { Globe, Link2, MapPin } from "lucide-react";
 import type { ReactNode } from "react";
@@ -15,12 +16,14 @@ export type ProfileView = Pick<
   | "avatarUrl"
   | "pronouns"
   | "location"
+  | "country"
   | "status"
   | "favoriteWaifu"
   | "website"
   | "skills"
   | "links"
   | "banner"
+  | "bannerUrl"
   | "createdAt"
 >;
 
@@ -40,7 +43,7 @@ export function ProfileCard({ profile, actions, nameAs: Name = "h1" }: { profile
 
   return (
     <Card className="relative isolate gap-0 overflow-hidden py-0">
-      <ProfileBanner banner={profile.banner} className="h-32 sm:h-40" />
+      <ProfileBanner banner={profile.banner} image={profile.bannerUrl} className="h-32 sm:h-40" />
       <div className="flex flex-col gap-4 px-6 pb-6">
         <div className="-mt-12 flex items-end justify-between gap-4 sm:-mt-14">
           <span className="rounded-full bg-card p-1 shadow-lg">
@@ -61,6 +64,15 @@ export function ProfileCard({ profile, actions, nameAs: Name = "h1" }: { profile
             {profile.location ? (
               <span className="inline-flex items-center gap-1">
                 · <MapPin className="size-3.5" /> {profile.location}
+              </span>
+            ) : null}
+            {profile.country ? (
+              <span className="inline-flex items-center gap-1.5">
+                ·{" "}
+                <span aria-hidden className="text-base leading-none">
+                  {countryFlag(profile.country)}
+                </span>
+                {countryName(profile.country)}
               </span>
             ) : null}
             <span>· joined {joined}</span>

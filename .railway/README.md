@@ -1,7 +1,8 @@
 # Railway infrastructure
 
-`railway.ts` describes the whole Railway project (Postgres, `api`, `web`, their
-region and their custom domains) with
+`railway.ts` describes the whole Railway project (Postgres, `api`, `web`, the
+`uploads` bucket where the api keeps uploaded pictures, their region and their
+custom domains) with
 [Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code).
 It's the single source of truth: a resource or variable removed from the file is
 removed from Railway on the next apply.

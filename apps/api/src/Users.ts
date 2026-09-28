@@ -1,8 +1,9 @@
 import { SqlClient } from "@effect/sql";
-import type { ProfileUpdate, User } from "@waifu-devs/domain/api";
+import type { ImageKind, ProfileUpdate, User } from "@waifu-devs/domain/api";
 import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import { Effect, Option, Schema } from "effect";
 import { Db } from "./Db.ts";
+import { mediaUrl } from "./Media.ts";
 import { users } from "./schema.ts";
 
 export const UUID = Schema.UUID;
@@ -10,16 +11,33 @@ const isUuid = Schema.is(UUID);
 
 export type GithubProfile = { id: number; login: string; name: string | null; avatar_url: string };
 
+type Row = typeof users.$inferSelect;
+
 export class Users extends Effect.Service<Users>()("Users", {
   effect: Effect.gen(function* () {
     const db = yield* Db;
     const client = yield* SqlClient.SqlClient;
+    // This API's public URL, where uploaded pictures are served (see Media.ts).
+    const media = yield* mediaUrl;
 
-    const first = <A>(rows: ReadonlyArray<A>) => Option.fromNullable(rows[0]);
+    /**
+     * A row as the API shows it: uploaded pictures win over the GitHub avatar,
+     * and a country nobody chose to show is only in the member's own copy.
+     */
+    const toUser = (row: Row, self: boolean): User => ({
+      ...row,
+      avatarUrl: row.avatarKey ? media(row.avatarKey) : row.avatarUrl,
+      customAvatar: row.avatarKey !== null,
+      bannerUrl: row.bannerKey ? media(row.bannerKey) : null,
+      country: self || row.showCountry ? row.country : null,
+    });
 
+    const first = (rows: ReadonlyArray<Row>, self: boolean) => Option.fromNullable(rows[0]).pipe(Option.map((row) => toUser(row, self)));
+
+    /** By id: the member themselves, so their own hidden fields come back. */
     const byId = (id: string) =>
       isUuid(id)
-        ? db.select().from(users).where(eq(users.id, id)).pipe(Effect.map(first))
+        ? db.select().from(users).where(eq(users.id, id)).pipe(Effect.map((rows) => first(rows, true)))
         : Effect.succeed(Option.none());
 
     const byUsername = (username: string) =>
@@ -27,9 +45,15 @@ export class Users extends Effect.Service<Users>()("Users", {
         .select()
         .from(users)
         .where(sql`lower(${users.username}) = lower(${username})`)
-        .pipe(Effect.map(first));
+        .pipe(Effect.map((rows) => first(rows, false)));
 
-    const list = (limit: number) => db.select().from(users).orderBy(desc(users.createdAt)).limit(limit);
+    const list = (limit: number) =>
+      db
+        .select()
+        .from(users)
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .pipe(Effect.map((rows) => rows.map((row) => toUser(row, false))));
 
     const countAll = db
       .select({ n: count() })
@@ -43,7 +67,22 @@ export class Users extends Effect.Service<Users>()("Users", {
         .set({ ...fields, skills: skills && [...skills], links: links && [...links] })
         .where(eq(users.id, id))
         .returning()
-        .pipe(Effect.map((rows) => rows[0] as User));
+        .pipe(Effect.map((rows) => toUser(rows[0], true)));
+
+    /** Points a member's avatar or banner at a stored picture (or none); returns the key it replaced. */
+    const setImage = (id: string, kind: ImageKind, key: string | null) =>
+      client.withTransaction(
+        Effect.gen(function* () {
+          const column = kind === "avatar" ? users.avatarKey : users.bannerKey;
+          const [before] = yield* db.select({ key: column }).from(users).where(eq(users.id, id)).for("update");
+          const [row] = yield* db
+            .update(users)
+            .set(kind === "avatar" ? { avatarKey: key } : { bannerKey: key })
+            .where(eq(users.id, id))
+            .returning();
+          return { user: toUser(row, true), previous: before?.key ?? null };
+        }),
+      );
 
     /** Creates the user on first login, otherwise refreshes the GitHub-owned fields. */
     const upsertFromGithub = (gh: GithubProfile) =>
@@ -67,6 +106,6 @@ export class Users extends Effect.Service<Users>()("Users", {
         }),
       );
 
-    return { byId, byUsername, list, count: countAll, update, upsertFromGithub } as const;
+    return { byId, byUsername, list, count: countAll, update, setImage, upsertFromGithub } as const;
   }),
 }) {}
