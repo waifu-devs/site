@@ -1,129 +1,183 @@
-export const THEME_KEYS = ["bg", "surface", "text", "muted", "accent", "accentText", "border"] as const;
-export type ThemeKey = (typeof THEME_KEYS)[number];
-export type ThemeColors = Record<ThemeKey, string>;
+/**
+ * Themes are shadcn/ui theme variants: every theme, built-in or made by a
+ * member, is a full set of values for the same shadcn CSS variables
+ * (--background, --primary, --radius, ...). Components only ever reference
+ * those variables, so any theme restyles every component.
+ */
+
+export const TOKENS = [
+  "background",
+  "foreground",
+  "card",
+  "card-foreground",
+  "popover",
+  "popover-foreground",
+  "primary",
+  "primary-foreground",
+  "secondary",
+  "secondary-foreground",
+  "muted",
+  "muted-foreground",
+  "accent",
+  "accent-foreground",
+  "destructive",
+  "border",
+  "input",
+  "ring",
+] as const;
+export type Token = (typeof TOKENS)[number];
+export type ThemeTokens = Record<Token, string>;
+
+export type ThemeVariant = { tokens: ThemeTokens; radius: number };
 
 export type Theme = {
   id: string;
   name: string;
   description: string | null;
-  colors: ThemeColors;
+  variant: ThemeVariant;
   builtin: boolean;
   isPublic?: boolean;
   ownerUsername?: string;
 };
 
-export const THEME_LABELS: Record<ThemeKey, string> = {
-  bg: "Background",
-  surface: "Cards",
-  text: "Text",
-  muted: "Muted text",
-  accent: "Accent",
-  accentText: "Text on accent",
+/** The handful of colors the quick editor exposes; everything else is derived from them. */
+export const SEEDS = ["background", "foreground", "card", "primary", "primary-foreground", "muted-foreground", "border"] as const;
+export type Seed = (typeof SEEDS)[number];
+export type ThemeSeeds = Record<Seed, string>;
+
+export const TOKEN_LABELS: Record<Token, string> = {
+  background: "Background",
+  foreground: "Text",
+  card: "Cards",
+  "card-foreground": "Card text",
+  popover: "Menus",
+  "popover-foreground": "Menu text",
+  primary: "Primary",
+  "primary-foreground": "Text on primary",
+  secondary: "Secondary",
+  "secondary-foreground": "Text on secondary",
+  muted: "Muted",
+  "muted-foreground": "Muted text",
+  accent: "Hover",
+  "accent-foreground": "Hover text",
+  destructive: "Danger",
   border: "Borders",
+  input: "Inputs",
+  ring: "Focus ring",
 };
 
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Mixes `a` into `b` by `amount` (0..1) in sRGB. */
+export function mix(a: string, b: string, amount: number): string {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  return `#${pa.map((v, i) => Math.round(v * amount + pb[i] * (1 - amount)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Expands the quick-editor seeds into a full shadcn token set. */
+export function deriveTokens(s: ThemeSeeds): ThemeTokens {
+  return {
+    background: s.background,
+    foreground: s.foreground,
+    card: s.card,
+    "card-foreground": s.foreground,
+    popover: s.card,
+    "popover-foreground": s.foreground,
+    primary: s.primary,
+    "primary-foreground": s["primary-foreground"],
+    secondary: mix(s.primary, s.card, 0.12),
+    "secondary-foreground": s.foreground,
+    muted: mix(s.border, s.background, 0.45),
+    "muted-foreground": s["muted-foreground"],
+    accent: mix(s.primary, s.background, 0.14),
+    "accent-foreground": s.foreground,
+    destructive: "#e5484d",
+    border: s.border,
+    input: s.border,
+    ring: s.primary,
+  };
+}
+
+export function seedsOf(tokens: ThemeTokens): ThemeSeeds {
+  return Object.fromEntries(SEEDS.map((k) => [k, tokens[k]])) as ThemeSeeds;
+}
+
+function builtin(id: string, name: string, description: string, radius: number, seeds: ThemeSeeds): Theme {
+  return { id, name, description, builtin: true, variant: { tokens: deriveTokens(seeds), radius } };
+}
+
 export const BUILTIN_THEMES: Theme[] = [
-  {
-    id: "sakura",
-    name: "Sakura",
-    description: "Soft cherry blossom pink. The default.",
-    builtin: true,
-    colors: {
-      bg: "#fff5f8",
-      surface: "#ffffff",
-      text: "#3b2330",
-      muted: "#8a6577",
-      accent: "#f06292",
-      accentText: "#ffffff",
-      border: "#f8d3e0",
-    },
-  },
-  {
-    id: "yoru",
-    name: "Yoru",
-    description: "Late night coding under neon signs.",
-    builtin: true,
-    colors: {
-      bg: "#14111f",
-      surface: "#1f1a2e",
-      text: "#ece6ff",
-      muted: "#9a90b8",
-      accent: "#b388ff",
-      accentText: "#14111f",
-      border: "#342b4d",
-    },
-  },
-  {
-    id: "matcha",
-    name: "Matcha",
-    description: "Calm green tea and warm paper.",
-    builtin: true,
-    colors: {
-      bg: "#f4f6ec",
-      surface: "#fffef7",
-      text: "#243021",
-      muted: "#66735f",
-      accent: "#5a8a3c",
-      accentText: "#ffffff",
-      border: "#d9e2c8",
-    },
-  },
-  {
-    id: "sora",
-    name: "Sora",
-    description: "Clear skies and summer clouds.",
-    builtin: true,
-    colors: {
-      bg: "#f0f7ff",
-      surface: "#ffffff",
-      text: "#1a2b44",
-      muted: "#5f7391",
-      accent: "#3b8beb",
-      accentText: "#ffffff",
-      border: "#cfe2f7",
-    },
-  },
-  {
-    id: "tsundere",
-    name: "Tsundere",
-    description: "It's not like I made this theme for you or anything.",
-    builtin: true,
-    colors: {
-      bg: "#1a0f12",
-      surface: "#2a171c",
-      text: "#ffe9ec",
-      muted: "#c28c96",
-      accent: "#ff4d6d",
-      accentText: "#1a0f12",
-      border: "#4a2630",
-    },
-  },
+  builtin("sakura", "Sakura", "Soft cherry blossom pink. The default.", 1, {
+    background: "#fff5f8",
+    foreground: "#3b2330",
+    card: "#ffffff",
+    primary: "#f06292",
+    "primary-foreground": "#ffffff",
+    "muted-foreground": "#8a6577",
+    border: "#f8d3e0",
+  }),
+  builtin("yoru", "Yoru", "Late night coding under neon signs.", 0.75, {
+    background: "#14111f",
+    foreground: "#ece6ff",
+    card: "#1f1a2e",
+    primary: "#b388ff",
+    "primary-foreground": "#14111f",
+    "muted-foreground": "#9a90b8",
+    border: "#342b4d",
+  }),
+  builtin("matcha", "Matcha", "Calm green tea and warm paper.", 0.5, {
+    background: "#f4f6ec",
+    foreground: "#243021",
+    card: "#fffef7",
+    primary: "#5a8a3c",
+    "primary-foreground": "#ffffff",
+    "muted-foreground": "#66735f",
+    border: "#d9e2c8",
+  }),
+  builtin("sora", "Sora", "Clear skies and summer clouds.", 1.25, {
+    background: "#f0f7ff",
+    foreground: "#1a2b44",
+    card: "#ffffff",
+    primary: "#3b8beb",
+    "primary-foreground": "#ffffff",
+    "muted-foreground": "#5f7391",
+    border: "#cfe2f7",
+  }),
+  builtin("tsundere", "Tsundere", "It's not like I made this theme for you or anything.", 0.25, {
+    background: "#1a0f12",
+    foreground: "#ffe9ec",
+    card: "#2a171c",
+    primary: "#ff4d6d",
+    "primary-foreground": "#1a0f12",
+    "muted-foreground": "#c28c96",
+    border: "#4a2630",
+  }),
 ];
 
 export const DEFAULT_THEME = BUILTIN_THEMES[0];
 
-const HEX = /^#[0-9a-f]{6}$/i;
+export const RADIUS_MIN = 0;
+export const RADIUS_MAX = 1.5;
 
-/** Returns a validated palette, or null if any color is missing or not a #rrggbb hex. */
-export function parseColors(input: unknown): ThemeColors | null {
+/** Returns a validated variant, or null if any token is missing or not a #rrggbb hex. */
+export function parseVariant(input: unknown): ThemeVariant | null {
   if (!input || typeof input !== "object") return null;
-  const out = {} as ThemeColors;
-  for (const key of THEME_KEYS) {
-    const value = (input as Record<string, unknown>)[key];
+  const { tokens, radius } = input as { tokens?: Record<string, unknown>; radius?: unknown };
+  if (!tokens || typeof tokens !== "object") return null;
+  const out = {} as ThemeTokens;
+  for (const key of TOKENS) {
+    const value = tokens[key];
     if (typeof value !== "string" || !HEX.test(value)) return null;
     out[key] = value.toLowerCase();
   }
-  return out;
+  const r = typeof radius === "number" && Number.isFinite(radius) ? radius : 0.75;
+  return { tokens: out, radius: Math.min(RADIUS_MAX, Math.max(RADIUS_MIN, Math.round(r * 8) / 8)) };
 }
 
-export function themeStyle(colors: ThemeColors): Record<string, string> {
-  return {
-    "--theme-bg": colors.bg,
-    "--theme-surface": colors.surface,
-    "--theme-text": colors.text,
-    "--theme-muted": colors.muted,
-    "--theme-accent": colors.accent,
-    "--theme-accent-text": colors.accentText,
-    "--theme-border": colors.border,
-  };
+/** The inline style that applies a theme variant to an element and everything inside it. */
+export function themeStyle(variant: ThemeVariant): Record<string, string> {
+  const style: Record<string, string> = { "--radius": `${variant.radius}rem` };
+  for (const key of TOKENS) style[`--${key}`] = variant.tokens[key];
+  return style;
 }

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import postgres from "postgres";
 import { cache } from "react";
-import { BUILTIN_THEMES, DEFAULT_THEME, parseColors, type Theme } from "./themes";
+import { BUILTIN_THEMES, DEFAULT_THEME, parseVariant, type Theme } from "./themes";
 
 export type User = {
   id: string;
@@ -24,7 +24,7 @@ type ThemeRow = {
   owner_username: string;
   name: string;
   description: string | null;
-  colors: unknown;
+  variant: unknown;
   is_public: boolean;
   created_at: Date;
 };
@@ -86,7 +86,7 @@ function rowToTheme(row: ThemeRow): Theme {
     id: row.id,
     name: row.name,
     description: row.description,
-    colors: parseColors(row.colors) ?? DEFAULT_THEME.colors,
+    variant: parseVariant(row.variant) ?? DEFAULT_THEME.variant,
     builtin: false,
     isPublic: row.is_public,
     ownerUsername: row.owner_username,

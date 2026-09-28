@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { canUseTheme, db, UUID } from "./db";
 import { deleteSession, requireUser, SESSION_COOKIE } from "./session";
-import { parseColors, THEME_KEYS } from "./themes";
+import { parseVariant, TOKENS } from "./themes";
 
 function text(form: FormData, key: string, max: number): string | null {
   const value = form.get(key);
@@ -62,13 +62,16 @@ export async function wearTheme(form: FormData) {
 export async function createTheme(form: FormData) {
   const user = await requireUser();
   const name = text(form, "name", 40);
-  const colors = parseColors(Object.fromEntries(THEME_KEYS.map((k) => [k, form.get(k)])));
-  if (!name || !colors) throw new Error("A theme needs a name and seven valid colors.");
+  const variant = parseVariant({
+    tokens: Object.fromEntries(TOKENS.map((k) => [k, form.get(k)])),
+    radius: Number(form.get("radius")),
+  });
+  if (!name || !variant) throw new Error("A theme needs a name and a valid color for every token.");
 
   await db().begin(async (sql) => {
     const [theme] = await sql<{ id: string }[]>`
-      INSERT INTO themes (owner_id, name, description, colors, is_public)
-      VALUES (${user.id}, ${name}, ${text(form, "description", 140)}, ${sql.json(colors)}, ${form.get("is_public") !== null})
+      INSERT INTO themes (owner_id, name, description, variant, is_public)
+      VALUES (${user.id}, ${name}, ${text(form, "description", 140)}, ${sql.json(variant)}, ${form.get("is_public") !== null})
       RETURNING id`;
     await sql`UPDATE users SET theme_id = ${theme.id}, updated_at = now() WHERE id = ${user.id}`;
   });

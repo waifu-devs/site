@@ -16,15 +16,15 @@ Built with [vinext](https://github.com/cloudflare/vinext) (the Next.js App Route
 | Path | What |
 | --- | --- |
 | `app/` | Pages, layout, and the GitHub OAuth route handlers (`app/api/auth/*`) |
-| `components/` | Shared UI, including the client-side `ThemeEditor` |
+| `components/` | Shared UI, including the client-side `ThemeEditor`; `components/ui/` holds the shadcn/ui components |
 | `lib/db.ts` | Postgres queries (one postgres.js client per request, over Hyperdrive) |
 | `lib/session.ts` | Cookie sessions (tokens are stored hashed in Postgres) |
 | `lib/actions.ts` | Server actions: edit profile, create/wear/delete themes, sign out |
-| `lib/themes.ts` | Theme palette shape, built-in themes, validation |
+| `lib/themes.ts` | Theme variants: shadcn token list, built-in themes, seed derivation, validation |
 | `migrations/` | Postgres schema migrations, applied by `pnpm db:migrate` |
 | `cloudflare.config.ts` | Worker config and bindings (`HYPERDRIVE`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`) |
 
-A theme is seven colors exposed as CSS variables (`--theme-bg`, `--theme-accent`, …) and mapped to Tailwind colors (`bg-bg`, `bg-surface`, `text-ink`, `text-muted`, `bg-accent`, `text-on-accent`, `border-line`) in `app/globals.css`. Use those classes instead of fixed colors so every theme works.
+UI components are [shadcn/ui](https://ui.shadcn.com) (in `components/ui/`, added by hand because the shadcn registry isn't reachable from every environment; `components.json` is set up if you want to use `pnpm dlx shadcn add` locally). **Themes are shadcn theme variants**: every theme, built-in or member-made, is a full set of values for the shadcn tokens (`--background`, `--primary`, `--muted-foreground`, …, plus `--radius`), stored as `{ tokens, radius }`. The layout applies the viewer's variant to `<html>`, and profile pages apply the owner's. The theme editor has a Quick tab (7 seed colors that derive the rest) and an All tokens tab for fine-tuning. Stick to shadcn token classes (`bg-card`, `text-muted-foreground`, `bg-primary`, …) instead of fixed colors so every theme works.
 
 ## Local development
 

@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ThemeSwatch } from "@/components/ThemeSwatch";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { updateProfile } from "@/lib/actions";
 import { getTheme } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Settings" };
 
-const field =
-  "w-full rounded-xl border border-line bg-bg px-3 py-2 outline-none transition-all duration-200 focus:-translate-y-0.5 focus:border-accent focus:shadow-[0_6px_18px_-10px_var(--theme-accent)]";
+const lift = "transition-all duration-200 focus-visible:-translate-y-0.5";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -17,44 +22,59 @@ export default async function SettingsPage() {
     <main className="stagger mx-auto flex max-w-2xl flex-col gap-8 px-4 py-12">
       <h1 className="text-3xl font-extrabold">Your profile</h1>
 
-      <form action={updateProfile} className="flex flex-col gap-5 rounded-3xl border border-line bg-surface p-6">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-bold">Display name</span>
-          <input className={field} name="display_name" maxLength={60} defaultValue={user.display_name ?? ""} placeholder={user.username} />
-        </label>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-bold">Pronouns</span>
-            <input className={field} name="pronouns" maxLength={30} defaultValue={user.pronouns ?? ""} />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-bold">Favorite waifu</span>
-            <input className={field} name="favorite_waifu" maxLength={80} defaultValue={user.favorite_waifu ?? ""} placeholder="Best girl goes here" />
-          </label>
-        </div>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-bold">Website</span>
-          <input className={field} name="website" maxLength={200} defaultValue={user.website ?? ""} placeholder="https://" />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-bold">Bio</span>
-          <textarea className={field} name="bio" maxLength={500} rows={5} defaultValue={user.bio ?? ""} />
-        </label>
-        <p className="text-xs text-muted">Your avatar and username come from GitHub and refresh each time you sign in.</p>
-        <button type="submit" className="btn self-start rounded-full bg-accent px-6 py-2 font-bold text-on-accent">
-          Save profile
-        </button>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+          <CardDescription>
+            Shown on <Link className="text-primary hover:underline" href={`/u/${user.username}`}>u/{user.username}</Link>.
+            Your avatar and username come from GitHub and refresh each time you sign in.
+          </CardDescription>
+        </CardHeader>
+        <form action={updateProfile}>
+          <CardContent className="flex flex-col gap-5">
+            <div className="grid gap-2">
+              <Label htmlFor="display_name">Display name</Label>
+              <Input className={lift} id="display_name" name="display_name" maxLength={60} defaultValue={user.display_name ?? ""} placeholder={user.username} />
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="pronouns">Pronouns</Label>
+                <Input className={lift} id="pronouns" name="pronouns" maxLength={30} defaultValue={user.pronouns ?? ""} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="favorite_waifu">Favorite waifu</Label>
+                <Input className={lift} id="favorite_waifu" name="favorite_waifu" maxLength={80} defaultValue={user.favorite_waifu ?? ""} placeholder="Best girl goes here" />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="website">Website</Label>
+              <Input className={lift} id="website" name="website" maxLength={200} defaultValue={user.website ?? ""} placeholder="https://" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea className={lift} id="bio" name="bio" maxLength={500} rows={5} defaultValue={user.bio ?? ""} />
+            </div>
+          </CardContent>
+          <CardFooter className="pt-6">
+            <Button type="submit" className="btn rounded-full font-bold">Save profile</Button>
+          </CardFooter>
+        </form>
+      </Card>
 
-      <section className="flex items-center justify-between gap-4 rounded-3xl border border-line bg-surface p-6">
-        <div>
-          <h2 className="font-bold">Theme</h2>
-          <p className="text-sm text-muted">You're wearing <b className="text-ink">{theme.name}</b>. It styles the site for you and your profile for everyone.</p>
-        </div>
-        <Link href="/themes" className="btn shrink-0 rounded-full border border-line px-4 py-2 text-sm font-bold hover:border-accent">
-          Change
-        </Link>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Theme</CardTitle>
+          <CardDescription>
+            You're wearing <b className="text-foreground">{theme.name}</b>. It styles the site for you and your profile for everyone.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-4">
+          <div className="w-48"><ThemeSwatch theme={theme} /></div>
+          <Button asChild variant="outline" className="btn rounded-full font-bold">
+            <Link href="/themes">Change theme</Link>
+          </Button>
+        </CardContent>
+      </Card>
     </main>
   );
 }
