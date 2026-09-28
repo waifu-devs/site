@@ -24,7 +24,7 @@ export default async function Home() {
     countMembers(),
     listCommunityThemes(4),
   ]);
-  const theme = await getTheme(user?.theme_id);
+  const theme = await getTheme(user?.themeId);
   const themes = [...communityThemes, ...BUILTIN_THEMES].slice(0, 4);
 
   return (
@@ -66,7 +66,7 @@ export default async function Home() {
                 <AvatarGroup className="h-10 -space-x-2">
                   {members.slice(0, 6).map((m) => (
                     <Avatar key={m.id} className="size-10 border-2 border-background">
-                      {m.avatar_url ? <AvatarImage src={`${m.avatar_url}?s=80`} alt="" /> : null}
+                      {m.avatarUrl ? <AvatarImage src={`${m.avatarUrl}?s=80`} alt="" /> : null}
                       <AvatarFallback className="bg-primary font-bold text-primary-foreground">
                         {m.username.slice(0, 1).toUpperCase()}
                       </AvatarFallback>

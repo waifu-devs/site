@@ -16,7 +16,7 @@ type Props = { params: Promise<{ username: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
   const user = await getUserByUsername(username);
-  return { title: user ? `${user.display_name ?? user.username} (u/${user.username})` : "Not found" };
+  return { title: user ? `${user.displayName ?? user.username} (u/${user.username})` : "Not found" };
 }
 
 export default async function ProfilePage({ params }: Props) {
@@ -24,10 +24,10 @@ export default async function ProfilePage({ params }: Props) {
   const user = await getUserByUsername(username);
   if (!user) notFound();
 
-  const [viewer, theme, themes] = await Promise.all([currentUser(), getTheme(user.theme_id), listThemesByOwner(user.id)]);
+  const [viewer, theme, themes] = await Promise.all([currentUser(), getTheme(user.themeId), listThemesByOwner(user.id)]);
   const isMe = viewer?.id === user.id;
   const visibleThemes = isMe ? themes : themes.filter((t) => t.isPublic);
-  const joined = new Date(user.created_at).toLocaleDateString("en", { month: "long", year: "numeric" });
+  const joined = new Date(user.createdAt).toLocaleDateString("en", { month: "long", year: "numeric" });
 
   // The profile is always shown in its owner's theme variant, whatever the visitor is wearing.
   return (
@@ -37,17 +37,17 @@ export default async function ProfilePage({ params }: Props) {
           <div aria-hidden className="blob -right-10 -top-16 -z-10 h-48 w-48" />
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <span className="avatar-ring wiggle-hover relative shrink-0 rounded-full p-1">
-              <UserAvatar src={user.avatar_url} name={user.username} size={112} />
+              <UserAvatar src={user.avatarUrl} name={user.username} size={112} />
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <h1 className="text-3xl font-extrabold">{user.display_name ?? user.username}</h1>
+              <h1 className="text-3xl font-extrabold">{user.displayName ?? user.username}</h1>
               <p className="text-muted-foreground">
                 <a href={`https://github.com/${user.username}`} className="hover:text-primary">u/{user.username}</a>
                 {user.pronouns ? ` · ${user.pronouns}` : ""} · joined {joined}
               </p>
-              {user.favorite_waifu ? (
+              {user.favoriteWaifu ? (
                 <Badge data-burst className="mt-2 cursor-pointer px-3 py-1 text-sm transition-transform hover:scale-105">
-                  <span className="heartbeat">♡</span> {user.favorite_waifu}
+                  <span className="heartbeat">♡</span> {user.favoriteWaifu}
                 </Badge>
               ) : null}
             </div>

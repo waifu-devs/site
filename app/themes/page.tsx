@@ -20,7 +20,7 @@ export default async function ThemesPage() {
   const mineIds = new Set(mine.map((t) => t.id));
 
   function ThemeCard({ theme }: { theme: Theme }) {
-    const wearing = user?.theme_id === theme.id;
+    const wearing = user?.themeId === theme.id;
     return (
       <Tilt className="rounded-xl">
         <Card className="h-full gap-3 p-3">

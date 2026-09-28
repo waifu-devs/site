@@ -16,7 +16,7 @@ const lift = "transition-all duration-200 focus-visible:-translate-y-0.5";
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const theme = await getTheme(user.theme_id);
+  const theme = await getTheme(user.themeId);
 
   return (
     <main className="stagger mx-auto flex max-w-2xl flex-col gap-8 px-4 py-12">
@@ -34,7 +34,7 @@ export default async function SettingsPage() {
           <CardContent className="flex flex-col gap-5">
             <div className="grid gap-2">
               <Label htmlFor="display_name">Display name</Label>
-              <Input className={lift} id="display_name" name="display_name" maxLength={60} defaultValue={user.display_name ?? ""} placeholder={user.username} />
+              <Input className={lift} id="display_name" name="display_name" maxLength={60} defaultValue={user.displayName ?? ""} placeholder={user.username} />
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="grid gap-2">
@@ -43,7 +43,7 @@ export default async function SettingsPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="favorite_waifu">Favorite waifu</Label>
-                <Input className={lift} id="favorite_waifu" name="favorite_waifu" maxLength={80} defaultValue={user.favorite_waifu ?? ""} placeholder="Best girl goes here" />
+                <Input className={lift} id="favorite_waifu" name="favorite_waifu" maxLength={80} defaultValue={user.favoriteWaifu ?? ""} placeholder="Best girl goes here" />
               </div>
             </div>
             <div className="grid gap-2">

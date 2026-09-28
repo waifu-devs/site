@@ -3,11 +3,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { and, eq } from "drizzle-orm";
 import { canUseTheme, db, UUID } from "./db";
+import { themes, users } from "./schema";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "./auth/client";
 import { revokeRefreshToken } from "./auth/storage";
 import { requireUser } from "./session";
-import { parseVariant, TOKENS } from "./themes";
+import { DEFAULT_THEME, parseVariant, TOKENS } from "./themes";
 
 function text(form: FormData, key: string, max: number): string | null {
   const value = form.get(key);
@@ -40,15 +42,16 @@ export async function signOut() {
 
 export async function updateProfile(form: FormData) {
   const user = await requireUser();
-  await db()`
-    UPDATE users SET
-      display_name = ${text(form, "display_name", 60)},
-      bio = ${text(form, "bio", 500)},
-      pronouns = ${text(form, "pronouns", 30)},
-      website = ${url(form, "website")},
-      favorite_waifu = ${text(form, "favorite_waifu", 80)},
-      updated_at = now()
-    WHERE id = ${user.id}`;
+  await db()
+    .update(users)
+    .set({
+      displayName: text(form, "display_name", 60),
+      bio: text(form, "bio", 500),
+      pronouns: text(form, "pronouns", 30),
+      website: url(form, "website"),
+      favoriteWaifu: text(form, "favorite_waifu", 80),
+    })
+    .where(eq(users.id, user.id));
   revalidatePath("/", "layout");
   redirect(`/u/${user.username}`);
 }
@@ -57,7 +60,7 @@ export async function wearTheme(form: FormData) {
   const user = await requireUser();
   const themeId = text(form, "theme_id", 64);
   if (!themeId || !(await canUseTheme(user.id, themeId))) throw new Error("That theme isn't available.");
-  await db()`UPDATE users SET theme_id = ${themeId}, updated_at = now() WHERE id = ${user.id}`;
+  await db().update(users).set({ themeId }).where(eq(users.id, user.id));
   revalidatePath("/", "layout");
   redirect("/themes");
 }
@@ -71,12 +74,18 @@ export async function createTheme(form: FormData) {
   });
   if (!name || !variant) throw new Error("A theme needs a name and a valid color for every token.");
 
-  await db().begin(async (sql) => {
-    const [theme] = await sql<{ id: string }[]>`
-      INSERT INTO themes (owner_id, name, description, variant, is_public)
-      VALUES (${user.id}, ${name}, ${text(form, "description", 140)}, ${sql.json(variant)}, ${form.get("is_public") !== null})
-      RETURNING id`;
-    await sql`UPDATE users SET theme_id = ${theme.id}, updated_at = now() WHERE id = ${user.id}`;
+  await db().transaction(async (tx) => {
+    const [theme] = await tx
+      .insert(themes)
+      .values({
+        ownerId: user.id,
+        name,
+        description: text(form, "description", 140),
+        variant,
+        isPublic: form.get("is_public") !== null,
+      })
+      .returning({ id: themes.id });
+    await tx.update(users).set({ themeId: theme.id }).where(eq(users.id, user.id));
   });
   revalidatePath("/", "layout");
   redirect("/themes");
@@ -86,10 +95,13 @@ export async function deleteTheme(form: FormData) {
   const user = await requireUser();
   const themeId = text(form, "theme_id", 64);
   if (!themeId || !UUID.test(themeId)) return;
-  await db().begin(async (sql) => {
-    const deleted = await sql`DELETE FROM themes WHERE id = ${themeId} AND owner_id = ${user.id} RETURNING id`;
+  await db().transaction(async (tx) => {
+    const deleted = await tx
+      .delete(themes)
+      .where(and(eq(themes.id, themeId), eq(themes.ownerId, user.id)))
+      .returning({ id: themes.id });
     // Anyone wearing the deleted theme falls back to the default.
-    if (deleted.length) await sql`UPDATE users SET theme_id = 'sakura' WHERE theme_id = ${themeId}`;
+    if (deleted.length) await tx.update(users).set({ themeId: DEFAULT_THEME.id }).where(eq(users.themeId, themeId));
   });
   revalidatePath("/", "layout");
   redirect("/themes");

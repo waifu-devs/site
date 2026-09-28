@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await currentUser();
-  const theme = await getTheme(user?.theme_id);
+  const theme = await getTheme(user?.themeId);
 
   return (
     <html lang="en" data-theme={theme.id} style={themeStyle(theme.variant)}>
@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 </div>
                 <div className="ml-auto flex items-center gap-3 text-sm">
                   {user ? (
-                    <UserMenu username={user.username} name={user.display_name ?? user.username} avatar={user.avatar_url} />
+                    <UserMenu username={user.username} name={user.displayName ?? user.username} avatar={user.avatarUrl} />
                   ) : (
                     <Button asChild size="sm" className="btn rounded-full font-bold">
                       <Link href="/login">Sign in</Link>

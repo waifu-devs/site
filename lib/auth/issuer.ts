@@ -1,8 +1,7 @@
 import { env, waitUntil } from "cloudflare:workers";
 import { issuer } from "@openauthjs/openauth";
 import { GithubProvider } from "@openauthjs/openauth/provider/github";
-import postgres from "postgres";
-import { upsertGithubUser } from "../db";
+import { connect, upsertGithubUser } from "../db";
 import { PostgresStorage } from "./storage";
 import { subjects } from "./subjects";
 
@@ -26,11 +25,11 @@ type GithubUser = { id: number; login: string; name: string | null; avatar_url: 
 /** Runs one request through the OpenAuth issuer, inside this Worker. */
 export async function handleIssuer(request: Request): Promise<Response> {
   // Middleware runs outside a render, so the issuer gets its own short-lived client.
-  const sql = postgres(env.HYPERDRIVE.connectionString, { max: 1, fetch_types: false });
+  const db = connect(env.HYPERDRIVE.connectionString, 1);
   try {
     const app = issuer({
       subjects,
-      storage: PostgresStorage(sql),
+      storage: PostgresStorage(db),
       // Access tokens can't be revoked, so keep them short; proxy.ts refreshes them.
       ttl: { access: 60 * 60 },
       providers: {
@@ -53,12 +52,12 @@ export async function handleIssuer(request: Request): Promise<Response> {
           },
         });
         if (!res.ok) throw new Error("Could not read your GitHub profile.");
-        const user = await upsertGithubUser(sql, (await res.json()) as GithubUser);
+        const user = await upsertGithubUser(db, (await res.json()) as GithubUser);
         return ctx.subject("user", { id: user.id });
       },
     });
     return await app.fetch(request);
   } finally {
-    waitUntil(sql.end());
+    waitUntil(db.$client.end());
   }
 }
