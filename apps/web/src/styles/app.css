@@ -1,0 +1,292 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* shadcn/ui tokens. Every theme (lib/themes.ts) is a full set of values for
+   these variables; the defaults below are the built-in Sakura theme, and the
+   layout and profile pages override them inline with the active theme. */
+:root {
+  --radius: 1rem;
+  --background: #fff5f8;
+  --foreground: #3b2330;
+  --card: #ffffff;
+  --card-foreground: #3b2330;
+  --popover: #ffffff;
+  --popover-foreground: #3b2330;
+  --primary: #f06292;
+  --primary-foreground: #ffffff;
+  --secondary: #fdedf2;
+  --secondary-foreground: #3b2330;
+  --muted: #fbe5ec;
+  --muted-foreground: #8a6577;
+  --accent: #fde5ed;
+  --accent-foreground: #3b2330;
+  --destructive: #e5484d;
+  --border: #f8d3e0;
+  --input: #f8d3e0;
+  --ring: #f06292;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: "M PLUS Rounded 1c", ui-rounded, ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+.themed {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* A few drifting petals in the page background. Purely decorative. */
+.petals {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.petals span {
+  position: absolute;
+  top: -2rem;
+  width: 0.8rem;
+  height: 0.6rem;
+  border-radius: 80% 0 80% 0;
+  background: var(--primary);
+  opacity: 0.18;
+  animation: fall linear infinite;
+}
+@keyframes fall {
+  to {
+    transform: translate(-4rem, 110vh) rotate(540deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .petals {
+    display: none;
+  }
+}
+
+/* ───────────────────────── Motion ─────────────────────────
+   Registered custom properties can be interpolated, so switching themes
+   morphs every token on the page instead of snapping. */
+@property --background { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --foreground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --card { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --card-foreground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --popover { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --popover-foreground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --primary { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --primary-foreground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --secondary { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --secondary-foreground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --muted { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --muted-foreground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --accent { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --accent-foreground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --destructive { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --border { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --input { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --ring { syntax: "<color>"; inherits: true; initial-value: transparent; }
+
+:root,
+.themed {
+  transition:
+    --background 0.6s ease,
+    --foreground 0.6s ease,
+    --card 0.6s ease,
+    --card-foreground 0.6s ease,
+    --popover 0.6s ease,
+    --popover-foreground 0.6s ease,
+    --primary 0.6s ease,
+    --primary-foreground 0.6s ease,
+    --secondary 0.6s ease,
+    --secondary-foreground 0.6s ease,
+    --muted 0.6s ease,
+    --muted-foreground 0.6s ease,
+    --accent 0.6s ease,
+    --accent-foreground 0.6s ease,
+    --destructive 0.6s ease,
+    --border 0.6s ease,
+    --input 0.6s ease,
+    --ring 0.6s ease;
+}
+
+@view-transition {
+  navigation: auto;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Entrance: children of .stagger rise in one after another. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.rise { animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > * { animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger > *:nth-child(3) { animation-delay: 0.14s; }
+.stagger > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger > *:nth-child(5) { animation-delay: 0.26s; }
+.stagger > *:nth-child(6) { animation-delay: 0.32s; }
+.stagger > *:nth-child(n + 7) { animation-delay: 0.38s; }
+
+/* Scroll reveal (toggled by <Reveal>). */
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.reveal.in { opacity: 1; transform: none; }
+
+/* Buttons squish when pressed and lift on hover. */
+.btn { transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.2s ease, filter 0.2s ease; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px -8px var(--primary); }
+.btn:active { transform: translateY(0) scale(0.94); }
+
+/* Cards lift, and a soft glow follows the pointer (--mx/--my set by <Tilt>). */
+.card-pop { transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s ease, box-shadow 0.35s ease; }
+.card-pop:hover { border-color: var(--primary); box-shadow: 0 18px 40px -22px var(--primary); }
+.tilt { transform-style: preserve-3d; will-change: transform; position: relative; }
+.tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%);
+}
+.tilt:hover::after { opacity: 1; }
+
+/* Hero: animated gradient text and drifting blobs. */
+.gradient-text {
+  background: linear-gradient(100deg, var(--primary), color-mix(in srgb, var(--primary) 45%, #a78bfa), var(--primary));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 5s linear infinite;
+}
+@keyframes shimmer { to { background-position: 200% center; } }
+
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.35;
+  background: var(--primary);
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.blob.b2 { background: color-mix(in srgb, var(--primary) 40%, #7dd3fc); animation-duration: 22s; animation-delay: -6s; }
+.blob.b3 { background: color-mix(in srgb, var(--primary) 40%, #c4b5fd); animation-duration: 26s; animation-delay: -12s; }
+@keyframes drift {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, -40px) scale(1.15); }
+  100% { transform: translate(-40px, 30px) scale(0.9); }
+}
+
+@keyframes float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(3deg); } }
+.float { animation: float 4s ease-in-out infinite; }
+
+@keyframes heartbeat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 30% { transform: scale(1); } 45% { transform: scale(1.12); } }
+.heartbeat { display: inline-block; animation: heartbeat 1.8s ease-in-out infinite; }
+
+@keyframes wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg) scale(1.06); } 75% { transform: rotate(8deg) scale(1.06); } }
+.wiggle-hover:hover { animation: wiggle 0.5s ease-in-out; }
+
+/* Sparkle trail and click bursts (spawned by <Sparkles>). */
+.sparkle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 60;
+  color: var(--primary);
+  font-size: var(--size, 14px);
+  animation: sparkle 0.9s ease-out forwards;
+  translate: -50% -50%;
+}
+@keyframes sparkle {
+  from { opacity: 1; transform: translate(0, 0) scale(1) rotate(0); }
+  to { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 20px)) scale(0.3) rotate(var(--rot, 90deg)); }
+}
+
+/* Underline that grows from the left on nav links. */
+.nav-link { position: relative; }
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 2px;
+  width: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.nav-link:hover::after { transform: scaleX(1); }
+
+/* Color inputs pop when changed. */
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.pop { animation: pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+  .sparkle { display: none; }
+}
+
+/* Slowly spinning gradient ring around profile avatars. */
+.avatar-ring {
+  background: conic-gradient(from var(--ring-angle, 0deg), var(--primary), transparent 40%, var(--primary) 70%, transparent);
+  animation: ring 6s linear infinite;
+}
+@property --ring-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes ring { to { --ring-angle: 360deg; } }

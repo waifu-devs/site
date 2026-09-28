@@ -1,3 +1,79 @@
 # Waifu Devs community site (✿◕‿◕✿)
 
-The community site for Waifu Devs: GitHub sign-in, member profiles, and custom themes.
+The community site for Waifu Devs: GitHub sign-in, member profiles, and custom themes that restyle the whole site.
+
+It's a pnpm monorepo with a separate API and web app, both written with [Effect](https://effect.website), hosted on [Railway](https://railway.com) and described as code in [`.railway/railway.ts`](.railway/railway.ts).
+
+| Path | What |
+| --- | --- |
+| `apps/api` | The API: an Effect `HttpApi` server on Node, Drizzle on Postgres, and the [OpenAuth](https://openauth.js.org) issuer for GitHub sign-in |
+| `apps/web` | The site: [TanStack Start](https://tanstack.com/start) (React, SSR), shadcn/ui and [Animate UI](https://animate-ui.com); its server side calls the API through a typed Effect client |
+| `packages/domain` | Shared between the two: the API contract (`Api.ts`, Effect Schema) and the theme system (`themes.ts`) |
+| `.railway/` | Railway Infrastructure as Code: Postgres, `api`, `web` |
+| `.github/workflows` | `ci.yml` (typecheck + build) and `railway-config.yml` (plan on PR, apply on merge) |
+
+## What's here
+
+- **Accounts** via GitHub only (`/login`). Your GitHub login and avatar refresh every time you sign in.
+- **Profiles** at `/u/<github-login>` with display name, pronouns, favorite waifu, website and bio. Edit at `/settings`.
+- **Themes**: five built-ins (Sakura, Yoru, Matcha, Sora, Tsundere) plus community themes made in the live editor at `/themes/new`. The theme you wear styles the site for you, and your profile for everyone who visits it. Themes can be public or private.
+- **Members** directory at `/members`.
+
+**Themes are shadcn theme variants**: every theme, built-in or member-made, is a full set of values for the shadcn tokens (`--background`, `--primary`, `--muted-foreground`, …, plus `--radius`), stored as `{ tokens, radius }`. The root route applies the viewer's variant to `<html>`, and profile pages apply the owner's. Stick to shadcn token classes (`bg-card`, `text-muted-foreground`, `bg-primary`, …) instead of fixed colors so every theme works. shadcn/ui components live in `apps/web/src/components/ui`, Animate UI ones in `apps/web/src/components/animate-ui`.
+
+## The API
+
+`packages/domain/src/Api.ts` declares every endpoint once with `HttpApi`; `apps/api/src/Http.ts` implements it and `apps/web/src/server/Api.ts` derives a typed client from it, so the two apps can't drift apart.
+
+| Endpoint | |
+| --- | --- |
+| `GET /users`, `/users/:username`, `/users/:username/themes`, `/stats` | Members and their public themes |
+| `GET /themes`, `/themes/:id` | Community and built-in themes |
+| `GET/PATCH /me`, `PUT /me/theme`, `GET /me/themes` | The signed-in member (bearer token) |
+| `POST /themes`, `DELETE /themes/:id` | Make or delete your themes |
+| `POST /session/revoke` | Sign out (revokes a refresh token) |
+| `/authorize`, `/token`, `/github/*`, `/.well-known/*` | The OpenAuth issuer |
+| `GET /health` | Healthcheck |
+
+The schema is in `apps/api/src/schema.ts`; Drizzle Kit writes migrations into `apps/api/migrations`, and Railway runs them before each API deploy.
+
+## How sign-in works
+
+The API hosts the OpenAuth issuer (at the root, because OpenAuth hardcodes its paths); the web app is its only client (`waifu-devs-web`).
+
+1. `/api/auth/login` on the web starts an authorization-code flow with PKCE and sends you to the API, which sends you to GitHub.
+2. GitHub returns to the API's `/github/callback`. The issuer reads your GitHub profile, creates or updates your `users` row, and redirects to the web's `/api/auth/callback` with a code.
+3. The web trades the code for an access token (1 hour) and a refresh token (1 year), stored in `HttpOnly` cookies, and calls the API with the access token.
+4. The web refreshes an expired access token on the next request. Signing out revokes the refresh token.
+
+OpenAuth's own storage (signing keys, codes, refresh tokens) lives in the `openauth_storage` table.
+
+## Local development
+
+You need Node 22 and a local Postgres (`postgres://postgres:postgres@localhost:5432/waifu`).
+
+1. Create a GitHub OAuth app for development at <https://github.com/settings/developers> with
+   - Homepage URL: `http://localhost:3000`
+   - Authorization callback URL: `http://localhost:4000/github/callback`
+2. `cp apps/api/.env.example apps/api/.env` and fill in its client ID and secret; `cp apps/web/.env.example apps/web/.env`.
+3. Install, migrate and run:
+
+   ```sh
+   pnpm install
+   DATABASE_URL=postgres://postgres:postgres@localhost:5432/waifu pnpm db:migrate
+   pnpm dev          # web on http://localhost:3000, API on http://localhost:4000
+   ```
+
+`pnpm typecheck` and `pnpm build` check and build everything. To change the schema, edit `apps/api/src/schema.ts`, run `pnpm db:generate`, and commit the new migration.
+
+## Deploying on Railway
+
+Everything lives in the **waifu-devs** Railway project, production environment. `.railway/railway.ts` declares Postgres and the `api` and `web` services (built from `main` of this repo with Railpack); a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
+
+One-time setup:
+
+1. **Railway GitHub App**: install it on the `waifu-devs` org with access to this repo, so Railway can build it (<https://github.com/apps/railway-app>).
+2. **Project token**: in the Railway project, Settings → Tokens, create a token for the production environment and save it as the `RAILWAY_TOKEN` repository secret here.
+3. **GitHub OAuth app** for production. Its callback URL is `https://<api domain>/github/callback`, so do this after step 5 if you don't know the domain yet. Put its credentials in the production environment's **shared variables** `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` (Project Settings → Shared Variables).
+4. Merge a pull request that touches `.railway/` (the first one creates everything).
+5. **Domains**: generate a Railway domain for `api` (port 4000) and for `web` (port 3000) in each service's Settings → Networking. The services' URLs are built from those domains, so redeploy both afterwards.

@@ -1,0 +1,20 @@
+{
+  "name": "@waifu-devs/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./themes": "./src/themes.ts",
+    "./api": "./src/Api.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.97.2",
+    "effect": "^3.22.2"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
