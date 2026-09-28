@@ -1,0 +1,205 @@
+import { MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "@waifu-devs/domain/profile";
+import { Link2, Plus, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { type ReactNode, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+
+const pop = { type: "spring", stiffness: 520, damping: 30 } as const;
+const lift = "transition-all duration-200 focus-visible:-translate-y-0.5";
+
+/** A labeled text input with a character count that shows up while typing. */
+export function TextField({
+  id,
+  label,
+  max,
+  value,
+  onChange,
+  placeholder,
+  rows,
+}: {
+  id: string;
+  label: string;
+  max: number;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  /** Renders a textarea with this many rows. */
+  rows?: number;
+}) {
+  const props = { id, name: id, maxLength: max, value, placeholder, className: lift };
+  return (
+    <div className="group grid gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        <span
+          className={cn(
+            "text-xs tabular-nums text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100",
+            value.length >= max * 0.9 && "text-primary opacity-100",
+          )}
+        >
+          {value.length}/{max}
+        </span>
+      </div>
+      {rows ? (
+        <Textarea {...props} rows={rows} onChange={(e) => onChange(e.target.value)} />
+      ) : (
+        <Input {...props} onChange={(e) => onChange(e.target.value)} />
+      )}
+    </div>
+  );
+}
+
+/** Skills as tags: Enter or a comma adds one, Backspace on an empty field removes the last. */
+export function SkillsInput({ value, onChange }: { value: string[]; onChange: (skills: string[]) => void }) {
+  const [text, setText] = useState("");
+  const full = value.length >= MAX_SKILLS;
+
+  function add(raw: string[]) {
+    const next = [...value];
+    for (const part of raw) {
+      const skill = part.trim().slice(0, MAX_SKILL_LENGTH);
+      if (skill && next.length < MAX_SKILLS && !next.some((s) => s.toLowerCase() === skill.toLowerCase())) next.push(skill);
+    }
+    if (next.length !== value.length) onChange(next);
+    setText("");
+  }
+
+  return (
+    <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-md border border-input p-2 shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+      <AnimatePresence initial={false} mode="popLayout">
+        {value.map((skill) => (
+          <motion.span key={skill} layout initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={pop}>
+            <Badge variant="secondary" className="gap-1 py-1 pr-1 pl-3 text-sm">
+              {skill}
+              <button
+                type="button"
+                aria-label={`Remove ${skill}`}
+                onClick={() => onChange(value.filter((s) => s !== skill))}
+                className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+            <input type="hidden" name="skill" value={skill} />
+          </motion.span>
+        ))}
+      </AnimatePresence>
+      <input
+        aria-label="Add a skill"
+        value={text}
+        disabled={full}
+        maxLength={MAX_SKILL_LENGTH * 4}
+        placeholder={full ? `That's ${MAX_SKILLS}, nice!` : value.length ? "Add another" : "TypeScript, Rust, shaders..."}
+        className="h-7 min-w-32 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
+        onChange={(e) => (e.target.value.includes(",") ? add(e.target.value.split(",")) : setText(e.target.value))}
+        onBlur={() => add([text])}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add([text]);
+          } else if (e.key === "Backspace" && !text && value.length) {
+            onChange(value.slice(0, -1));
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+/** Up to MAX_LINKS link fields that slide in and out as they're added and removed. */
+export function LinksInput({ initial, onChange }: { initial: readonly string[]; onChange: (links: string[]) => void }) {
+  const nextId = useRef(initial.length);
+  const [rows, setRows] = useState(() => initial.map((url, id) => ({ id, url })));
+
+  function update(next: { id: number; url: string }[]) {
+    setRows(next);
+    onChange(next.map((row) => row.url));
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <AnimatePresence initial={false}>
+        {rows.map((row, i) => (
+          <motion.div
+            key={row.id}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-2 p-0.5">
+              <Link2 className="size-4 shrink-0 text-muted-foreground" />
+              <Input
+                name="link"
+                aria-label={`Link ${i + 1}`}
+                value={row.url}
+                maxLength={MAX_LINK_LENGTH}
+                placeholder="https://bsky.app/profile/you"
+                autoFocus={row.id >= initial.length}
+                className={lift}
+                onChange={(e) => update(rows.map((r) => (r.id === row.id ? { ...r, url: e.target.value } : r)))}
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                aria-label="Remove link"
+                className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => update(rows.filter((r) => r.id !== row.id))}
+              >
+                <X />
+              </Button>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+      {rows.length < MAX_LINKS ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="btn w-fit rounded-full font-bold"
+          onClick={() => update([...rows, { id: nextId.current++, url: "" }])}
+        >
+          <Plus /> Add link
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * One radio option in a picker. The selected option wears a ring that glides
+ * over from the previously selected one (they share `ring`).
+ */
+export function PickerOption({
+  name,
+  value,
+  selected,
+  onSelect,
+  ring,
+  children,
+}: {
+  name: string;
+  value: string;
+  selected: boolean;
+  onSelect: () => void;
+  ring: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="group relative flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-xl p-1.5 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50">
+      <input type="radio" name={name} value={value} checked={selected} onChange={onSelect} className="sr-only" />
+      {selected ? <motion.span layoutId={ring} transition={pop} className="absolute inset-0 rounded-xl border-2 border-primary bg-primary/5" /> : null}
+      <span className="relative flex min-w-0 flex-col gap-1.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-active:scale-95">
+        {children}
+      </span>
+    </label>
+  );
+}

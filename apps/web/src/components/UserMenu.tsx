@@ -30,7 +30,7 @@ export function UserMenu({ username, name, avatar }: { username: string; name: s
           <UserIcon /> My profile
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/settings" })}>
-          <Settings /> Settings
+          <Settings /> Customize profile
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/themes" })}>
           <Palette /> Themes

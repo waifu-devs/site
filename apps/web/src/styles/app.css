@@ -290,3 +290,100 @@ body {
 }
 @property --ring-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes ring { to { --ring-angle: 360deg; } }
+
+/* ───────────────────────── Profile banners ─────────────────────────
+   Drawn only from theme tokens, so each banner suits every theme. */
+.banner {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--primary) 55%, transparent), transparent 60%),
+    radial-gradient(120% 160% at 100% 100%, color-mix(in srgb, var(--primary) 35%, var(--accent)), transparent 70%),
+    var(--secondary);
+}
+
+.banner-petal {
+  position: absolute;
+  top: -1rem;
+  width: 0.7rem;
+  height: 0.5rem;
+  border-radius: 80% 0 80% 0;
+  background: var(--primary);
+  opacity: 0.55;
+  animation: banner-fall linear infinite;
+}
+@keyframes banner-fall {
+  to { transform: translate(-3rem, 14rem) rotate(540deg); }
+}
+
+.banner-star {
+  position: absolute;
+  line-height: 1;
+  color: var(--primary);
+  translate: -50% -50%;
+  animation: twinkle ease-in-out infinite;
+}
+.banner-star:nth-child(3n) { color: var(--foreground); }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.6) rotate(0); }
+  50% { opacity: 0.9; transform: scale(1.1) rotate(45deg); }
+}
+
+.banner-waves {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 65%;
+}
+.banner-waves svg {
+  position: absolute;
+  bottom: 0;
+  width: 200%;
+  height: 100%;
+  fill: var(--primary);
+  animation: wave-slide 9s linear infinite;
+}
+.banner-waves svg:nth-child(1) { opacity: 0.25; }
+.banner-waves svg:nth-child(2) { opacity: 0.4; height: 80%; animation-duration: 6s; animation-direction: reverse; }
+.banner-waves svg:nth-child(3) { opacity: 0.7; height: 55%; animation-duration: 12s; }
+@keyframes wave-slide { to { transform: translateX(-50%); } }
+
+.banner-grid {
+  position: absolute;
+  inset: 45% -50% -60% -50%;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--primary) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--primary) 70%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  transform: perspective(220px) rotateX(58deg);
+  transform-origin: top;
+  mask-image: linear-gradient(to bottom, transparent, black 30%);
+  animation: grid-scroll 1.6s linear infinite;
+}
+.banner-sun {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 9999px;
+  translate: -50% -50%;
+  background: linear-gradient(to bottom, var(--primary), color-mix(in srgb, var(--primary) 30%, var(--accent)));
+  box-shadow: 0 0 60px color-mix(in srgb, var(--primary) 60%, transparent);
+  mask-image: repeating-linear-gradient(to bottom, black 0 8px, transparent 8px 11px);
+  animation: sun-glow 4s ease-in-out infinite alternate;
+}
+@keyframes grid-scroll { to { background-position: 0 28px; } }
+@keyframes sun-glow { to { box-shadow: 0 0 90px color-mix(in srgb, var(--primary) 80%, transparent); } }
+
+/* A soft "live" dot for profile statuses. */
+.status-dot { position: relative; display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--primary); }
+.status-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--primary);
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }

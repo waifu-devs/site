@@ -80,7 +80,10 @@ export class Themes extends Effect.Service<Themes>()("Themes", {
         }),
       );
 
-    /** Deletes a member's own theme. Anyone wearing it falls back to the default. */
+    /**
+     * Deletes a member's own theme. Anyone wearing it falls back to the default,
+     * and profiles shown in it go back to their owner's worn theme.
+     */
     const remove = (ownerId: string, themeId: string) =>
       isUuid(themeId)
         ? client.withTransaction(
@@ -89,7 +92,10 @@ export class Themes extends Effect.Service<Themes>()("Themes", {
                 .delete(themes)
                 .where(and(eq(themes.id, themeId), eq(themes.ownerId, ownerId)))
                 .returning({ id: themes.id });
-              if (deleted.length) yield* db.update(users).set({ themeId: DEFAULT_THEME.id }).where(eq(users.themeId, themeId));
+              if (deleted.length) {
+                yield* db.update(users).set({ themeId: DEFAULT_THEME.id }).where(eq(users.themeId, themeId));
+                yield* db.update(users).set({ profileThemeId: null }).where(eq(users.profileThemeId, themeId));
+              }
               return deleted.length > 0;
             }),
           )
