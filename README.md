@@ -68,12 +68,12 @@ You need Node 22 and a local Postgres (`postgres://postgres:postgres@localhost:5
 
 ## Deploying on Railway
 
-Everything lives in the **waifu-devs** Railway project, production environment. `.railway/railway.ts` declares Postgres and the `api` and `web` services (built from `main` of this repo with Railpack); a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
+Everything lives in the **waifu-devs** Railway project, production environment, in the US East (Virginia) region. `.railway/railway.ts` declares Postgres and the `api` and `web` services (built from `main` of this repo with Railpack) along with their domains, `api.waifu.dev` and `www.waifu.dev`; a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
 
 One-time setup:
 
 1. **Railway GitHub App**: install it on the `waifu-devs` org with access to this repo, so Railway can build it (<https://github.com/apps/railway-app>).
 2. **Project token**: in the Railway project, Settings → Tokens, create a token for the production environment and save it as the `RAILWAY_TOKEN` repository secret here.
-3. **GitHub OAuth app** for production. Its callback URL is `https://<api domain>/github/callback`, so do this after step 5 if you don't know the domain yet. Put its credentials in the production environment's **shared variables** `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` (Project Settings → Shared Variables).
+3. **GitHub OAuth app** for production, with the callback URL `https://api.waifu.dev/github/callback`. Put its credentials in the production environment's **shared variables** `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` (Project Settings → Shared Variables).
 4. Merge a pull request that touches `.railway/` (the first one creates everything).
-5. **Domains**: generate a Railway domain for `api` (port 4000) and for `web` (port 3000) in each service's Settings → Networking. The services' URLs are built from those domains, so redeploy both afterwards.
+5. **DNS**: at the `waifu.dev` registrar, point `api` and `www` at the CNAME targets Railway shows in each service's Settings → Networking.
