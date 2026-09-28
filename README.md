@@ -61,16 +61,18 @@ In dev, the `HYPERDRIVE` binding connects straight to `DATABASE_URL` (see `cloud
 
 ## Deploying to Cloudflare
 
+Already in place for production: the PlanetScale Postgres database (`waifu-devs`, on the smallest $5 instance) and the Hyperdrive config in front of it, whose id is on the `HYPERDRIVE` binding in `cloudflare.config.ts`. The connection string lives inside Hyperdrive, so the Worker never holds the database password.
+
 One-time setup:
 
 1. Log in: `pnpm exec cf auth login` (or set `CLOUDFLARE_API_TOKEN`), and set `CLOUDFLARE_ACCOUNT_ID` or `accountId` in `cloudflare.config.ts`.
-2. In PlanetScale, create the Postgres database and a role for the app, and copy its connection string.
-3. Create the schema: `DATABASE_URL=<planetscale connection string> pnpm db:migrate`.
-4. Create a Hyperdrive config pointing at PlanetScale, in the dashboard (Workers & Pages → Hyperdrive → Create) or with `cf hyperdrive create`. The connection string lives inside Hyperdrive, so the Worker never holds the database password. Copy the Hyperdrive id.
+2. Create the schema: `DATABASE_URL=<planetscale connection string> pnpm db:migrate`.
+3. Create a production GitHub OAuth app with callback URL `https://<your-domain>/github/callback`.
+4. Deploy once with `pnpm deploy`, then add the secrets `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the `waifu-devs-site` Worker (Dashboard → Workers & Pages → waifu-devs-site → Settings → Variables and Secrets).
 
-   We run on PlanetScale's smallest ($5) Postgres instance, which allows only a handful of connections. Hyperdrive is what keeps us inside that: every Worker request shares its pool instead of opening its own database connection. When creating the config, set its maximum origin connections well below the instance's limit (check with `SHOW max_connections;`, and leave room for migrations and your own psql sessions). If PlanetScale offers a PgBouncer connection string for the database, give that one to Hyperdrive.
-5. Create a production GitHub OAuth app with callback URL `https://<your-domain>/github/callback`.
-6. Put the Hyperdrive id on the `HYPERDRIVE` binding in `cloudflare.config.ts` (already set for our config). Deploy once with `pnpm deploy`, then add the secrets `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the `waifu-devs-site` Worker (Dashboard → Workers & Pages → waifu-devs-site → Settings → Variables and Secrets).
+The $5 instance allows only a handful of connections. Hyperdrive keeps us inside that: every Worker request shares its pool instead of opening its own database connection. Keep the Hyperdrive config's maximum origin connections well below the instance's limit (check with `SHOW max_connections;`, and leave room for migrations and your own psql sessions). If PlanetScale offers a PgBouncer connection string, give that one to Hyperdrive.
+
+To set up a new environment from scratch, first create a PlanetScale Postgres database and a Hyperdrive config pointing at it (dashboard: Workers & Pages → Hyperdrive → Create, or `cf hyperdrive create`), and put the new Hyperdrive id on the `HYPERDRIVE` binding.
 
 After that, `pnpm deploy` builds and ships.
 
