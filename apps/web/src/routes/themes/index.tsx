@@ -3,6 +3,7 @@ import type { Theme, User } from "@waifu-devs/domain/api";
 import { BUILTIN_THEMES } from "@waifu-devs/domain/themes";
 import { Trash2 } from "lucide-react";
 import { ActionForm } from "@/components/ActionForm";
+import { InlineMarkdown } from "@/components/Markdown";
 import { Tilt } from "@/components/motion";
 import { ThemeSwatch } from "@/components/ThemeSwatch";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,12 @@ function ThemeCard({ theme, user, mine }: { theme: Theme; user: User | null; min
                 by u/{theme.ownerUsername}
               </Link>
             )}
-            {theme.description ? ` · ${theme.description}` : ""}
+            {theme.description ? (
+              <>
+                {" · "}
+                <InlineMarkdown>{theme.description}</InlineMarkdown>
+              </>
+            ) : null}
           </p>
         </div>
         {user ? (

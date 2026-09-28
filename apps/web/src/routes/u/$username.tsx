@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Palette } from "lucide-react";
 import { ActionForm } from "@/components/ActionForm";
+import { InlineMarkdown, Markdown } from "@/components/Markdown";
 import { Tilt } from "@/components/motion";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ThemeSwatch } from "@/components/ThemeSwatch";
@@ -47,7 +48,7 @@ function ProfilePage() {
           <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">About</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="whitespace-pre-line break-words">{user.bio ?? "This dev hasn't written a bio yet. (´・ω・`)"}</p>
+          {user.bio ? <Markdown>{user.bio}</Markdown> : <p>This dev hasn't written a bio yet. (´・ω・`)</p>}
         </CardContent>
       </Card>
 
@@ -68,7 +69,12 @@ function ProfilePage() {
                 by u/{theme.ownerUsername}
               </Link>
             )}
-            {theme.description ? ` · ${theme.description}` : ""}
+            {theme.description ? (
+              <>
+                {" · "}
+                <InlineMarkdown>{theme.description}</InlineMarkdown>
+              </>
+            ) : null}
           </p>
         </div>
         {canWear ? (

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import type { User } from "@waifu-devs/domain/api";
 import { UserAvatar } from "./Avatar";
+import { InlineMarkdown } from "./Markdown";
 import { Tilt } from "./motion";
 
 export function MemberCard({ user }: { user: User }) {
@@ -16,7 +17,13 @@ export function MemberCard({ user }: { user: User }) {
             <p className="truncate font-bold">{user.displayName ?? user.username}</p>
             <p className="truncate text-xs text-muted-foreground">
               u/{user.username}
-              {user.favoriteWaifu ? ` · ♡ ${user.favoriteWaifu}` : ""}
+              {user.favoriteWaifu ? (
+                <>
+                  {" · ♡ "}
+                  {/* The card is already a link. */}
+                  <InlineMarkdown links={false}>{user.favoriteWaifu}</InlineMarkdown>
+                </>
+              ) : null}
             </p>
           </div>
         </Link>

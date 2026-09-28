@@ -5,6 +5,7 @@ import { type ThemeVariant, themeStyle } from "@waifu-devs/domain/themes";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
+import { Markdown } from "@/components/Markdown";
 import { ProfileBanner } from "@/components/ProfileBanner";
 import { ProfileCard, type ProfileView } from "@/components/ProfileCard";
 import { LinksInput, PickerOption, SkillsInput, TextField } from "@/components/ProfileFields";
@@ -172,6 +173,11 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
           <Card>
             <CardHeader>
               <CardTitle>About you</CardTitle>
+              <CardDescription>
+                Status, favorite waifu and bio understand Markdown: <code className="text-foreground">**bold**</code>,{" "}
+                <code className="text-foreground">_italic_</code>, <code className="text-foreground">`code`</code> and{" "}
+                <code className="text-foreground">[links](https://...)</code>. The bio also takes lists, quotes and code blocks.
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               <TextField id="display_name" label="Display name" max={60} value={draft.displayName} onChange={set("displayName")} placeholder={user.username} />
@@ -216,7 +222,7 @@ function ProfileEditor({ user, worn, mine, builtin, community }: { user: User; w
             <ProfileCard profile={preview} nameAs="p" />
             {draft.bio.trim() ? (
               <Card className="gap-0 p-4">
-                <p className="line-clamp-4 whitespace-pre-line break-words text-sm">{draft.bio}</p>
+                <Markdown className="max-h-40 overflow-hidden text-sm [mask-image:linear-gradient(to_bottom,black_75%,transparent)]">{draft.bio}</Markdown>
               </Card>
             ) : null}
           </div>
