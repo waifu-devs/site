@@ -43,23 +43,23 @@ export const PROJECTS: Project[] = [
     tagline: "Chat servers you can own. Hosted by us, or by you.",
     description: `**fuwa** (ふわ, as in *fuwafuwa*: fluffy) is a chat app in the spirit of Discord that you can run yourself.
 
-Every community server keeps its members, channels and messages in **its own database file** (Turso, so it still opens as plain SQLite): a whole community is one file you can back up, move or hand to a friend. The server and the desktop app are written in Rust, and one client holds as many servers as you like: ones Waifu Devs hosts (soon), your friend's, and the one humming in your closet.`,
+Every community server keeps its members, channels and messages in **its own database file** (Turso, so it still opens as plain SQLite): a whole community is one file you can back up, move or hand to a friend. The server is written in Rust, native Rust desktop apps are coming, and one client holds as many servers as you like: ones Waifu Devs hosts (soon), your friend's, and the one humming in your closet.`,
     status: "building",
     repo: "waifu-devs/fuwa",
     stack: ["Rust", "Turso", "gRPC", "React"],
     highlights: [
       { icon: Database, title: "One file per server", body: "Members, channels, messages and events live in that server's own Turso database file." },
       { icon: House, title: "Self-host it", body: "Run one small Rust binary on your own box, with accounts of its own and every message kept at home." },
-      { icon: Cloud, title: "Or let us host it", body: "Hosted fuwa servers on waifu.dev are on the way, for when you just want to chat." },
+      { icon: Cloud, title: "Or let us host it", body: "A hosted fuwa at fuwa.waifu.dev is on the way, for when you just want to chat." },
       { icon: Layers, title: "One client, many servers", body: "Hosted and self-hosted servers sit together in one sidebar, in your browser or the desktop app." },
     ],
     roadmap: [
-      { label: "Rust server with a Turso file per community server", state: "now" },
-      { label: "Standalone accounts, no waifu.dev needed", state: "now" },
+      { label: "Rust server on Turso, a file per community server, with its own accounts", state: "now" },
       { label: "Web client, served by every fuwa server", state: "now" },
-      { label: "Desktop app in Rust", state: "next" },
+      { label: "One binary that splits into gateway, shard and directory parts to scale out", state: "next" },
       { label: "Sign in with waifu.dev, invites and roles", state: "next" },
-      { label: "Hosted servers on waifu.dev", state: "next" },
+      { label: "Hosted fuwa at fuwa.waifu.dev, release binaries and a self-host guide", state: "next" },
+      { label: "Native Rust desktop apps", state: "next" },
     ],
   },
   {
