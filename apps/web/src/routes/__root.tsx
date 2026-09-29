@@ -65,6 +65,9 @@ function RootLayout() {
             </Link>
             {/* On phones the links drop to their own row so Sign in never gets pushed off screen. */}
             <div className="order-last flex w-full gap-4 text-sm font-bold text-muted-foreground sm:order-none sm:w-auto">
+              <Link to="/projects" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
+                Projects
+              </Link>
               <Link to="/members" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
                 Members
               </Link>
