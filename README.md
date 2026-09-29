@@ -96,7 +96,7 @@ The Railway project is public, so anyone can check out the live infrastructure b
 
 ## Deploying on Railway
 
-Everything lives in the **waifu-devs** Railway project, production environment, in the US East (Virginia) region. `.railway/railway.ts` declares Postgres, the `uploads` and `lake` buckets, and the `api`, `web` and `analytics` services (built from `main` of this repo with Railpack) along with their domains, `api.waifu.dev`, `www.waifu.dev` and `analytics.waifu.dev`; a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
+Everything lives in the **waifu-devs** Railway project, production environment, in the US East (Virginia) region. `.railway/railway.ts` declares Postgres, the `uploads` and `lake` buckets, and the `api`, `web` and `analytics` services (built from `main` of this repo with Railpack) along with their domains, `api.waifu.dev` and `www.waifu.dev` (`analytics.waifu.dev` joins them once it is added in the dashboard, step 6 below); a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.
 
 One-time setup:
 
