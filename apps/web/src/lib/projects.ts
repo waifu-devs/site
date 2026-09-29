@@ -54,7 +54,7 @@ Every community server keeps its members, channels and messages in **its own dat
       { icon: Layers, title: "One client, many servers", body: "Hosted and self-hosted servers sit together in one sidebar, in your browser or the desktop app." },
     ],
     roadmap: [
-      { label: "Rust server on Turso, a file per community server, with its own accounts", state: "now" },
+      { label: "Rust server on Turso, a file per community server, with its own accounts", state: "done" },
       { label: "Web client, served by every fuwa server", state: "now" },
       { label: "One binary that splits into gateway, shard and directory parts to scale out", state: "next" },
       { label: "Sign in with waifu.dev, invites and roles", state: "next" },
