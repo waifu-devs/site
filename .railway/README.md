@@ -13,9 +13,11 @@ removed from Railway on the next apply.
 1. Open a pull request that edits `.railway/`.
 2. The `Railway config` workflow comments the plan (what will change) on the PR.
 3. Merging applies exactly that plan. If the environment changed in the meantime
-   (say, a variable edited in the dashboard), the apply refuses the stale plan.
-   Before merging, push any commit to the PR to re-plan. After merging, open a
-   new PR that touches `.railway/` and merge that one.
+   (say, a variable edited in the dashboard, shared variables included), the
+   apply refuses the stale plan. Before merging, push any commit to the PR to
+   re-plan. After merging, open a new PR that touches `.railway/` and merge that
+   one. So set any shared variable a PR needs before its plan runs, or after its
+   apply finishes, never in between.
 
 Code changes deploy on their own: Railway builds `main` whenever the files in a
 service's watch patterns change.
