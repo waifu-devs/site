@@ -1,7 +1,7 @@
-import { CircleCheck, CircleDashed, Cloud, Database, Hash, House, Laptop, Plus } from "lucide-react";
+import { CircleCheck, CircleDashed, Cloud, Database, Hash, House, Laptop, LoaderCircle, Plus } from "lucide-react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import type { Project } from "@/lib/projects";
+import type { Project, RoadmapState } from "@/lib/projects";
 import { cn } from "@/lib/utils";
 import { ProjectCard } from "./ProjectCard";
 
@@ -269,7 +269,7 @@ function Network({ active, onSelect }: { active: number; onSelect: (i: number) =
           </span>
           <span>
             <span className="block font-extrabold">fuwa client</span>
-            <span className="block text-xs text-muted-foreground">on your desktop</span>
+            <span className="block text-xs text-muted-foreground">browser or desktop</span>
           </span>
         </motion.div>
         <span aria-hidden className="wire wire-y ml-[2.2rem] h-8 w-0.5 md:hidden" />
@@ -333,23 +333,41 @@ function Network({ active, onSelect }: { active: number; onSelect: (i: number) =
   );
 }
 
-/** What's done and what's next, with a bar that fills as it scrolls in. */
+const STATE_ICON = {
+  done: <CircleCheck className="mt-px size-5 shrink-0 text-primary" />,
+  now: <LoaderCircle className="mt-px size-5 shrink-0 animate-spin text-primary [animation-duration:2.4s]" />,
+  next: <CircleDashed className="mt-px size-5 shrink-0 text-muted-foreground/60" />,
+};
+
+/**
+ * What's done, what's being built and what's next. The bar fills solid for
+ * what's done and with moving stripes for what's in progress.
+ */
 function Roadmap({ items }: { items: NonNullable<Project["roadmap"]> }) {
-  const done = items.filter((item) => item.done).length;
+  const count = (state: RoadmapState) => items.filter((item) => item.state === state).length;
+  const done = count("done");
+  const now = count("now");
+  const next = count("next");
+  const summary = [done && `${done} done`, now && `${now} in progress`, next && `${next} up next`].filter(Boolean).join(" · ");
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">Roadmap</p>
-        <p className="text-sm text-muted-foreground">
-          {done} of {items.length} done
-        </p>
+        <p className="text-sm text-muted-foreground">{summary}</p>
         {/* The track watches the viewport: a bar squashed to nothing never counts as in view. */}
         <motion.div initial="hidden" whileInView="shown" viewport={{ once: true }} className="h-2 overflow-hidden rounded-full bg-muted">
           <motion.div
-            variants={{ hidden: { scaleX: 0 }, shown: { scaleX: done / items.length } }}
+            variants={{ hidden: { scaleX: 0 }, shown: { scaleX: (done + now) / items.length } }}
             transition={{ duration: 1.2, delay: 0.2, ease: EASE }}
-            className="h-full origin-left rounded-full bg-[linear-gradient(90deg,var(--primary),color-mix(in_srgb,var(--primary)_45%,#a78bfa))]"
-          />
+            className="progress-stripes flex h-full origin-left overflow-hidden rounded-full"
+          >
+            {done ? (
+              <span
+                className="h-full bg-[linear-gradient(90deg,var(--primary),color-mix(in_srgb,var(--primary)_45%,#a78bfa))]"
+                style={{ width: `${(done / (done + now)) * 100}%` }}
+              />
+            ) : null}
+          </motion.div>
         </motion.div>
       </div>
       <ol className="flex flex-col gap-3">
@@ -360,16 +378,21 @@ function Roadmap({ items }: { items: NonNullable<Project["roadmap"]> }) {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.3 + i * 0.1, ease: EASE }}
-            className={cn("flex items-start gap-3 text-sm", item.done ? "font-bold" : "text-muted-foreground")}
+            className={cn("flex items-start gap-3 text-sm", item.state === "next" ? "text-muted-foreground" : "font-bold")}
           >
-            {item.done ? (
-              <CircleCheck className="mt-px size-5 shrink-0 text-primary" />
-            ) : (
-              <CircleDashed className="mt-px size-5 shrink-0 animate-spin text-primary/70 [animation-duration:6s]" />
-            )}
+            {STATE_ICON[item.state]}
             <span>
               {item.label}
-              {item.done ? null : <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[0.65rem] font-extrabold text-secondary-foreground">next</span>}
+              {item.state === "done" ? null : (
+                <span
+                  className={cn(
+                    "ml-2 whitespace-nowrap rounded-full px-2 py-0.5 text-[0.65rem] font-extrabold",
+                    item.state === "now" ? "bg-primary/12 text-primary" : "bg-secondary text-secondary-foreground",
+                  )}
+                >
+                  {item.state === "now" ? "in progress" : "next"}
+                </span>
+              )}
             </span>
           </motion.li>
         ))}

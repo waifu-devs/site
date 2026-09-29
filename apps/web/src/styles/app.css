@@ -398,6 +398,14 @@ body {
 @keyframes wire-x { from { translate: -100% 0; } to { translate: 250% 0; } }
 @keyframes wire-y { from { translate: 0 -100%; } to { translate: 0 250%; } }
 
+/* Barber-pole stripes for roadmap work in progress. */
+.progress-stripes {
+  background: repeating-linear-gradient(-45deg, var(--primary) 0 6px, color-mix(in srgb, var(--primary) 45%, transparent) 6px 12px);
+  background-size: 17px 17px;
+  animation: stripes 0.9s linear infinite;
+}
+@keyframes stripes { to { background-position: 17px 0; } }
+
 .db-pulse { animation: db-pulse 1.6s ease-in-out infinite; }
 @keyframes db-pulse { 50% { transform: scale(1.2); } }
 

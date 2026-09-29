@@ -29,8 +29,11 @@ export type Project = {
   url?: string;
   stack: string[];
   highlights: { icon: LucideIcon; title: string; body: string }[];
-  roadmap?: { label: string; done: boolean }[];
+  roadmap?: { label: string; state: RoadmapState }[];
 };
+
+/** Done has landed, now is being built (or is in review), next hasn't started. */
+export type RoadmapState = "done" | "now" | "next";
 
 export const PROJECTS: Project[] = [
   {
@@ -40,22 +43,23 @@ export const PROJECTS: Project[] = [
     tagline: "Chat servers you can own. Hosted by us, or by you.",
     description: `**fuwa** (ふわ, as in *fuwafuwa*: fluffy) is a chat app in the spirit of Discord that you can run yourself.
 
-Every server keeps its channels, messages and history in **its own SQLite database**, so a whole community is one file you can back up, move or hand to a friend. The desktop client keeps as many servers in its sidebar as you like, side by side: ones Waifu Devs hosts (soon), your friend's, and the one humming in your closet.`,
+Every community server keeps its members, channels and messages in **its own database file** (Turso, so it still opens as plain SQLite): a whole community is one file you can back up, move or hand to a friend. The server and the desktop app are written in Rust, and one client holds as many servers as you like: ones Waifu Devs hosts (soon), your friend's, and the one humming in your closet.`,
     status: "building",
     repo: "waifu-devs/fuwa",
-    stack: ["Go", "gRPC", "SQLite", "Raylib"],
+    stack: ["Rust", "Turso", "gRPC", "React"],
     highlights: [
-      { icon: Database, title: "One file per server", body: "Channels, messages and events live in that server's own SQLite database." },
-      { icon: House, title: "Self-host it", body: "Run one small Go binary on your own box and keep every message at home." },
+      { icon: Database, title: "One file per server", body: "Members, channels, messages and events live in that server's own Turso database file." },
+      { icon: House, title: "Self-host it", body: "Run one small Rust binary on your own box, with accounts of its own and every message kept at home." },
       { icon: Cloud, title: "Or let us host it", body: "Hosted fuwa servers on waifu.dev are on the way, for when you just want to chat." },
-      { icon: Layers, title: "One client, many servers", body: "Hosted and self-hosted servers sit together in the same sidebar." },
+      { icon: Layers, title: "One client, many servers", body: "Hosted and self-hosted servers sit together in one sidebar, in your browser or the desktop app." },
     ],
     roadmap: [
-      { label: "Event-driven gRPC server", done: true },
-      { label: "A SQLite database per server", done: true },
-      { label: "Desktop client that joins many servers", done: true },
-      { label: "One-command self-hosting", done: false },
-      { label: "Hosted servers on waifu.dev", done: false },
+      { label: "Rust server with a Turso file per community server", state: "now" },
+      { label: "Standalone accounts, no waifu.dev needed", state: "now" },
+      { label: "Web client, served by every fuwa server", state: "now" },
+      { label: "Desktop app in Rust", state: "next" },
+      { label: "Sign in with waifu.dev, invites and roles", state: "next" },
+      { label: "Hosted servers on waifu.dev", state: "next" },
     ],
   },
   {
