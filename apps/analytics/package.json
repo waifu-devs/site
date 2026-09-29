@@ -1,0 +1,28 @@
+{
+  "name": "@waifu-devs/analytics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
+    "build": "node build.mjs && node scripts/install-extensions.mjs",
+    "start": "node dist/main.js",
+    "sql": "tsx --env-file-if-exists=.env scripts/sql.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "1.5.5-r.5",
+    "@effect/platform": "^0.97.2",
+    "@effect/platform-node": "^0.108.2",
+    "effect": "^3.22.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.30.0",
+    "@types/node": "^26.6.3",
+    "esbuild": "^0.25.12",
+    "tsx": "^4.20.6",
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
+  }
+}

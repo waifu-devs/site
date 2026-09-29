@@ -1,7 +1,8 @@
 # Railway infrastructure
 
-`railway.ts` describes the whole Railway project (Postgres, `api`, `web`, the
-`uploads` bucket where the api keeps uploaded pictures, their region and their
+`railway.ts` describes the whole Railway project (Postgres, `api`, `web`,
+`analytics`, the `uploads` bucket where the api keeps uploaded pictures, the
+`lake` bucket holding the analytics DuckLake files, their region and their
 custom domains) with
 [Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code).
 It's the single source of truth: a resource or variable removed from the file is
@@ -30,5 +31,8 @@ railway config apply   # apply
 
 ## Not managed here
 
-- The `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` shared variables (secrets stay in Railway).
-- The DNS records for `api.waifu.dev` and `www.waifu.dev` (they're at the registrar).
+- The `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` and `ANALYTICS_READ_TOKEN` shared variables (secrets stay in Railway).
+- The DNS records for `api.waifu.dev`, `www.waifu.dev` and `analytics.waifu.dev` (they're at the registrar).
+- Registering a new custom domain: Railway configuration refuses to, so add it to the
+  service in the dashboard first (after the apply that creates the service), then
+  declare it in `railway.ts` so later applies keep it.
