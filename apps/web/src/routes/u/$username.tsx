@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { title } from "@/lib/head";
+import { useViewer } from "@/lib/viewer";
 import { getProfile, wearTheme } from "@/server/functions";
 
 export const Route = createFileRoute("/u/$username")({
@@ -25,10 +26,10 @@ export const Route = createFileRoute("/u/$username")({
 });
 
 function ProfilePage() {
-  const { user, theme, themes, isMe, viewer } = Route.useLoaderData();
+  const { user, theme, themes, isMe } = Route.useLoaderData();
   // The root document dresses the whole page in `theme`, so every visitor sees the owner's pick.
-  const wearing = viewer?.themeId === theme.id;
-  const canWear = viewer && !isMe && !wearing && (theme.builtin || theme.isPublic !== false);
+  const wearing = useViewer().theme.id === theme.id;
+  const canWear = !isMe && !wearing && (theme.builtin || theme.isPublic !== false);
 
   return (
     <main className="stagger mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10">

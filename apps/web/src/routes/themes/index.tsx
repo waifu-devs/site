@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import type { Theme, User } from "@waifu-devs/domain/api";
+import type { Theme } from "@waifu-devs/domain/api";
 import { BUILTIN_THEMES } from "@waifu-devs/domain/themes";
 import { Trash2 } from "lucide-react";
 import { ActionForm } from "@/components/ActionForm";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { title } from "@/lib/head";
+import { useViewer } from "@/lib/viewer";
 import { deleteTheme, getThemes, wearTheme } from "@/server/functions";
 
 export const Route = createFileRoute("/themes/")({
@@ -19,8 +20,7 @@ export const Route = createFileRoute("/themes/")({
   component: ThemesPage,
 });
 
-function ThemeCard({ theme, user, mine }: { theme: Theme; user: User | null; mine: boolean }) {
-  const wearing = user?.themeId === theme.id;
+function ThemeCard({ theme, wearing, mine }: { theme: Theme; wearing: boolean; mine: boolean }) {
   return (
     // min-w-0: a long one-line description would otherwise widen its grid column past a phone screen.
     <Tilt className="min-w-0 rounded-xl">
@@ -47,35 +47,33 @@ function ThemeCard({ theme, user, mine }: { theme: Theme; user: User | null; min
             ) : null}
           </p>
         </div>
-        {user ? (
-          <div className="mt-auto flex items-center gap-2">
-            {wearing ? (
-              <Badge className="rounded-full px-3 py-1">
-                Wearing <span className="heartbeat">♡</span>
-              </Badge>
-            ) : (
-              <ActionForm action={wearTheme}>
-                <input type="hidden" name="theme_id" value={theme.id} />
-                <Button size="sm" variant="outline" className="btn rounded-full font-bold" type="submit">
-                  Wear this
-                </Button>
-              </ActionForm>
-            )}
-            {mine ? (
-              <ActionForm action={deleteTheme} className="ml-auto">
-                <input type="hidden" name="theme_id" value={theme.id} />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:text-destructive" type="submit" aria-label="Delete theme">
-                      <Trash2 />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Delete theme</TooltipContent>
-                </Tooltip>
-              </ActionForm>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="mt-auto flex items-center gap-2">
+          {wearing ? (
+            <Badge className="rounded-full px-3 py-1">
+              Wearing <span className="heartbeat">♡</span>
+            </Badge>
+          ) : (
+            <ActionForm action={wearTheme}>
+              <input type="hidden" name="theme_id" value={theme.id} />
+              <Button size="sm" variant="outline" className="btn rounded-full font-bold" type="submit">
+                Wear this
+              </Button>
+            </ActionForm>
+          )}
+          {mine ? (
+            <ActionForm action={deleteTheme} className="ml-auto">
+              <input type="hidden" name="theme_id" value={theme.id} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:text-destructive" type="submit" aria-label="Delete theme">
+                    <Trash2 />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete theme</TooltipContent>
+              </Tooltip>
+            </ActionForm>
+          ) : null}
+        </div>
       </Card>
     </Tilt>
   );
@@ -83,10 +81,12 @@ function ThemeCard({ theme, user, mine }: { theme: Theme; user: User | null; min
 
 function ThemesPage() {
   const { user, community, mine } = Route.useLoaderData();
+  // The theme the site is dressed in: the member's, or the one this browser picked while signed out.
+  const worn = useViewer().theme.id;
   const mineIds = new Set(mine.map((t) => t.id));
   const communityOthers = community.filter((t) => !mineIds.has(t.id));
   const grid = "stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
-  const card = (t: Theme) => <ThemeCard key={t.id} theme={t} user={user} mine={mineIds.has(t.id)} />;
+  const card = (t: Theme) => <ThemeCard key={t.id} theme={t} wearing={t.id === worn} mine={mineIds.has(t.id)} />;
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
@@ -94,8 +94,10 @@ function ThemesPage() {
         <div>
           <h1 className="text-3xl font-extrabold">Themes</h1>
           <p className="text-muted-foreground">
-            Each theme is a full shadcn/ui token set. Wear one to restyle the site for you. Your profile shows it too, unless you pick a
-            different profile theme when you customize your profile.
+            Each theme is a full shadcn/ui token set. Wear one to restyle the site for you.{" "}
+            {user
+              ? "Your profile shows it too, unless you pick a different profile theme when you customize your profile."
+              : "No account needed: this browser remembers it."}
           </p>
         </div>
         <Button asChild className="btn rounded-full font-bold">

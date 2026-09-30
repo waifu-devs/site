@@ -19,11 +19,13 @@ import {
 } from "@waifu-devs/domain/profile";
 import { isCountryCode } from "@waifu-devs/domain/countries";
 import { BUILTIN_THEMES, DEFAULT_THEME, TOKENS } from "@waifu-devs/domain/themes";
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { ApiClient } from "./Api.ts";
 import { asUser, formData, orNotFound, text } from "./helpers.ts";
 import { run } from "./runtime.ts";
 import { Session } from "./Session.ts";
+
+const isUuid = Schema.is(Schema.UUID);
 
 /** A built-in theme, or a member's theme from the API; the default if it's gone. */
 const resolveTheme = (id: string | null | undefined) =>
@@ -32,6 +34,17 @@ const resolveTheme = (id: string | null | undefined) =>
     if (builtin) return builtin as Theme;
     const api = yield* ApiClient;
     return yield* api.anonymous.themes.get({ path: { id: id! } }).pipe(Effect.orElseSucceed(() => DEFAULT_THEME as Theme));
+  });
+
+/** A theme anyone may wear, signed in or not: a built-in, or a member's theme that's public. */
+const publicTheme = (id: string | undefined) =>
+  Effect.gen(function* () {
+    const builtin = BUILTIN_THEMES.find((t) => t.id === id);
+    if (builtin) return Option.some(builtin as Theme);
+    // Members' themes have UUIDs, and the id goes into the API path, so nothing else gets that far.
+    if (!id || !isUuid(id)) return Option.none<Theme>();
+    const theme = yield* (yield* ApiClient).anonymous.themes.get({ path: { id } }).pipe(Effect.option);
+    return Option.filter(theme, (t) => t.isPublic !== false);
   });
 
 /** The signed-in user, or a redirect to /login that comes back to `next`. */
@@ -48,8 +61,13 @@ const requireUser = (next: string) =>
 export const getViewer = createServerFn({ method: "GET" }).handler(() =>
   run(
     Effect.gen(function* () {
-      const user = Option.getOrNull(yield* (yield* Session).currentUser);
-      return { user, theme: yield* resolveTheme(user?.themeId) };
+      const session = yield* Session;
+      const user = Option.getOrNull(yield* session.currentUser);
+      // Signed out, it's the theme this browser picked, as long as anyone may still wear it.
+      const theme = user
+        ? yield* resolveTheme(user.themeId)
+        : Option.getOrElse(yield* publicTheme(yield* session.visitorTheme), () => DEFAULT_THEME as Theme);
+      return { user, theme };
     }),
   ),
 );
@@ -98,7 +116,7 @@ export const getProfile = createServerFn({ method: "GET" })
           ],
           { concurrency: "unbounded" },
         );
-        return { user, theme, themes, isMe, viewer };
+        return { user, theme, themes, isMe };
       }),
     ),
   );
@@ -237,10 +255,22 @@ export const removeImage = createServerFn({ method: "POST" })
     ),
   );
 
+/** Members wear a theme on their account; signed out, this browser remembers it. */
 export const wearTheme = createServerFn({ method: "POST" })
   .validator(formData)
   .handler(({ data: form }) =>
-    run(asUser.pipe(Effect.flatMap((me) => me.me.wear({ payload: { themeId: text(form, "theme_id", 64) ?? "" } })), Effect.asVoid)),
+    run(
+      Effect.gen(function* () {
+        const themeId = text(form, "theme_id", 64) ?? "";
+        const session = yield* Session;
+        const token = yield* session.accessToken;
+        if (Option.isSome(token)) {
+          yield* (yield* ApiClient).as(token.value).pipe(Effect.flatMap((me) => me.me.wear({ payload: { themeId } })));
+        } else if (Option.isSome(yield* publicTheme(themeId))) {
+          yield* session.setVisitorTheme(themeId);
+        }
+      }),
+    ),
   );
 
 export const createTheme = createServerFn({ method: "POST" })
