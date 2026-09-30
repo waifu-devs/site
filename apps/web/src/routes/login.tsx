@@ -25,7 +25,7 @@ function LoginPage() {
           <p className="float text-5xl">(｡•̀ᴗ-)✧</p>
           <h1 className="text-3xl font-extrabold">Join Waifu Devs</h1>
           <p className="text-muted-foreground">
-            Sign in with GitHub to get a profile, pick a theme, and share your own with the community.
+            Sign in with GitHub to get a profile, make your own themes, and share them with the community.
           </p>
           <Button asChild size="lg" className="btn rounded-full font-bold">
             {/* A full page load: the server route sets a cookie and redirects to GitHub. */}

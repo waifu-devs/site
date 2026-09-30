@@ -1,5 +1,6 @@
 import { createClient } from "@openauthjs/openauth/client";
 import type { User } from "@waifu-devs/domain/api";
+import { DEFAULT_THEME } from "@waifu-devs/domain/themes";
 import { Data, Effect, Option } from "effect";
 import { ApiClient, Urls } from "./Api.ts";
 import { RequestContext } from "./Request.ts";
@@ -8,6 +9,8 @@ export const ACCESS_COOKIE = "wd_access";
 export const REFRESH_COOKIE = "wd_refresh";
 /** Short-lived cookie holding the sign-in state, PKCE verifier and destination. */
 export const LOGIN_COOKIE = "wd_login";
+/** The theme a signed-out visitor wears; members wear theirs on their account. */
+export const THEME_COOKIE = "wd_theme";
 /** Must match the API's OpenAuth client id. */
 export const CLIENT_ID = "waifu-devs-web";
 /** Matches OpenAuth's refresh token lifetime; the access token inside expires sooner. */
@@ -49,6 +52,28 @@ export class Session extends Effect.Service<Session>()("Session", {
       }),
     );
 
+    /** The theme a signed-out visitor picked, if any. */
+    const visitorTheme = RequestContext.pipe(Effect.map((req) => req.getCookie(THEME_COOKIE)));
+
+    /** Remembers the theme a signed-out visitor picked, for a year. */
+    const setVisitorTheme = (themeId: string) =>
+      RequestContext.pipe(Effect.map((req) => req.setCookie(THEME_COOKIE, themeId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 365 })));
+
+    /**
+     * Signing in hands the theme picked while signed out to the account, if the
+     * account still wears the default (as every new one does). The account decides from then on.
+     */
+    const handOffVisitorTheme = (accessToken: string) =>
+      Effect.gen(function* () {
+        const req = yield* RequestContext;
+        const themeId = req.getCookie(THEME_COOKIE);
+        if (!themeId) return;
+        req.deleteCookie(THEME_COOKIE, cookieOptions);
+        const client = yield* api.as(accessToken);
+        const user = yield* client.me.get();
+        if (user.themeId === DEFAULT_THEME.id) yield* client.me.wear({ payload: { themeId } });
+      }).pipe(Effect.catchAll((error) => Effect.logWarning("handing the signed-out theme to the account failed", error)));
+
     /** Starts a sign-in: the URL to send the browser to, remembering state for the callback. */
     const authorize = (next: string) =>
       Effect.gen(function* () {
@@ -73,6 +98,7 @@ export class Session extends Effect.Service<Session>()("Session", {
         const exchanged = yield* Effect.promise(() => client.exchange(code, callbackUrl, login.verifier));
         if (exchanged.err) return yield* new OpenAuthError({ reason: "the sign-in code was rejected. Please try again." });
         yield* setTokens(exchanged.tokens);
+        yield* handOffVisitorTheme(exchanged.tokens.access);
         return safeNext(login.next);
       });
 
@@ -133,7 +159,7 @@ export class Session extends Effect.Service<Session>()("Session", {
       yield* clearTokens;
     });
 
-    return { authorize, callback, accessToken, currentUser, signOut } as const;
+    return { authorize, callback, accessToken, currentUser, visitorTheme, setVisitorTheme, signOut } as const;
   }),
   dependencies: [Urls.Default, ApiClient.Default],
 }) {}
