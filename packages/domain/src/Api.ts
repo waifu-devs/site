@@ -186,6 +186,18 @@ export class Authentication extends HttpApiMiddleware.Tag<Authentication>()("Aut
   security: { bearer: HttpApiSecurity.bearer },
 }) {}
 
+/**
+ * Who signed in, for apps that sign people in with waifu.dev (fuwa instances):
+ * their token was made for that app, so it opens nothing here but /userinfo.
+ */
+export class LinkedUser extends Context.Tag("LinkedUser")<LinkedUser, User>() {}
+
+export class LinkedAuthentication extends HttpApiMiddleware.Tag<LinkedAuthentication>()("LinkedAuthentication", {
+  failure: HttpApiError.Unauthorized,
+  provides: LinkedUser,
+  security: { bearer: HttpApiSecurity.bearer },
+}) {}
+
 /** Who is asking, on endpoints anyone may call: None when signed out or the token is bad. */
 export class Viewer extends Context.Tag("Viewer")<Viewer, Option.Option<User>>() {}
 
@@ -297,8 +309,25 @@ export class PostsApi extends HttpApiGroup.make("posts")
       .middleware(Authentication),
   ) {}
 
+/**
+ * The signed-in member as other apps see them, with OpenID Connect's claim
+ * names: a stable id (`sub`), their username, display name, picture and page.
+ */
+export const UserInfo = Schema.Struct({
+  sub: Schema.String,
+  preferred_username: Schema.String,
+  name: Schema.String,
+  picture: Schema.NullOr(Schema.String),
+  profile: Schema.String,
+});
+export type UserInfo = typeof UserInfo.Type;
+
+export class LinkedApi extends HttpApiGroup.make("linked")
+  .add(HttpApiEndpoint.get("userinfo", "/userinfo").addSuccess(UserInfo))
+  .middleware(LinkedAuthentication) {}
+
 export class SessionApi extends HttpApiGroup.make("session")
   // Signing out: the refresh token itself is the credential, so no bearer token is needed.
   .add(HttpApiEndpoint.post("revoke", "/session/revoke").setPayload(Schema.Struct({ refreshToken: Schema.String }))) {}
 
-export class Api extends HttpApi.make("waifu-devs").add(UsersApi).add(MeApi).add(ThemesApi).add(PostsApi).add(SessionApi) {}
+export class Api extends HttpApi.make("waifu-devs").add(UsersApi).add(MeApi).add(ThemesApi).add(PostsApi).add(SessionApi).add(LinkedApi) {}

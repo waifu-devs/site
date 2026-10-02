@@ -1,7 +1,7 @@
 import { HttpApiBuilder, HttpApiError } from "@effect/platform";
-import { Api, CurrentUser, type ImageKind, ImageRejected, Viewer } from "@waifu-devs/domain/api";
+import { Api, CurrentUser, type ImageKind, ImageRejected, LinkedUser, Viewer } from "@waifu-devs/domain/api";
 import { MAX_IMAGE_BYTES } from "@waifu-devs/domain/profile";
-import { Effect, Layer, Option } from "effect";
+import { Config, Effect, Layer, Option } from "effect";
 import { MediaStore, newKey, processImage } from "./Media.ts";
 import { Posts } from "./Posts.ts";
 import { revokeRefreshToken } from "./Storage.ts";
@@ -123,8 +123,26 @@ const PostsLive = HttpApiBuilder.group(Api, "posts", (handlers) =>
   }),
 );
 
+/** Who signed in, for a fuwa instance that signed them in with waifu.dev. */
+const LinkedLive = HttpApiBuilder.group(Api, "linked", (handlers) =>
+  Effect.gen(function* () {
+    const webUrl = yield* Config.string("WEB_URL");
+    return handlers.handle("userinfo", () =>
+      LinkedUser.pipe(
+        Effect.map((user) => ({
+          sub: user.id,
+          preferred_username: user.username,
+          name: user.displayName || user.username,
+          picture: user.avatarUrl,
+          profile: new URL(`/u/${user.username}`, webUrl).href,
+        })),
+      ),
+    );
+  }),
+);
+
 const SessionLive = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("revoke", ({ payload }) => Effect.orDie(revokeRefreshToken(payload.refreshToken))),
 );
 
-export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([UsersLive, MeLive, ThemesLive, PostsLive, SessionLive]));
+export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([UsersLive, MeLive, ThemesLive, PostsLive, SessionLive, LinkedLive]));
