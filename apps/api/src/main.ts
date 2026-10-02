@@ -2,7 +2,7 @@ import { FetchHttpClient, HttpApiBuilder, HttpMiddleware, HttpServer } from "@ef
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Config, Layer } from "effect";
 import { createServer } from "node:http";
-import { AuthenticationLive, Issuer, IssuerRoutes, OptionalAuthenticationLive } from "./Auth.ts";
+import { AuthenticationLive, Issuer, IssuerRoutes, LinkedAuthenticationLive, OptionalAuthenticationLive } from "./Auth.ts";
 import { DbLive } from "./Db.ts";
 import { HttpLive } from "./Http.ts";
 import { MediaRoutes, MediaStoreLive } from "./Media.ts";
@@ -17,7 +17,7 @@ const ServerLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(IssuerRoutes),
   Layer.provide(MediaRoutes),
   Layer.provide(HttpLive),
-  Layer.provide([AuthenticationLive, OptionalAuthenticationLive]),
+  Layer.provide([AuthenticationLive, OptionalAuthenticationLive, LinkedAuthenticationLive]),
   Layer.provide(IssuerLive),
   HttpServer.withLogAddress,
   Layer.provide(

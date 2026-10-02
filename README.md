@@ -37,6 +37,7 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 | `GET /posts?sort=top\|new&page=`, `/posts/:id` | News posts, and one post with its comments (a bearer token is optional; with one, `voted` says whether you hearted it) |
 | `POST /posts`, `DELETE /posts/:id`, `PUT/DELETE /posts/:id/vote`, `POST /posts/:id/comments` | Post, delete your post, heart or unheart, comment or reply |
 | `POST /session/revoke` | Sign out (revokes a refresh token) |
+| `GET /userinfo` | Who signed in, for a fuwa instance that signed them in with waifu.dev (see [Signing in to fuwa](#signing-in-to-fuwa)) |
 | `/authorize`, `/token`, `/github/*`, `/.well-known/*` | The OpenAuth issuer |
 | `GET /health` | Healthcheck |
 
@@ -64,7 +65,7 @@ Reading it:
 
 ## How sign-in works
 
-The API hosts the OpenAuth issuer (at the root, because OpenAuth hardcodes its paths); the web app is its only client (`waifu-devs-web`).
+The API hosts the OpenAuth issuer (at the root, because OpenAuth hardcodes its paths). The web app is its own client (`waifu-devs-web`), and the only one whose tokens open the API; fuwa servers sign people in too (below).
 
 1. `/api/auth/login` on the web starts an authorization-code flow with PKCE and sends you to the API, which sends you to GitHub.
 2. GitHub returns to the API's `/github/callback`. The issuer reads your GitHub profile, creates or updates your `users` row, and redirects to the web's `/api/auth/callback` with a code.
@@ -72,6 +73,12 @@ The API hosts the OpenAuth issuer (at the root, because OpenAuth hardcodes its p
 4. The web refreshes an expired access token on the next request. Signing out revokes the refresh token.
 
 OpenAuth's own storage (signing keys, codes, refresh tokens) lives in the `openauth_storage` table.
+
+### Signing in to fuwa
+
+Any fuwa server can let people sign in with their waifu.dev account. The server is its own OpenAuth client: its client ID is its address (`https://chat.example.com`, or `http://localhost:…` while testing) and the sign-in can only come back to `<that address>/auth/waifu/callback`, with the code flow and PKCE (S256). Anything else gets a 400 before OpenAuth sees it, so a refused sign-in never redirects anywhere.
+
+The server trades the code for an access token made out to it (`aud` is its client ID) and asks `GET /userinfo` who signed in: `sub` (the member's id, which never changes), `preferred_username`, `name`, `picture` and `profile`. The rest of the API only takes the web app's tokens (`aud` = `waifu-devs-web`), so a fuwa server learns who you are and can't act as you here.
 
 ## Local development
 
