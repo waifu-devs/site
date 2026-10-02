@@ -8,7 +8,16 @@ type Action = (options: { data: FormData }) => Promise<unknown>;
  * A form that posts its fields to a server function, follows any redirect it
  * throws, and reloads the route data (so a new theme shows up straight away).
  */
-export function ActionForm({ action, children, ...props }: { action: Action } & Omit<ComponentProps<"form">, "action" | "onSubmit">) {
+export function ActionForm({
+  action,
+  onResult,
+  children,
+  ...props
+}: {
+  action: Action;
+  /** Gets what the action resolved to, when it didn't redirect. */
+  onResult?: (result: unknown) => void;
+} & Omit<ComponentProps<"form">, "action" | "onSubmit">) {
   const router = useRouter();
   const call = useServerFn(action);
   const [pending, setPending] = useState(false);
@@ -20,8 +29,9 @@ export function ActionForm({ action, children, ...props }: { action: Action } & 
         event.preventDefault();
         setPending(true);
         try {
-          await call({ data: new FormData(event.currentTarget) });
+          const result = await call({ data: new FormData(event.currentTarget) });
           await router.invalidate();
+          onResult?.(result);
         } finally {
           setPending(false);
         }

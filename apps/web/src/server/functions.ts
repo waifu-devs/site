@@ -4,13 +4,14 @@
  */
 import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import type { NewTheme, ProfileUpdate, Theme, User } from "@waifu-devs/domain/api";
+import type { NewTheme, ProfileUpdate, Repo, Theme, User } from "@waifu-devs/domain/api";
 import {
   BANNERS,
   type Banner,
   DEFAULT_BANNER,
   IMAGE_KINDS,
   type ImageKind,
+  MAX_FEATURED_REPOS,
   MAX_IMAGE_BYTES,
   MAX_LINK_LENGTH,
   MAX_LINKS,
@@ -46,6 +47,13 @@ const publicTheme = (id: string | undefined) =>
     const theme = yield* (yield* ApiClient).anonymous.themes.get({ path: { id } }).pipe(Effect.option);
     return Option.filter(theme, (t) => t.isPublic !== false);
   });
+
+/** A member's featured repos. A profile still shows without them if they can't be had. */
+const featuredRepos = (username: string) =>
+  ApiClient.pipe(
+    Effect.flatMap((api) => api.anonymous.users.repos({ path: { username } })),
+    Effect.orElseSucceed((): readonly Repo[] => []),
+  );
 
 /** The signed-in user, or a redirect to /login that comes back to `next`. */
 const requireUser = (next: string) =>
@@ -108,15 +116,16 @@ export const getProfile = createServerFn({ method: "GET" })
         const user = yield* orNotFound(api.anonymous.users.byUsername({ path: { username } }));
         const viewer = Option.getOrNull(yield* (yield* Session).currentUser);
         const isMe = viewer?.id === user.id;
-        const [theme, themes] = yield* Effect.all(
+        const [theme, themes, repos] = yield* Effect.all(
           [
             // Everyone sees the profile in the theme its owner picked for it.
             resolveTheme(user.profileThemeId ?? user.themeId),
             isMe ? asUser.pipe(Effect.flatMap((me) => me.me.themes())) : api.anonymous.users.themes({ path: { username } }),
+            featuredRepos(user.username),
           ],
           { concurrency: "unbounded" },
         );
-        return { user, theme, themes, isMe };
+        return { user, theme, themes, repos, isMe };
       }),
     ),
   );
@@ -139,12 +148,13 @@ export const getProfileEditor = createServerFn({ method: "GET" }).handler(() =>
     Effect.gen(function* () {
       const user = yield* requireUser("/settings");
       const api = yield* ApiClient;
-      const [worn, profile, mine, gallery] = yield* Effect.all(
+      const [worn, profile, mine, gallery, repos] = yield* Effect.all(
         [
           resolveTheme(user.themeId),
           user.profileThemeId ? resolveTheme(user.profileThemeId) : Effect.succeed(null),
           asUser.pipe(Effect.flatMap((me) => me.me.themes())),
           api.anonymous.themes.community(),
+          featuredRepos(user.username),
         ],
         { concurrency: "unbounded" },
       );
@@ -153,8 +163,21 @@ export const getProfileEditor = createServerFn({ method: "GET" }).handler(() =>
       const community = [...gallery, ...(profile && !profile.builtin ? [profile] : [])].filter(
         (t, i, all) => !mineIds.has(t.id) && all.findIndex((other) => other.id === t.id) === i,
       );
-      return { user, worn, mine, builtin: BUILTIN_THEMES as Theme[], community };
+      return { user, worn, mine, builtin: BUILTIN_THEMES as Theme[], community, repos };
     }),
+  ),
+);
+
+const GITHUB_DOWN = "GitHub isn't answering right now. Try again in a minute.";
+
+/** Every public repo the signed-in member could feature, for the picker; it asks GitHub, so it loads after the page. */
+export const getRepoChoices = createServerFn({ method: "GET" }).handler(() =>
+  run(
+    asUser.pipe(
+      Effect.flatMap((me) => me.me.repoChoices()),
+      Effect.map((repos) => ({ repos, error: null })),
+      Effect.catchTag("GithubUnavailable", () => Effect.succeed({ repos: [] as readonly Repo[], error: GITHUB_DOWN })),
+    ),
   ),
 );
 
@@ -213,7 +236,22 @@ export const updateProfile = createServerFn({ method: "POST" })
           // Empty means "the theme I wear".
           profileThemeId: text(form, "profile_theme_id", 64),
         };
-        const user: User = yield* (yield* asUser).me.update({ payload });
+        const me = yield* asUser;
+        // Featured repos go first: they're the part that can fail (GitHub vets new ones),
+        // and if they do, nothing is saved, so the editor keeps every change for another try.
+        if (form.has("featured_repos")) {
+          const ids = form
+            .getAll("repo")
+            .map(Number)
+            .filter(Number.isSafeInteger)
+            .slice(0, MAX_FEATURED_REPOS);
+          const featured = yield* me.me.featureRepos({ payload: { ids } }).pipe(
+            Effect.as(true),
+            Effect.catchTag("GithubUnavailable", () => Effect.succeed(false)),
+          );
+          if (!featured) return { error: GITHUB_DOWN };
+        }
+        const user: User = yield* me.me.update({ payload });
         return yield* Effect.die(redirect({ to: "/u/$username", params: { username: user.username } }));
       }),
     ),

@@ -5,7 +5,7 @@
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, HttpApiSecurity } from "@effect/platform";
 import { Context, type Option, Schema } from "effect";
 import { isCountryCode } from "./countries.ts";
-import { BANNERS, DEFAULT_BANNER, IMAGE_KINDS, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "./profile.ts";
+import { BANNERS, DEFAULT_BANNER, IMAGE_KINDS, MAX_FEATURED_REPOS, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "./profile.ts";
 import { HEX, RADIUS_MAX, RADIUS_MIN, TOKENS } from "./themes.ts";
 
 // ---------------------------------------------------------------------------
@@ -112,6 +112,40 @@ export const ProfileUpdate = Schema.Struct({
   profileThemeId: Schema.optional(Schema.NullOr(Schema.String)),
 });
 export type ProfileUpdate = typeof ProfileUpdate.Type;
+
+// ---------------------------------------------------------------------------
+// Featured repos: public GitHub repos a member shows off on their profile.
+
+/** A public GitHub repo, as its card on a profile shows it. */
+export const Repo = Schema.Struct({
+  /** GitHub's id for it, which survives renames and transfers. */
+  id: Schema.Number,
+  owner: Schema.String,
+  name: Schema.String,
+  description: Schema.NullOr(Schema.String),
+  language: Schema.NullOr(Schema.String),
+  stars: Schema.Number,
+  forks: Schema.Number,
+  fork: Schema.Boolean,
+  archived: Schema.Boolean,
+  topics: Schema.Array(Schema.String),
+  /** When someone last pushed to it. */
+  pushedAt: Schema.NullOr(Schema.Date),
+});
+export type Repo = typeof Repo.Type;
+
+/** The repos to feature, by GitHub id, in the order they show. */
+export const FeaturedRepos = Schema.Struct({
+  ids: Schema.Array(Schema.Int).pipe(Schema.maxItems(MAX_FEATURED_REPOS)),
+});
+export type FeaturedRepos = typeof FeaturedRepos.Type;
+
+/** GitHub didn't answer: it's down, or this site is over its rate limit for now. */
+export class GithubUnavailable extends Schema.TaggedError<GithubUnavailable>()(
+  "GithubUnavailable",
+  {},
+  HttpApiSchema.annotations({ status: 503 }),
+) {}
 
 // ---------------------------------------------------------------------------
 // News: link and text posts, upvotes and threaded comments.
@@ -225,6 +259,12 @@ export class UsersApi extends HttpApiGroup.make("users")
       .addSuccess(Schema.Array(Theme))
       .addError(HttpApiError.NotFound),
   )
+  .add(
+    HttpApiEndpoint.get("repos", "/users/:username/repos")
+      .setPath(Username)
+      .addSuccess(Schema.Array(Repo))
+      .addError(HttpApiError.NotFound),
+  )
   .add(HttpApiEndpoint.get("stats", "/stats").addSuccess(Schema.Struct({ members: Schema.Number }))) {}
 
 export class MeApi extends HttpApiGroup.make("me")
@@ -252,6 +292,10 @@ export class MeApi extends HttpApiGroup.make("me")
       .addError(ImageRejected),
   )
   .add(HttpApiEndpoint.del("removeImage", "/me/images/:kind").setPath(Schema.Struct({ kind: ImageKind })).addSuccess(User))
+  // Every public repo the member could feature: their own, and their public organizations'.
+  .add(HttpApiEndpoint.get("repoChoices", "/me/repos/choices").addSuccess(Schema.Array(Repo)).addError(GithubUnavailable))
+  // Replaces the featured repos; ids that aren't among the choices are left out.
+  .add(HttpApiEndpoint.put("featureRepos", "/me/repos").setPayload(FeaturedRepos).addSuccess(Schema.Array(Repo)).addError(GithubUnavailable))
   .middleware(Authentication) {}
 
 export class ThemesApi extends HttpApiGroup.make("themes")

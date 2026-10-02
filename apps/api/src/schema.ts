@@ -48,6 +48,35 @@ export const users = pgTable(
   (t) => [uniqueIndex("users_username_lower").on(sql`lower(${t.username})`)],
 );
 
+/**
+ * Public GitHub repos members feature on their profiles, in their chosen order.
+ * The card's details are copied from GitHub and refreshed now and then (Repos.ts).
+ */
+export const featuredRepos = pgTable(
+  "featured_repos",
+  {
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // GitHub's id for the repo: it survives renames and transfers.
+    repoId: bigint({ mode: "number" }).notNull(),
+    position: integer().notNull(),
+    owner: text().notNull(),
+    name: text().notNull(),
+    description: text(),
+    language: text(),
+    stars: integer().notNull().default(0),
+    forks: integer().notNull().default(0),
+    fork: boolean().notNull().default(false),
+    archived: boolean().notNull().default(false),
+    topics: text().array().notNull().default(sql`'{}'`),
+    pushedAt: timestamp({ withTimezone: true }),
+    // When the details above last came from GitHub.
+    refreshedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.repoId] })],
+);
+
 /** Community-made themes. Built-in themes live in code (lib/themes.ts). */
 export const themes = pgTable(
   "themes",

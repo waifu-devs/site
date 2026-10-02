@@ -4,6 +4,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { InlineMarkdown, Markdown } from "@/components/Markdown";
 import { Tilt } from "@/components/motion";
 import { ProfileCard } from "@/components/ProfileCard";
+import { FeaturedRepos } from "@/components/RepoCard";
 import { ThemeSwatch } from "@/components/ThemeSwatch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/u/$username")({
 });
 
 function ProfilePage() {
-  const { user, theme, themes, isMe } = Route.useLoaderData();
+  const { user, theme, themes, repos, isMe } = Route.useLoaderData();
   // The root document dresses the whole page in `theme`, so every visitor sees the owner's pick.
   const wearing = useViewer().theme.id === theme.id;
   const canWear = !isMe && !wearing && (theme.builtin || theme.isPublic !== false);
@@ -52,6 +53,8 @@ function ProfilePage() {
           {user.bio ? <Markdown>{user.bio}</Markdown> : <p>This dev hasn't written a bio yet. (´・ω・`)</p>}
         </CardContent>
       </Card>
+
+      {repos.length ? <FeaturedRepos repos={repos} username={user.username} /> : null}
 
       <Card className="flex-col gap-4 p-4 sm:flex-row sm:items-center">
         <div className="w-full shrink-0 sm:w-44">

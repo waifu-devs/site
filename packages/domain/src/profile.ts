@@ -27,6 +27,9 @@ export function linkLabel(url: string): string {
   return url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
 }
 
+/** How many public GitHub repos a member can feature on their profile. */
+export const MAX_FEATURED_REPOS = 6;
+
 /** Pictures members upload to replace their GitHub avatar or the animated banner. */
 export const IMAGE_KINDS = ["avatar", "banner"] as const;
 export type ImageKind = (typeof IMAGE_KINDS)[number];

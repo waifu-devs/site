@@ -16,7 +16,8 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 ## What's here
 
 - **Accounts** via GitHub only (`/login`). Your GitHub login and avatar refresh every time you sign in.
-- **Profiles** at `/u/<github-login>` with display name, status, pronouns, location, favorite waifu, bio, skills, website and links, an animated banner, and a profile theme. Customize them at `/settings`, with a live preview.
+- **Profiles** at `/u/<github-login>` with display name, status, pronouns, location, favorite waifu, bio, skills, website and links, an animated banner, a profile theme, and up to six featured GitHub repos. Customize them at `/settings`, with a live preview.
+- **Featured repos**: members pick public repos they own, or that belong to organizations they're a public member of, from a searchable list in `/settings`, and drag them into order. The API fetches that list from GitHub as the site's OAuth app (its client ID and secret, for the higher rate limit), keeps it for ten minutes, and only lets a member feature repos from it. Cards keep a copy of each repo's description, language, stars and forks; when a profile is visited and the copy is over six hours old, it's refreshed in the background, and a repo that's gone or private comes off the profile.
 - **Themes**: five built-ins (Sakura, Yoru, Matcha, Sora, Tsundere) plus community themes made in the live editor at `/themes/new`. The theme you wear styles the site for you, and you don't need an account to wear one: signed out, a cookie remembers any built-in or public theme you pick, and signing in puts it on your account if that still wears the default (as new accounts do). Your profile shows the profile theme you picked (or the theme you wear, if you didn't pick one) to everyone who visits it, header and all. Themes can be public or private.
 - **Members** directory at `/members`.
 - **News** at `/news`: a Hacker News style board. Members post a link, some text, or both (`/news/submit`), give posts a heart (one per member; your own post starts with yours), and talk in threaded comments on each post's page. **Top** ranks like HN, hearts divided by (hours old + 2)^1.8; **New** is newest first.
@@ -30,9 +31,10 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 
 | Endpoint | |
 | --- | --- |
-| `GET /users`, `/users/:username`, `/users/:username/themes`, `/stats` | Members and their public themes |
+| `GET /users`, `/users/:username`, `/users/:username/themes`, `/users/:username/repos`, `/stats` | Members, their public themes and their featured repos |
 | `GET /themes`, `/themes/:id` | Community and built-in themes |
 | `GET/PATCH /me`, `PUT /me/theme`, `GET /me/themes` | The signed-in member (bearer token) |
+| `GET /me/repos/choices`, `PUT /me/repos` | The public repos you could feature, and featuring them (503 when GitHub isn't answering) |
 | `POST /themes`, `DELETE /themes/:id` | Make or delete your themes |
 | `GET /posts?sort=top\|new&page=`, `/posts/:id` | News posts, and one post with its comments (a bearer token is optional; with one, `voted` says whether you hearted it) |
 | `POST /posts`, `DELETE /posts/:id`, `PUT/DELETE /posts/:id/vote`, `POST /posts/:id/comments` | Post, delete your post, heart or unheart, comment or reply |
