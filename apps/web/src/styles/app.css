@@ -576,3 +576,26 @@ body {
 /* Refused uploads shake their message once. */
 @keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 .shake { animation: shake 0.4s ease; }
+
+/* ───────────────────────── Featured repos ───────────────────────── */
+
+/* Repo cards lift toward the pointer (or keyboard focus) and their border lights up. */
+.repo-card { transition: translate 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s ease, box-shadow 0.35s ease; }
+.repo-card:hover,
+.repo-card:focus-visible { translate: 0 -4px; border-color: var(--primary); box-shadow: 0 18px 40px -22px var(--primary); }
+
+/* A shake for "that's full" (the featured repo slots). */
+@keyframes nope { 0%, 100% { translate: 0; } 20% { translate: -5px; } 40% { translate: 5px; } 60% { translate: -3px; } 80% { translate: 3px; } }
+.nope { animation: nope 0.42s ease; }
+
+/* Placeholder rows while the repo list loads: a sheen sweeps across them. */
+.shimmer { position: relative; overflow: hidden; background: var(--muted); }
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  translate: -100% 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 70%, transparent), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { to { translate: 100% 0; } }

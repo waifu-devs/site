@@ -7,10 +7,14 @@ import { DbLive } from "./Db.ts";
 import { HttpLive } from "./Http.ts";
 import { MediaRoutes, MediaStoreLive } from "./Media.ts";
 import { Posts } from "./Posts.ts";
+import { Repos } from "./Repos.ts";
 import { Themes } from "./Themes.ts";
 import { Users } from "./Users.ts";
 
-const ServicesLive = Layer.mergeAll(Users.Default, Themes.Default, Posts.Default, MediaStoreLive).pipe(Layer.provideMerge(DbLive));
+const ServicesLive = Layer.mergeAll(Users.Default, Themes.Default, Posts.Default, Repos.Default, MediaStoreLive).pipe(
+  Layer.provide(FetchHttpClient.layer),
+  Layer.provideMerge(DbLive),
+);
 const IssuerLive = Issuer.Default.pipe(Layer.provide(FetchHttpClient.layer), Layer.provideMerge(ServicesLive));
 
 const ServerLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
