@@ -1,0 +1,13 @@
+{
+  "noScore": true,
+  "share": false,
+  "supplyChain": {
+    "enabled": false
+  },
+  "ignore": {
+    "files": [
+      "src/routeTree.gen.ts",
+      ".output/**"
+    ]
+  }
+}

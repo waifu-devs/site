@@ -17,6 +17,7 @@ const SHOWN = 60;
 
 type Choices = { status: "loading" } | { status: "ready"; repos: readonly Repo[] } | { status: "error"; message: string };
 type Sort = "recent" | "stars";
+const NO_REPOS: readonly Repo[] = [];
 
 /**
  * Picks the public GitHub repos a profile features, and their order. The
@@ -232,7 +233,8 @@ function ChoiceList({
   const [query, setQuery] = useState("");
   const [owner, setOwner] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("recent");
-  const repos = choices.status === "ready" ? choices.repos : [];
+  // One empty list, so the filters below don't rerun on every render while loading.
+  const repos = choices.status === "ready" ? choices.repos : NO_REPOS;
 
   // Organizations, busiest first, for the owner filter.
   const orgs = useMemo(() => {

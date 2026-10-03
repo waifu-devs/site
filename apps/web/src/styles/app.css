@@ -1,11 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 /* The site font, served from here rather than Google Fonts so visitors'
-   addresses never reach a third party. Japanese comes in unicode-range
-   slices, so a page only downloads the glyphs it uses. */
-@import "@fontsource/m-plus-rounded-1c/400.css";
-@import "@fontsource/m-plus-rounded-1c/700.css";
-@import "@fontsource/m-plus-rounded-1c/800.css";
+   addresses never reach a third party. Only the faces a first paint needs are
+   here; the rest (Japanese included) are in fonts.css, switched on later. */
+@import "./fonts-first.css";
 
 /* shadcn/ui tokens. Every theme (lib/themes.ts) is a full set of values for
    these variables; the defaults below are the built-in Sakura theme, and the
@@ -57,7 +55,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: "M PLUS Rounded 1c", ui-rounded, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "M PLUS Rounded 1c", "M PLUS Rounded 1c JP", ui-rounded, ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -234,16 +232,24 @@ body {
 
 /* ───────────────────────── Landing ───────────────────────── */
 
-/* A faint grid that fades out from the top and slowly pans. */
+/* A faint grid that fades out from the top and slowly pans. The lines are one
+   tile taller than the box and slide down a tile, so the pan is a transform the
+   compositor moves rather than a repaint every frame. */
 .grid-floor {
+  overflow: hidden;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 20%, transparent 75%);
+}
+.grid-floor::before {
+  content: "";
+  position: absolute;
+  inset: -56px 0 0;
   background-image:
     linear-gradient(to right, color-mix(in srgb, var(--primary) 14%, transparent) 1px, transparent 1px),
     linear-gradient(to bottom, color-mix(in srgb, var(--primary) 14%, transparent) 1px, transparent 1px);
   background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 20%, transparent 75%);
   animation: grid-pan 12s linear infinite;
 }
-@keyframes grid-pan { to { background-position: 0 56px; } }
+@keyframes grid-pan { to { translate: 0 56px; } }
 
 .spin-slow { animation: spin-slow 60s linear infinite; }
 @keyframes spin-slow { to { rotate: 360deg; } }
@@ -345,13 +351,23 @@ body {
   .sparkle { display: none; }
 }
 
-/* Slowly spinning gradient ring around profile avatars. */
+/* Slowly spinning gradient ring around profile avatars. The ring is its own
+   layer that turns (avatars are round, so turning it is the same as moving the
+   gradient's start), which the compositor does without repainting. */
 .avatar-ring {
-  background: conic-gradient(from var(--ring-angle, 0deg), var(--primary), transparent 40%, var(--primary) 70%, transparent);
+  position: relative;
+  isolation: isolate;
+}
+.avatar-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(var(--primary), transparent 40%, var(--primary) 70%, transparent);
   animation: ring 6s linear infinite;
 }
-@property --ring-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-@keyframes ring { to { --ring-angle: 360deg; } }
+@keyframes ring { to { rotate: 360deg; } }
 
 /* ───────────────────────── Projects ───────────────────────── */
 
@@ -482,13 +498,20 @@ body {
 .banner-grid {
   position: absolute;
   inset: 45% -50% -60% -50%;
+  transform: perspective(220px) rotateX(58deg);
+  transform-origin: top;
+  mask-image: linear-gradient(to bottom, transparent, black 30%);
+  overflow: hidden;
+}
+/* The lines scroll toward the viewer by sliding a tile, not by repainting. */
+.banner-grid::before {
+  content: "";
+  position: absolute;
+  inset: -28px 0 0;
   background-image:
     linear-gradient(color-mix(in srgb, var(--primary) 70%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--primary) 70%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
-  transform: perspective(220px) rotateX(58deg);
-  transform-origin: top;
-  mask-image: linear-gradient(to bottom, transparent, black 30%);
   animation: grid-scroll 1.6s linear infinite;
 }
 .banner-sun {
@@ -504,7 +527,7 @@ body {
   mask-image: repeating-linear-gradient(to bottom, black 0 8px, transparent 8px 11px);
   animation: sun-glow 4s ease-in-out infinite alternate;
 }
-@keyframes grid-scroll { to { background-position: 0 28px; } }
+@keyframes grid-scroll { to { translate: 0 28px; } }
 @keyframes sun-glow { to { box-shadow: 0 0 90px color-mix(in srgb, var(--primary) 80%, transparent); } }
 
 /* A soft "live" dot for profile statuses. */
