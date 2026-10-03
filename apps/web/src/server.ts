@@ -4,6 +4,7 @@
  */
 import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
 import { createServerEntry } from "@tanstack/react-start/server-entry";
+import { isProbe, PROBE_RESPONSE } from "@waifu-devs/domain/probes";
 import { contentSecurityPolicy, MAX_BODY_BYTES, SECURITY_HEADERS } from "./security.ts";
 
 // Pictures are served by the API (see components/Avatar.tsx).
@@ -47,11 +48,16 @@ function limitBody(request: Request): Request | Response {
   } as RequestInit);
 }
 
-/** Every other response (server functions, server routes, redirects) gets the headers too, and a CSP of its own. */
+/**
+ * Every other response (server functions, server routes, redirects) gets the headers too, and a CSP of its own.
+ * Pages are made for whoever is signed in and carry a fresh nonce, so a response that doesn't say how long it
+ * may be kept is kept by nobody but that browser: Railway's CDN never stores it.
+ */
 function withSecurityHeaders(response: Response): Response {
   // Some responses (redirects) have immutable headers.
   const secured = new Response(response.body, response);
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) secured.headers.set(name, value);
+  if (!secured.headers.has("cache-control")) secured.headers.set("cache-control", "private, no-cache");
   const policy = csp();
   if (policy && !secured.headers.has("content-security-policy")) secured.headers.set("content-security-policy", policy);
   return secured;
@@ -59,6 +65,10 @@ function withSecurityHeaders(response: Response): Response {
 
 export default createServerEntry({
   async fetch(request: Request) {
+    // Scanners' guesses (/.env, /wp-login.php...) get a 404 before the router sees them.
+    if (isProbe(new URL(request.url).pathname)) {
+      return withSecurityHeaders(new Response(PROBE_RESPONSE.body, { status: PROBE_RESPONSE.status, headers: PROBE_RESPONSE.headers }));
+    }
     const limited = limitBody(request);
     if (limited instanceof Response) return withSecurityHeaders(limited);
     return withSecurityHeaders(await handler(limited));

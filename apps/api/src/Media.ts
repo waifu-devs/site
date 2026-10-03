@@ -183,7 +183,11 @@ export const downloadGithubAvatar = (avatarUrl: string) =>
     Effect.provideService(FetchHttpClient.RequestInit, { redirect: "error" }),
   );
 
-/** Serves stored pictures at /media/<key>. Keys never change, so they cache forever. */
+/**
+ * Serves stored pictures at /media/<key>. Keys never change, so browsers keep
+ * them for good; shared caches (Railway's CDN) don't, so a deleted picture
+ * stops being served.
+ */
 export const MediaRoutes = HttpApiBuilder.Router.use((router) =>
   Effect.gen(function* () {
     const store = yield* MediaStore;
@@ -196,7 +200,7 @@ export const MediaRoutes = HttpApiBuilder.Router.use((router) =>
         if (Option.isNone(bytes)) return HttpServerResponse.empty({ status: 404 });
         return HttpServerResponse.uint8Array(bytes.value, {
           contentType: "image/webp",
-          headers: { "cache-control": "public, max-age=31536000, immutable", "x-content-type-options": "nosniff" },
+          headers: { "cache-control": "private, max-age=31536000, immutable", "x-content-type-options": "nosniff" },
         });
       }),
     );

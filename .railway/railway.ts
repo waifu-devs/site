@@ -12,6 +12,12 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
  * public repos at 5,000 calls an hour instead of 60) and ANALYTICS_READ_TOKEN (the bearer
  * token for reading analytics).
  * The DNS records for the domains live with the waifu.dev registrar.
+ *
+ * The CDN and edge rules aren't something Railway configuration can declare yet, so
+ * .railway/edge.mjs sets them through Railway's API, from the same workflow: on api, web
+ * and analytics, the CDN with Railway's defaults (HTML only when a page says so) and
+ * .railway/edge-rules.json, which turns scanners' guesses away at the edge. The apps turn
+ * the same paths away themselves (packages/domain/src/probes.ts).
  */
 
 /** Railway's US East (Virginia) region. Everything runs here, next to the database. */
@@ -98,7 +104,7 @@ export default defineRailway((ctx) => {
       builder: "RAILPACK",
       // Also downloads the DuckDB extensions it loads (DuckLake, Postgres, httpfs).
       buildCommand: "pnpm --filter @waifu-devs/analytics build",
-      watchPatterns: ["apps/analytics/**", "pnpm-lock.yaml"],
+      watchPatterns: ["apps/analytics/**", "packages/domain/**", "pnpm-lock.yaml"],
     },
     start: "node apps/analytics/dist/main.js",
     healthcheck: "/health",
