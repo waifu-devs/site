@@ -6,7 +6,15 @@ export function getRouter() {
     routeTree,
     scrollRestoration: true,
     defaultPreload: "intent",
+    // A router is made per request on the server: each page gets a fresh nonce for
+    // its inline scripts, which the Content-Security-Policy names (server.ts).
+    ssr: { nonce: import.meta.env.SSR ? nonce() : undefined },
   });
+}
+
+function nonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...bytes));
 }
 
 declare module "@tanstack/react-router" {
