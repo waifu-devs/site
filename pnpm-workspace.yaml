@@ -4,3 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+# @effect/platform-node allows any undici 7.x; keep it past the advisories fixed in 7.29.1.
+overrides:
+  undici: ^7.29.1
