@@ -23,10 +23,12 @@ export class Users extends Effect.Service<Users>()("Users", {
     /**
      * A row as the API shows it: uploaded pictures win over the GitHub avatar,
      * and a country nobody chose to show is only in the member's own copy.
+     * Pictures are always our own copies; until a member's GitHub avatar has been
+     * copied (at their next sign-in) they have none, and the site shows an initial.
      */
-    const toUser = (row: Row, self: boolean): User => ({
+    const toUser = ({ githubAvatarKey, ...row }: Row, self: boolean): User => ({
       ...row,
-      avatarUrl: row.avatarKey ? media(row.avatarKey) : row.avatarUrl,
+      avatarUrl: row.avatarKey ? media(row.avatarKey) : githubAvatarKey ? media(githubAvatarKey) : null,
       customAvatar: row.avatarKey !== null,
       bannerUrl: row.bannerKey ? media(row.bannerKey) : null,
       country: self || row.showCountry ? row.country : null,
@@ -84,10 +86,37 @@ export class Users extends Effect.Service<Users>()("Users", {
         }),
       );
 
-    /** Creates the user on first login, otherwise refreshes the GitHub-owned fields. */
+    /**
+     * Points a member at a new copy of their GitHub avatar, if it is still the
+     * one from `sourceUrl` (a sign-in running alongside may have moved on); returns
+     * whichever key is no longer used, to delete.
+     */
+    const setGithubAvatar = (id: string, sourceUrl: string, key: string) =>
+      client.withTransaction(
+        Effect.gen(function* () {
+          const [before] = yield* db
+            .select({ key: users.githubAvatarKey, url: users.avatarUrl })
+            .from(users)
+            .where(eq(users.id, id))
+            .for("update");
+          if (!before || before.url !== sourceUrl) return key;
+          yield* db.update(users).set({ githubAvatarKey: key }).where(eq(users.id, id));
+          return before.key;
+        }),
+      );
+
+    /**
+     * Creates the user on first login, otherwise refreshes the GitHub-owned fields.
+     * `avatarStale` says whether our copy of the GitHub avatar needs fetching again.
+     */
     const upsertFromGithub = (gh: GithubProfile) =>
       client.withTransaction(
         Effect.gen(function* () {
+          const [before] = yield* db
+            .select({ url: users.avatarUrl, key: users.githubAvatarKey })
+            .from(users)
+            .where(eq(users.githubId, gh.id))
+            .for("update");
           // GitHub logins can be renamed and later reclaimed by someone else. Free the
           // login from any stale account so the unique index doesn't block sign-in.
           yield* db
@@ -102,10 +131,10 @@ export class Users extends Effect.Service<Users>()("Users", {
               set: { username: gh.login, avatarUrl: gh.avatar_url, updatedAt: sql`now()` },
             })
             .returning();
-          return user;
+          return { user, avatarStale: !before?.key || before.url !== gh.avatar_url };
         }),
       );
 
-    return { byId, byUsername, list, count: countAll, update, setImage, upsertFromGithub } as const;
+    return { byId, byUsername, list, count: countAll, update, setImage, setGithubAvatar, upsertFromGithub } as const;
   }),
 }) {}

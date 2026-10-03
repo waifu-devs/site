@@ -14,7 +14,7 @@ export function UserAvatar({
 }) {
   return (
     <UiAvatar className={cn("border-2 border-border", className)} style={{ width: size, height: size }}>
-      {src ? <AvatarImage alt="" src={sized(src, size * 2)} /> : null}
+      {src && firstParty(src) ? <AvatarImage alt="" src={src} /> : null}
       <AvatarFallback className="bg-primary font-bold text-primary-foreground" style={{ fontSize: size * 0.4 }}>
         {name.slice(0, 1).toUpperCase()}
       </AvatarFallback>
@@ -22,8 +22,16 @@ export function UserAvatar({
   );
 }
 
-/** GitHub avatars can be asked for at a size; uploaded pictures are already small. */
-function sized(src: string, px: number): string {
-  if (!src.startsWith("https://avatars.githubusercontent.com/")) return src;
-  return `${src}${src.includes("?") ? "&" : "?"}s=${px}`;
+/**
+ * Pictures come from the API's /media (GitHub avatars included: the API keeps its
+ * own copy), or are a local preview of an upload. Anything else would send the
+ * viewer's browser to a third party, so it shows the initial instead.
+ */
+function firstParty(src: string): boolean {
+  if (src.startsWith("blob:")) return true;
+  try {
+    return /^\/media\/avatar-[\w-]+\.webp$/.test(new URL(src).pathname);
+  } catch {
+    return false;
+  }
 }

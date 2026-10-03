@@ -1,10 +1,10 @@
 import { DeleteObjectCommand, GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { FileSystem, HttpApiBuilder, HttpRouter, HttpServerResponse } from "@effect/platform";
+import { FetchHttpClient, FileSystem, HttpApiBuilder, HttpClient, HttpClientRequest, HttpRouter, HttpServerResponse } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
 import { ImageRejected, type ImageKind } from "@waifu-devs/domain/api";
-import { IMAGE_SIZES } from "@waifu-devs/domain/profile";
+import { IMAGE_SIZES, MAX_IMAGE_BYTES } from "@waifu-devs/domain/profile";
 import { sql } from "drizzle-orm";
-import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
+import { Config, Context, Data, Effect, Layer, Option, Redacted, Stream } from "effect";
 import { randomBytes } from "node:crypto";
 import sharp from "sharp";
 import { users } from "./schema.ts";
@@ -91,9 +91,12 @@ const mediaBase = Config.string("ISSUER_URL").pipe(Config.map((url) => `${url.re
 
 export const mediaUrl = mediaBase.pipe(Config.map((base) => (key: string) => base + key));
 
-/** A member's picture as a SQL column: the one they uploaded, else their GitHub avatar. */
+/**
+ * A member's picture as a SQL column: the one they uploaded, else our copy of their
+ * GitHub avatar. Never GitHub's own URL: pictures only ever come from this API.
+ */
 export const avatarColumn = mediaBase.pipe(
-  Config.map((base) => sql<string | null>`coalesce(${base}::text || ${users.avatarKey}, ${users.avatarUrl})`),
+  Config.map((base) => sql<string | null>`${base}::text || coalesce(${users.avatarKey}, ${users.githubAvatarKey})`),
 );
 
 /** Every key this API hands out: `<kind>-<user id>-<random>.webp`. Anything else is never read. */
@@ -144,6 +147,41 @@ export const processImage = (kind: ImageKind, bytes: Uint8Array): Effect.Effect<
     if (output.byteLength > MAX_OUTPUT_BYTES) return yield* reject("That animation is too big even after resizing. Try a shorter one.");
     return new Uint8Array(output);
   });
+
+export class AvatarDownloadError extends Data.TaggedError("AvatarDownloadError")<{ reason: string }> {}
+
+/**
+ * Downloads a GitHub avatar, so it can go through processImage and be served from
+ * here: visitors' browsers never ask GitHub for it. Only GitHub's avatar host is
+ * fetched, redirects aren't followed, and the body stops at MAX_IMAGE_BYTES.
+ */
+export const downloadGithubAvatar = (avatarUrl: string) =>
+  Effect.gen(function* () {
+    const fail = (reason: string) => new AvatarDownloadError({ reason });
+    const url = yield* Effect.try({ try: () => new URL(avatarUrl), catch: () => fail("not a URL") });
+    if (url.protocol !== "https:" || url.hostname !== "avatars.githubusercontent.com") return yield* fail("not a GitHub avatar");
+    // GitHub sizes avatars on request; ours are 512px.
+    url.searchParams.set("s", String(IMAGE_SIZES.avatar.width));
+    const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
+    const response = yield* http.execute(HttpClientRequest.get(url)).pipe(Effect.mapError(() => fail("request failed")));
+    if (Number(response.headers["content-length"] ?? 0) > MAX_IMAGE_BYTES) return yield* fail("too big");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    yield* response.stream.pipe(
+      Stream.mapError(() => fail("download failed")),
+      Stream.runForEach((chunk) => {
+        size += chunk.byteLength;
+        if (size > MAX_IMAGE_BYTES) return fail("too big");
+        chunks.push(chunk);
+        return Effect.void;
+      }),
+    );
+    return Buffer.concat(chunks);
+  }).pipe(
+    Effect.scoped,
+    Effect.timeoutFail({ duration: "15 seconds", onTimeout: () => new AvatarDownloadError({ reason: "timed out" }) }),
+    Effect.provideService(FetchHttpClient.RequestInit, { redirect: "error" }),
+  );
 
 /** Serves stored pictures at /media/<key>. Keys never change, so they cache forever. */
 export const MediaRoutes = HttpApiBuilder.Router.use((router) =>

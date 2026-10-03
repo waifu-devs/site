@@ -5,8 +5,9 @@ import { GithubProvider } from "@openauthjs/openauth/provider/github";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { Authentication, LinkedAuthentication, OptionalAuthentication } from "@waifu-devs/domain/api";
 import { Config, Effect, Layer, Option, Redacted, Runtime, Schema } from "effect";
+import { downloadGithubAvatar, MediaStore, newKey, processImage } from "./Media.ts";
 import { makeStorage } from "./Storage.ts";
-import { Users } from "./Users.ts";
+import { type GithubProfile, Users } from "./Users.ts";
 
 /** The web app's OpenAuth client: the only one whose tokens open this API. */
 export const CLIENT_ID = "waifu-devs-web";
@@ -40,6 +41,9 @@ export function linkedClient(clientID: string, redirectURI: string, query: URLSe
     !!query.get("code_challenge")
   );
 }
+
+/** What kind of failure an error is, for logs that mustn't carry what it says. */
+const tagOf = (error: unknown) => (typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : "unknown");
 
 /** What an OpenAuth access token says about who is signed in. */
 export const subjects = createSubjects({
@@ -79,7 +83,8 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
     };
 
     const users = yield* Users;
-    const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
+    const httpClient = yield* HttpClient.HttpClient;
+    const http = httpClient.pipe(HttpClient.filterStatusOk);
     const storage = yield* makeStorage;
     const run = Runtime.runPromise(yield* Effect.runtime<never>());
 
@@ -93,6 +98,35 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
           ),
         )
         .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(GithubUser)), Effect.scoped);
+
+    const media = yield* MediaStore;
+
+    /**
+     * Keeps our own copy of a member's GitHub avatar, made at sign-in whenever
+     * it changed, so the site never sends anyone's browser to GitHub for it. If
+     * GitHub doesn't hand it over, the sign-in goes ahead and the next one tries again.
+     */
+    const copyGithubAvatar = (userId: string, avatarUrl: string) =>
+      Effect.gen(function* () {
+        const webp = yield* downloadGithubAvatar(avatarUrl).pipe(
+          Effect.provideService(HttpClient.HttpClient, httpClient),
+          Effect.flatMap((bytes) => processImage("avatar", bytes)),
+        );
+        const key = newKey("avatar", userId);
+        yield* media.put(key, webp);
+        const unused = yield* users.setGithubAvatar(userId, avatarUrl, key);
+        if (unused) yield* media.remove(unused);
+      }).pipe(
+        // Only the kind of failure: nothing about who, or what GitHub said.
+        Effect.catchAll((error) => Effect.logWarning(`Copying a GitHub avatar failed (${tagOf(error)})`)),
+      );
+
+    /** Signs a GitHub account in: creates or refreshes the member, and their avatar if it changed. */
+    const signIn = (gh: GithubProfile) =>
+      users.upsertFromGithub(gh).pipe(
+        Effect.tap(({ user, avatarStale }) => (avatarStale ? copyGithubAvatar(user.id, gh.avatar_url) : Effect.void)),
+        Effect.map(({ user }) => user),
+      );
 
     const app = issuer({
       subjects,
@@ -110,7 +144,7 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
       success: (ctx, value) =>
         run(
           githubProfile(value.tokenset.access).pipe(
-            Effect.flatMap(users.upsertFromGithub),
+            Effect.flatMap(signIn),
             Effect.withSpan("Issuer.success"),
           ),
         ).then((user) => ctx.subject("user", { id: user.id })),
