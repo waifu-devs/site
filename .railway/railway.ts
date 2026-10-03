@@ -7,8 +7,10 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
  * .railway/ get a plan comment; merging applies it (.github/workflows/railway-config.yml).
  *
  * Set once by hand, not here: the shared variables GITHUB_CLIENT_ID and
- * GITHUB_CLIENT_SECRET (the GitHub OAuth app, whose callback is API_URL + /github/callback)
- * and ANALYTICS_READ_TOKEN (the bearer token for reading analytics).
+ * GITHUB_CLIENT_SECRET (the GitHub OAuth app, whose callback is API_URL + /github/callback),
+ * GITHUB_TOKEN (optional: a fine-grained GitHub token with no permissions, so the api reads
+ * public repos at 5,000 calls an hour instead of 60) and ANALYTICS_READ_TOKEN (the bearer
+ * token for reading analytics).
  * The DNS records for the domains live with the waifu.dev registrar.
  */
 
@@ -53,6 +55,7 @@ export default defineRailway((ctx) => {
       WEB_URL,
       GITHUB_CLIENT_ID: ctx.shared.GITHUB_CLIENT_ID,
       GITHUB_CLIENT_SECRET: ctx.shared.GITHUB_CLIENT_SECRET,
+      GITHUB_TOKEN: ctx.shared.GITHUB_TOKEN,
       S3_ENDPOINT: ref(uploads, "ENDPOINT"),
       S3_REGION: ref(uploads, "REGION"),
       S3_BUCKET: ref(uploads, "BUCKET"),
