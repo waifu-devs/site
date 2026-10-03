@@ -1,12 +1,23 @@
-import { HttpApiBuilder, HttpApiError, HttpApp, HttpClient, HttpClientRequest, HttpClientResponse, HttpServerResponse } from "@effect/platform";
+import {
+  HttpApiBuilder,
+  HttpApiError,
+  HttpApp,
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+  HttpRouter,
+  HttpServerResponse,
+} from "@effect/platform";
 import { issuer } from "@openauthjs/openauth";
 import { createClient } from "@openauthjs/openauth/client";
 import { GithubProvider } from "@openauthjs/openauth/provider/github";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { Authentication, LinkedAuthentication, OptionalAuthentication } from "@waifu-devs/domain/api";
 import { Config, Effect, Layer, Option, Redacted, Runtime, Schema } from "effect";
+import { consentFont, makeConsent } from "./Consent.ts";
+import { downloadGithubAvatar, MediaStore, newKey, processImage } from "./Media.ts";
 import { makeStorage } from "./Storage.ts";
-import { Users } from "./Users.ts";
+import { type GithubProfile, Users } from "./Users.ts";
 
 /** The web app's OpenAuth client: the only one whose tokens open this API. */
 export const CLIENT_ID = "waifu-devs-web";
@@ -40,6 +51,9 @@ export function linkedClient(clientID: string, redirectURI: string, query: URLSe
     !!query.get("code_challenge")
   );
 }
+
+/** What kind of failure an error is, for logs that mustn't carry what it says. */
+const tagOf = (error: unknown) => (typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : "unknown");
 
 /** What an OpenAuth access token says about who is signed in. */
 export const subjects = createSubjects({
@@ -78,8 +92,12 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
       clientSecret: yield* Config.redacted("GITHUB_CLIENT_SECRET"),
     };
 
+    // Apps other than the web app ask first (Consent.ts); consents are signed with a key made from this secret.
+    const consent = makeConsent({ secret: Redacted.value(github.clientSecret), secure: issuerUrl.protocol === "https:" });
+
     const users = yield* Users;
-    const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
+    const httpClient = yield* HttpClient.HttpClient;
+    const http = httpClient.pipe(HttpClient.filterStatusOk);
     const storage = yield* makeStorage;
     const run = Runtime.runPromise(yield* Effect.runtime<never>());
 
@@ -93,6 +111,35 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
           ),
         )
         .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(GithubUser)), Effect.scoped);
+
+    const media = yield* MediaStore;
+
+    /**
+     * Keeps our own copy of a member's GitHub avatar, made at sign-in whenever
+     * it changed, so the site never sends anyone's browser to GitHub for it. If
+     * GitHub doesn't hand it over, the sign-in goes ahead and the next one tries again.
+     */
+    const copyGithubAvatar = (userId: string, avatarUrl: string) =>
+      Effect.gen(function* () {
+        const webp = yield* downloadGithubAvatar(avatarUrl).pipe(
+          Effect.provideService(HttpClient.HttpClient, httpClient),
+          Effect.flatMap((bytes) => processImage("avatar", bytes)),
+        );
+        const key = newKey("avatar", userId);
+        yield* media.put(key, webp);
+        const unused = yield* users.setGithubAvatar(userId, avatarUrl, key);
+        if (unused) yield* media.remove(unused);
+      }).pipe(
+        // Only the kind of failure: nothing about who, or what GitHub said.
+        Effect.catchAll((error) => Effect.logWarning(`Copying a GitHub avatar failed (${tagOf(error)})`)),
+      );
+
+    /** Signs a GitHub account in: creates or refreshes the member, and their avatar if it changed. */
+    const signIn = (gh: GithubProfile) =>
+      users.upsertFromGithub(gh).pipe(
+        Effect.tap(({ user, avatarStale }) => (avatarStale ? copyGithubAvatar(user.id, gh.avatar_url) : Effect.void)),
+        Effect.map(({ user }) => user),
+      );
 
     const app = issuer({
       subjects,
@@ -110,7 +157,7 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
       success: (ctx, value) =>
         run(
           githubProfile(value.tokenset.access).pipe(
-            Effect.flatMap(users.upsertFromGithub),
+            Effect.flatMap(signIn),
             Effect.withSpan("Issuer.success"),
           ),
         ).then((user) => ctx.subject("user", { id: user.id })),
@@ -118,18 +165,38 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
 
     /** Runs a web request through the issuer, as if it arrived at `issuerUrl`. */
     const handle = async (request: Request): Promise<Response> => {
-      const url = new URL(request.url);
-      // OpenAuth answers a refused sign-in by redirecting to the address it was refused for,
-      // which would let anyone bounce people off waifu.dev to any site. Refuse it here instead.
+      let url = new URL(request.url);
+      let clearCookie: string | undefined;
       if (url.pathname === "/authorize") {
+        // OpenAuth answers a refused sign-in by redirecting to the address it was refused for,
+        // which would let anyone bounce people off waifu.dev to any site. Refuse it here instead.
         const clientID = url.searchParams.get("client_id") ?? "";
         const redirectURI = url.searchParams.get("redirect_uri") ?? "";
         if (!allowed(clientID, redirectURI, url.searchParams)) return new Response("This app can't sign in with waifu.dev.", { status: 400 });
+        // Any other app asks the member first.
+        if (clientID !== CLIENT_ID) {
+          const checked = consent.check(request, url, clientID);
+          if (checked.kind === "ask") return checked.response;
+          url = checked.url;
+          clearCookie = checked.clearCookie;
+        }
+      }
+      // /authorize sends the browser on to GitHub with the sign-in in a cookie, which is
+      // sent cross-site. Only that hop (from this site, or the web app's) may start it, so
+      // no other site can send someone straight here and skip /authorize and its question.
+      if (url.pathname === "/github/authorize" && !["same-origin", "same-site", "none", null].includes(request.headers.get("sec-fetch-site"))) {
+        return new Response("Start signing in from the app you're signing in to.", { status: 403 });
       }
       const headers = new Headers(request.headers);
       for (const name of ["host", "x-forwarded-host", "x-forwarded-proto", "x-forwarded-port"]) headers.delete(name);
-      const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
-      return app.fetch(new Request(new URL(url.pathname + url.search, issuerUrl), { method: request.method, headers, body }));
+      const body = request.method === "GET" || request.method === "HEAD" ? undefined : await readLimited(request, MAX_ISSUER_BODY);
+      if (body === null) return new Response("Too big.", { status: 413 });
+      const response = await app.fetch(new Request(new URL(url.pathname + url.search, issuerUrl), { method: request.method, headers, body }));
+      if (!clearCookie) return response;
+      // The consent is spent.
+      const spent = new Response(response.body, response);
+      spent.headers.append("set-cookie", clearCookie);
+      return spent;
     };
 
     // Verifies access tokens against this issuer's keys, without leaving the process.
@@ -153,6 +220,23 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
   }),
 }) {}
 
+/** OpenAuth's endpoints only take small forms (codes and tokens). */
+const MAX_ISSUER_BODY = 64 * 1024;
+
+/** A request's body, or null as soon as it passes `max` bytes (whatever Content-Length claimed). */
+async function readLimited(request: Request, max: number): Promise<Uint8Array | null> {
+  if (Number(request.headers.get("content-length") ?? 0) > max) return null;
+  if (!request.body) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of request.body as unknown as AsyncIterable<Uint8Array>) {
+    size += chunk.byteLength;
+    if (size > max) return null;
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 /** Mounts the issuer's routes next to the HttpApi endpoints. */
 export const IssuerRoutes = HttpApiBuilder.Router.use((router) =>
   Effect.gen(function* () {
@@ -163,6 +247,18 @@ export const IssuerRoutes = HttpApiBuilder.Router.use((router) =>
     yield* router.all("/github/*", app);
     yield* router.all("/.well-known/*", app);
     yield* router.get("/health", HttpServerResponse.text("ok"));
+    // The site's font, for the consent page.
+    yield* router.get(
+      "/consent/fonts/:file",
+      Effect.gen(function* () {
+        const font = consentFont((yield* HttpRouter.params).file ?? "");
+        if (!font) return HttpServerResponse.empty({ status: 404 });
+        return HttpServerResponse.uint8Array(yield* Effect.promise(() => font), {
+          contentType: "font/woff2",
+          headers: { "cache-control": "public, max-age=86400" },
+        });
+      }),
+    );
   }),
 );
 

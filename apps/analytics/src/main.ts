@@ -1,10 +1,11 @@
-import { HttpApiBuilder, HttpMiddleware, HttpServer } from "@effect/platform";
+import { HttpApiBuilder, HttpServer } from "@effect/platform";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Config, Layer } from "effect";
 import { createServer } from "node:http";
-import { AppLive, limitBody } from "./App.ts";
+import { AppLive } from "./App.ts";
+import { harden } from "./Middleware.ts";
 
-const ServerLive = HttpApiBuilder.serve((app) => HttpMiddleware.logger(limitBody(app))).pipe(
+const ServerLive = HttpApiBuilder.serve(harden).pipe(
   Layer.provide(AppLive),
   HttpServer.withLogAddress,
   Layer.provide(

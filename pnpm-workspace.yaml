@@ -4,3 +4,12 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+# @effect/platform-node allows any undici 7.x; keep it past the advisories fixed in 7.29.1.
+overrides:
+  undici: ^7.29.1
+
+# OpenAuth's issuer logs every request URL (sign-in codes and states included) and whole
+# errors to the console, and Railway logs are public: the patch drops both.
+patchedDependencies:
+  '@openauthjs/openauth@0.4.3': patches/@openauthjs__openauth@0.4.3.patch

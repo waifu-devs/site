@@ -1,5 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* The site font, served from here rather than Google Fonts so visitors'
+   addresses never reach a third party. Japanese comes in unicode-range
+   slices, so a page only downloads the glyphs it uses. */
+@import "@fontsource/m-plus-rounded-1c/400.css";
+@import "@fontsource/m-plus-rounded-1c/700.css";
+@import "@fontsource/m-plus-rounded-1c/800.css";
 
 /* shadcn/ui tokens. Every theme (lib/themes.ts) is a full set of values for
    these variables; the defaults below are the built-in Sakura theme, and the

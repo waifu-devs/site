@@ -43,6 +43,13 @@
       "when": 1790940772655,
       "tag": "0005_featured_repos",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790991891987,
+      "tag": "0006_github_avatar_key",
+      "breakpoints": true
     }
   ]
 }

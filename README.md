@@ -15,7 +15,7 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 
 ## What's here
 
-- **Accounts** via GitHub only (`/login`). Your GitHub login and avatar refresh every time you sign in.
+- **Accounts** via GitHub only (`/login`). Your GitHub login and avatar refresh every time you sign in. The API keeps its own copy of your GitHub avatar (resized like an upload) and serves it from `/media`, so visitors' browsers never fetch anything from GitHub.
 - **Profiles** at `/u/<github-login>` with display name, status, pronouns, location, favorite waifu, bio, skills, website and links, an animated banner, a profile theme, and up to six featured GitHub repos. Customize them at `/settings`, with a live preview.
 - **Featured repos**: members pick public repos they own, or that belong to organizations they're a public member of, from a searchable list in `/settings`, and drag them into order. The API fetches that list from GitHub as the site's OAuth app (its client ID and secret, for the higher rate limit), keeps it for ten minutes, and only lets a member feature repos from it. Cards keep a copy of each repo's description, language, stars and forks; when a profile is visited and the copy is over six hours old, it's refreshed in the background, and a repo that's gone or private comes off the profile.
 - **Themes**: five built-ins (Sakura, Yoru, Matcha, Sora, Tsundere) plus community themes made in the live editor at `/themes/new`. The theme you wear styles the site for you, and you don't need an account to wear one: signed out, a cookie remembers any built-in or public theme you pick, and signing in puts it on your account if that still wears the default (as new accounts do). Your profile shows the profile theme you picked (or the theme you wear, if you didn't pick one) to everyone who visits it, header and all. Themes can be public or private.
@@ -56,9 +56,9 @@ POST /v1/fuwa/signals
 { "schema": "fuwa.signal.v1", "install_id", "sent_at", "hosting", "version", "os", "arch", "uptime_seconds", "config": {...}, "totals": {...} }
 ```
 
-A valid signal (up to 64 KB) gets `202 {"accepted": 1}` and an invalid one `400`; fuwa retries anything else on its next cycle. Fields fuwa adds within v1 are kept in each row's `raw` JSON until they get a column. A signal delivered twice counts once (per install and `sent_at`). Activity such as messages sent comes from the difference between an install's consecutive signals, because fuwa's lifetime counters only grow.
+A valid signal (up to 8 KB) gets `202 {"accepted": 1}` and an invalid one `400`; fuwa retries anything else on its next cycle. Fields fuwa adds within v1 are kept in each row's `raw` JSON until they get a column. A signal delivered twice counts once (per install and `sent_at`). Activity such as messages sent comes from the difference between an install's consecutive signals, because fuwa's lifetime counters only grow.
 
-Accepted signals are buffered and written every 30 seconds as one lake snapshot, and whatever is left is written on shutdown. Small writes stay inline in Postgres until the nightly `CHECKPOINT` (04:00 UTC) moves them into monthly Parquet files, merges small files and expires snapshots older than 30 days.
+Accepted signals are buffered and written every 30 seconds as one lake snapshot, and whatever is left is written on shutdown. While the lake can't be reached, the buffer holds up to 64 MB of signals (`INGEST_MAX_PENDING_BYTES`); past that, signals get `503` and fuwa sends them again later. Small writes stay inline in Postgres until the nightly `CHECKPOINT` (04:00 UTC) moves them into monthly Parquet files, merges small files and expires snapshots older than 30 days.
 
 Reading it:
 
@@ -79,6 +79,8 @@ OpenAuth's own storage (signing keys, codes, refresh tokens) lives in the `opena
 ### Signing in to fuwa
 
 Any fuwa server can let people sign in with their waifu.dev account. The server is its own OpenAuth client: its client ID is its address (`https://chat.example.com`, or `http://localhost:…` while testing) and the sign-in can only come back to `<that address>/auth/waifu/callback`, with the code flow and PKCE (S256). Anything else gets a 400 before OpenAuth sees it, so a refused sign-in never redirects anywhere.
+
+Because GitHub approves a returning member's sign-in without asking, any site could otherwise pose as a fuwa server and quietly learn a visitor's waifu.dev account. So before a sign-in for any app but the web app goes on, `/authorize` shows a page on `api.waifu.dev` ("<host> wants to sign you in with your waifu.dev account", Continue or Cancel; `apps/api/src/Consent.ts`). Continue is the same request plus a `consent` parameter, an HMAC (keyed from `GITHUB_CLIENT_SECRET`) over that exact request, an expiry ten minutes out and a nonce whose other half is in a `SameSite=Strict` cookie set with the page; the cookie is cleared once used. The page can't be framed, and `/github/authorize` refuses cross-site navigations, so nothing gets around the question. Cancel goes back to the app's callback with `error=access_denied`.
 
 The server trades the code for an access token made out to it (`aud` is its client ID) and asks `GET /userinfo` who signed in: `sub` (the member's id, which never changes), `preferred_username`, `name`, `picture` and `profile`. The rest of the API only takes the web app's tokens (`aud` = `waifu-devs-web`), so a fuwa server learns who you are and can't act as you here.
 
@@ -103,6 +105,8 @@ You need Node 22 and a local Postgres (`postgres://postgres:postgres@localhost:5
 ## Infrastructure
 
 The Railway project is public, so anyone can check out the live infrastructure behind the site at <https://railway.com/project/c1d0e00f-7c4c-408f-8422-41cd680bc304>. It's what `.railway/railway.ts` declares: Postgres, the `api`, `web` and `analytics` services, and the `uploads` and `lake` buckets.
+
+Its logs are public too, so the services log requests as method, path and status only: no query strings (they can carry sign-in codes), no addresses, no bodies, and nothing at all for the sign-in paths (`/authorize`, `/github/*`). Failures are logged by kind, without the values that caused them.
 
 ## Deploying on Railway
 

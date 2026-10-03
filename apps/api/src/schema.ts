@@ -38,6 +38,9 @@ export const users = pgTable(
     // Uploaded pictures, as keys in the media store. avatarUrl stays the GitHub one.
     avatarKey: text(),
     bannerKey: text(),
+    // The GitHub avatar as we keep it in the media store (fetched at sign-in), so
+    // nobody's browser is sent to GitHub for it. avatarUrl is where it came from.
+    githubAvatarKey: text(),
     createdAt: createdAt(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

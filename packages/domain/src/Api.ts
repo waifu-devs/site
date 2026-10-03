@@ -51,7 +51,11 @@ export const User = Schema.Struct({
   id: Schema.UUID,
   username: Schema.String,
   displayName: Schema.NullOr(Schema.String),
-  /** The uploaded picture if there is one, otherwise the GitHub avatar. */
+  /**
+   * The uploaded picture if there is one, otherwise the API's copy of the GitHub
+   * avatar; always served by the API (/media), never by GitHub. Null until a
+   * member who joined before copies were kept signs in again.
+   */
   avatarUrl: Schema.NullOr(Schema.String),
   bio: Schema.NullOr(Schema.String),
   pronouns: Schema.NullOr(Schema.String),

@@ -1,0 +1,22 @@
+diff --git a/dist/esm/issuer.js b/dist/esm/issuer.js
+index 1b18009bfeaa09f2222e9df760dde0e4eb1d4326..09a6c9274ebe4a13da8b931c1709327e859e92d2 100644
+--- a/dist/esm/issuer.js
++++ b/dist/esm/issuer.js
+@@ -197,7 +197,7 @@ function issuer(input) {
+   function issuer2(ctx) {
+     return new URL(getRelativeUrl(ctx, "/")).origin;
+   }
+-  const app = new Hono().use(logger());
++  const app = new Hono();
+   for (const [name, value] of Object.entries(input.providers)) {
+     const route = new Hono;
+     route.use(async (c, next) => {
+@@ -432,7 +432,7 @@ function issuer(input) {
+     ])), c.req.raw));
+   });
+   app.onError(async (err, c) => {
+-    console.error(err);
++    console.error("openauth:", err?.name ?? "error");
+     if (err instanceof UnknownStateError) {
+       return auth.forward(c, await error(err, c.req.raw));
+     }
