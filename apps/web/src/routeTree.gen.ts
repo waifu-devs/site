@@ -15,6 +15,7 @@ import { Route as MembersRouteImport } from './routes/members'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiReportsRouteImport } from './routes/api/reports'
 import { Route as NewsIndexRouteImport } from './routes/news/index'
 import { Route as NewsPostIdRouteImport } from './routes/news/$postId'
 import { Route as NewsSubmitRouteImport } from './routes/news/submit'
@@ -52,6 +53,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReportsRoute = ApiReportsRouteImport.update({
+  id: '/api/reports',
+  path: '/api/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NewsIndexRoute = NewsIndexRouteImport.update({
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
   '/news/submit': typeof NewsSubmitRoute
   '/themes/new': typeof ThemesNewRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
   '/news/submit': typeof NewsSubmitRoute
   '/themes/new': typeof ThemesNewRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
   '/news/submit': typeof NewsSubmitRoute
   '/themes/new': typeof ThemesNewRoute
@@ -153,6 +162,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/api/health'
+    | '/api/reports'
     | '/news/$postId'
     | '/news/submit'
     | '/themes/new'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/api/health'
+    | '/api/reports'
     | '/news/$postId'
     | '/news/submit'
     | '/themes/new'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/api/health'
+    | '/api/reports'
     | '/news/$postId'
     | '/news/submit'
     | '/themes/new'
@@ -202,6 +214,7 @@ export interface RootRouteChildren {
   ProjectsRoute: typeof ProjectsRoute
   SettingsRoute: typeof SettingsRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiReportsRoute: typeof ApiReportsRoute
   NewsPostIdRoute: typeof NewsPostIdRoute
   NewsSubmitRoute: typeof NewsSubmitRoute
   ThemesNewRoute: typeof ThemesNewRoute
@@ -254,6 +267,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reports': {
+      id: '/api/reports'
+      path: '/api/reports'
+      fullPath: '/api/reports'
+      preLoaderRoute: typeof ApiReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/news/': {
@@ -322,6 +342,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsRoute: ProjectsRoute,
   SettingsRoute: SettingsRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiReportsRoute: ApiReportsRoute,
   NewsPostIdRoute: NewsPostIdRoute,
   NewsSubmitRoute: NewsSubmitRoute,
   ThemesNewRoute: ThemesNewRoute,

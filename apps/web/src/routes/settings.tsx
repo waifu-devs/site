@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
 import { UserAvatar } from "@/components/Avatar";
+import { BugReportsSetting } from "@/components/BugReports";
 import { ImageDrop, type ImageUpload, useImageUpload } from "@/components/ImageUpload";
 import { Markdown } from "@/components/Markdown";
 import { ProfileBanner } from "@/components/ProfileBanner";
@@ -305,6 +306,16 @@ function ProfileEditor({
             </CardHeader>
             <CardContent>
               <RepoPicker value={draft.repos} onChange={set("repos")} username={user.username} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Bug reports</CardTitle>
+              <CardDescription>For this browser, and it takes effect at once: not part of your profile, so there's nothing to save.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BugReportsSetting />
             </CardContent>
           </Card>
         </div>

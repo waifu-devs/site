@@ -4,6 +4,8 @@ import { timingSafeEqual } from "node:crypto";
 import { Api, ReadAccess } from "./Api.ts";
 import { Ingest } from "./Ingest.ts";
 import { Lake } from "./Lake.ts";
+import type { Report } from "./Reports.ts";
+import { reportSummary } from "./ReportSummary.ts";
 import { summary } from "./Summary.ts";
 
 /** Clocks drift, but not by a day: anything dated later than this is refused. */
@@ -26,6 +28,26 @@ const FuwaLive = HttpApiBuilder.group(Api, "fuwa", (handlers) =>
   }),
 );
 
+const ReportsLive = HttpApiBuilder.group(Api, "reports", (handlers) =>
+  Effect.gen(function* () {
+    const ingest = yield* Ingest;
+    const lake = yield* Lake;
+    const take = (report: Report) =>
+      Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
+        if (report.sent_at > now + MAX_CLOCK_SKEW_MS) return yield* new HttpApiError.BadRequest();
+        yield* ingest.addReport(report, new Date(now)).pipe(Effect.catchTag("IngestFull", () => new HttpApiError.ServiceUnavailable()));
+        return { accepted: 1 };
+      });
+    return handlers
+      .handle("fuwa", ({ payload }) => take(payload))
+      .handle("site", ({ payload }) => take(payload))
+      .handle("summary", ({ urlParams }) =>
+        reportSummary(urlParams.days ?? 7, urlParams.source).pipe(Effect.provideService(Lake, lake), Effect.orDie),
+      );
+  }),
+);
+
 const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) => handlers.handle("health", () => Effect.succeed("ok")));
 
 /** Reading needs ANALYTICS_READ_TOKEN as a bearer token; while it isn't set, nobody can read. */
@@ -37,7 +59,7 @@ export const ReadAccessLive = Layer.effect(
       Option.map(token, (token) => Buffer.from(Redacted.value(token))),
       (token) => token.length > 0,
     );
-    if (Option.isNone(expected)) yield* Effect.logWarning("ANALYTICS_READ_TOKEN is not set, so /v1/fuwa/summary refuses every request.");
+    if (Option.isNone(expected)) yield* Effect.logWarning("ANALYTICS_READ_TOKEN is not set, so the summaries refuse every request.");
     return ReadAccess.of({
       bearer: (given) => {
         const bytes = Buffer.from(Redacted.value(given));
@@ -49,4 +71,4 @@ export const ReadAccessLive = Layer.effect(
   }),
 );
 
-export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([FuwaLive, HealthLive]));
+export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([FuwaLive, ReportsLive, HealthLive]));

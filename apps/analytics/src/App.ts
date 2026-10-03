@@ -4,6 +4,7 @@ import { HttpLive, ReadAccessLive } from "./Http.ts";
 import { Ingest } from "./Ingest.ts";
 import { Lake } from "./Lake.ts";
 import { MaintenanceLive } from "./Maintenance.ts";
+import { MAX_REPORT_BYTES } from "./Reports.ts";
 import { MAX_BODY_BYTES } from "./Signals.ts";
 import { migrate } from "./Tables.ts";
 
@@ -19,11 +20,12 @@ export const AppLive = HttpLive.pipe(
   Layer.provideMerge(LakeLive),
 );
 
-/** Signals are small: anything bigger than MAX_BODY_BYTES is turned away unread. */
+/** Signals are small, reports a little bigger: anything over its limit is turned away unread. */
 export const limitBody = HttpMiddleware.make((app) =>
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
-    if (Number(request.headers["content-length"] ?? 0) > MAX_BODY_BYTES) return HttpServerResponse.empty({ status: 413 });
-    return yield* HttpServerRequest.withMaxBodySize(app, Option.some(MAX_BODY_BYTES));
+    const limit = request.url.split("?")[0]!.endsWith("/reports") ? MAX_REPORT_BYTES : MAX_BODY_BYTES;
+    if (Number(request.headers["content-length"] ?? 0) > limit) return HttpServerResponse.empty({ status: 413 });
+    return yield* HttpServerRequest.withMaxBodySize(app, Option.some(limit));
   }),
 );

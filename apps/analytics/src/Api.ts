@@ -1,6 +1,7 @@
 /** The analytics service's HTTP contract. */
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
 import { Schema } from "effect";
+import { FuwaReport, SiteReport } from "./Reports.ts";
 import { Signal } from "./Signals.ts";
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,49 @@ export const Summary = Schema.Struct({
 });
 export type Summary = typeof Summary.Type;
 
+/** The bugs, slow paths and feature use in health reports over the last `days`. */
+export const ReportSummary = Schema.Struct({
+  days: Count,
+  /** Failures by kind and place, most frequent first. */
+  errors: Schema.Array(
+    Schema.Struct({
+      source: Schema.String,
+      app: Schema.String,
+      version: Schema.String,
+      kind: Schema.String,
+      place: Schema.String,
+      count: Count,
+      /** Distinct installs that reported it (fuwa instances; the site counts as one). */
+      installs: Count,
+      platforms: Schema.Array(Schema.String),
+      oses: Schema.Array(Schema.String),
+      first_seen: Schema.String,
+      last_seen: Schema.String,
+    }),
+  ),
+  /**
+   * Timings, slowest first by p95. Percentiles are the upper bound of the bucket
+   * they fall in; one past the last bucket reads as the last bound.
+   */
+  slow: Schema.Array(
+    Schema.Struct({
+      source: Schema.String,
+      app: Schema.String,
+      metric: Schema.String,
+      count: Count,
+      avg_ms: Count,
+      p50_ms: Count,
+      p95_ms: Count,
+      p99_ms: Count,
+      /** How many took longer than a second. */
+      over_1s: Count,
+    }),
+  ),
+  /** Feature use, most used first. */
+  usage: Schema.Array(Schema.Struct({ source: Schema.String, app: Schema.String, feature: Schema.String, count: Count })),
+});
+export type ReportSummary = typeof ReportSummary.Type;
+
 // ---------------------------------------------------------------------------
 
 export const Accepted = Schema.Struct({ accepted: Schema.Number });
@@ -62,6 +106,35 @@ export class FuwaApi extends HttpApiGroup.make("fuwa")
       .middleware(ReadAccess),
   ) {}
 
+/** Health reports: errors, timings and feature use from fuwa and the site, and reading them back. */
+export class ReportsApi extends HttpApiGroup.make("reports")
+  // Dated more than a day ahead: BadRequest. The lake is unreachable and the buffer is full: ServiceUnavailable.
+  .add(
+    HttpApiEndpoint.post("fuwa", "/v1/fuwa/reports")
+      .setPayload(FuwaReport)
+      .addSuccess(Accepted, { status: 202 })
+      .addError(HttpApiError.BadRequest)
+      .addError(HttpApiError.ServiceUnavailable),
+  )
+  .add(
+    HttpApiEndpoint.post("site", "/v1/site/reports")
+      .setPayload(SiteReport)
+      .addSuccess(Accepted, { status: 202 })
+      .addError(HttpApiError.BadRequest)
+      .addError(HttpApiError.ServiceUnavailable),
+  )
+  .add(
+    HttpApiEndpoint.get("summary", "/v1/reports/summary")
+      .setUrlParams(
+        Schema.Struct({
+          days: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 366))),
+          source: Schema.optional(Schema.Literal("fuwa", "site")),
+        }),
+      )
+      .addSuccess(ReportSummary)
+      .middleware(ReadAccess),
+  ) {}
+
 export class HealthApi extends HttpApiGroup.make("health").add(HttpApiEndpoint.get("health", "/health").addSuccess(Schema.String)) {}
 
-export class Api extends HttpApi.make("analytics").add(FuwaApi).add(HealthApi) {}
+export class Api extends HttpApi.make("analytics").add(FuwaApi).add(ReportsApi).add(HealthApi) {}

@@ -4,6 +4,7 @@
  *
  *   railway ssh --service analytics
  *   node apps/analytics/dist/sql.js "FROM daily ORDER BY day DESC LIMIT 14"
+ *   node apps/analytics/dist/sql.js "FROM reports.errors_unique ORDER BY sent_at DESC LIMIT 20"
  */
 import { NodeRuntime } from "@effect/platform-node";
 import { Console, Effect } from "effect";

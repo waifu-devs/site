@@ -1,11 +1,13 @@
 /**
- * The lake's table and views, all in the `fuwa` schema of the DuckLake. Rows
- * are append-only; a signal delivered twice lands twice, so the views count
- * each (install_id, sent_at) once.
+ * The lake's tables and views. Usage signals are in the `fuwa` schema of the
+ * DuckLake, health reports in `reports`. Rows are append-only; something
+ * delivered twice lands twice, so the views count each signal
+ * (install_id, sent_at) and each report (report_id) once.
  */
 import type { DuckDBValue } from "@duckdb/node-api";
 import { Effect } from "effect";
 import { Lake } from "./Lake.ts";
+import { type Report, sourceOf } from "./Reports.ts";
 import type { Signal } from "./Signals.ts";
 
 /** One row per signal. New columns go at the end (and into `migrate`). */
@@ -44,6 +46,61 @@ const SIGNAL_COLUMNS = [
 
 type Columns = ReadonlyArray<readonly [name: string, type: string]>;
 export type SignalRow = { [K in (typeof SIGNAL_COLUMNS)[number] as K[0]]: unknown };
+
+/** What every report row starts with: which report, from whom, when. */
+const REPORT_KEY = [
+  ["received_at", "TIMESTAMPTZ"],
+  ["sent_at", "TIMESTAMPTZ"],
+  /** "fuwa" or "site". */
+  ["source", "VARCHAR"],
+  ["report_id", "VARCHAR"],
+  ["install_id", "VARCHAR"],
+  ["hosting", "VARCHAR"],
+  ["part", "VARCHAR"],
+] as const;
+/** Which app, which build, on what. */
+const ORIGIN = [
+  ["app", "VARCHAR"],
+  ["version", "VARCHAR"],
+  ["platform", "VARCHAR"],
+  ["os", "VARCHAR"],
+] as const;
+
+/** One row per report, with the whole report as sent. New columns go at the end. */
+const REPORT_COLUMNS = [
+  ...REPORT_KEY,
+  ["schema_id", "VARCHAR"],
+  ["since", "TIMESTAMPTZ"],
+  ["dropped", "BIGINT"],
+  ["raw", "JSON"],
+] as const;
+/** One row per kind of failure in one place, per report. */
+const ERROR_COLUMNS = [...REPORT_KEY, ...ORIGIN, ["kind", "VARCHAR"], ["place", "VARCHAR"], ["count", "BIGINT"]] as const;
+/** One row per timed thing per report: counts per bucket on `bounds_ms` (plus one for longer). */
+const TIMING_COLUMNS = [
+  ...REPORT_KEY,
+  ...ORIGIN,
+  ["metric", "VARCHAR"],
+  ["bounds_ms", "BIGINT[]"],
+  ["buckets", "BIGINT[]"],
+  ["count", "BIGINT"],
+  ["sum_ms", "BIGINT"],
+] as const;
+/** One row per feature per report. */
+const USAGE_COLUMNS = [...REPORT_KEY, ...ORIGIN, ["feature", "VARCHAR"], ["count", "BIGINT"]] as const;
+
+/** Every table, by its name in the lake. */
+const TABLES = {
+  "fuwa.signals": SIGNAL_COLUMNS,
+  "reports.reports": REPORT_COLUMNS,
+  "reports.errors": ERROR_COLUMNS,
+  "reports.timings": TIMING_COLUMNS,
+  "reports.usage": USAGE_COLUMNS,
+} as const satisfies Record<string, Columns>;
+export type Table = keyof typeof TABLES;
+export type Row = Record<string, unknown>;
+/** Rows waiting to be written, by table. */
+export type Batch = { readonly [T in Table]?: ReadonlyArray<Row> };
 
 const definition = (columns: Columns) => columns.map(([name, type]) => `${name} ${type}`).join(", ");
 
@@ -99,22 +156,35 @@ const VIEWS = {
     GROUP BY day, hosting`,
 } as const;
 
+/** The first delivery of each report, for each report table. */
+const REPORT_VIEWS = Object.fromEntries(
+  ["reports", "errors", "timings", "usage"].map((table) => [
+    `${table}_unique`,
+    `SELECT * FROM ${table} QUALIFY dense_rank() OVER (PARTITION BY report_id ORDER BY received_at) = 1`,
+  ]),
+);
+
 /** Creates whatever is missing. Safe to run on every start, from any number of instances. */
 export const migrate = Effect.gen(function* () {
   const lake = yield* Lake;
   const existing = yield* lake.query(
-    "SELECT table_name FROM duckdb_tables() WHERE database_name = 'lake' AND schema_name = 'fuwa'",
+    "SELECT schema_name || '.' || table_name AS name FROM duckdb_tables() WHERE database_name = 'lake'",
   );
 
   yield* lake.run("CREATE SCHEMA IF NOT EXISTS lake.fuwa");
-  if (!existing.some((row) => row.table_name === "signals")) {
+  yield* lake.run("CREATE SCHEMA IF NOT EXISTS lake.reports");
+  for (const [table, columns] of Object.entries(TABLES)) {
+    if (existing.some((row) => row.name === table)) continue;
     yield* lake.transaction([
-      [`CREATE TABLE IF NOT EXISTS lake.fuwa.signals (${definition(SIGNAL_COLUMNS)})`],
+      [`CREATE TABLE IF NOT EXISTS lake.${table} (${definition(columns)})`],
       // Monthly files, so reading a date range skips the rest.
-      ["ALTER TABLE lake.fuwa.signals SET PARTITIONED BY (year(sent_at), month(sent_at))"],
+      [`ALTER TABLE lake.${table} SET PARTITIONED BY (year(sent_at), month(sent_at))`],
     ]);
   }
-  yield* lake.transaction(Object.entries(VIEWS).map(([name, sql]) => [`CREATE OR REPLACE VIEW lake.fuwa.${name} AS ${sql}`] as const));
+  yield* lake.transaction([
+    ...Object.entries(VIEWS).map(([name, sql]) => [`CREATE OR REPLACE VIEW lake.fuwa.${name} AS ${sql}`] as const),
+    ...Object.entries(REPORT_VIEWS).map(([name, sql]) => [`CREATE OR REPLACE VIEW lake.reports.${name} AS ${sql}`] as const),
+  ]);
 });
 
 /** A signal as a table row. Fields beyond the known ones only go into `raw`. */
@@ -153,15 +223,55 @@ export const toRow = (signal: Signal, receivedAt: Date): SignalRow => {
   };
 };
 
-/** Writes the rows as one lake snapshot. */
-export const append = (rows: ReadonlyArray<SignalRow>) =>
+/** A report as table rows: one for the report, and one per entry. Fields beyond the known ones only go into `raw`. */
+export const reportRows = (report: Report, receivedAt: Date): Batch => {
+  const key = {
+    received_at: receivedAt.toISOString(),
+    sent_at: new Date(report.sent_at).toISOString(),
+    source: sourceOf(report),
+    report_id: report.report_id,
+    install_id: report.install_id ?? null,
+    hosting: report.hosting,
+    part: report.part,
+  };
+  const origin = (entry: { app: string; version: string; platform: string; os: string }) => ({
+    app: entry.app,
+    version: entry.version,
+    platform: entry.platform,
+    os: entry.os,
+  });
+  return {
+    "reports.reports": [
+      { ...key, schema_id: report.schema, since: new Date(report.since).toISOString(), dropped: report.dropped, raw: report },
+    ],
+    "reports.errors": report.errors.map((e) => ({ ...key, ...origin(e), kind: e.kind, place: e.place, count: e.count })),
+    "reports.timings": report.timings.map((t) => ({
+      ...key,
+      ...origin(t),
+      metric: t.metric,
+      bounds_ms: report.bounds_ms,
+      buckets: t.buckets,
+      count: t.count,
+      sum_ms: t.sum_ms,
+    })),
+    "reports.usage": report.usage.map((u) => ({ ...key, ...origin(u), feature: u.feature, count: u.count })),
+  };
+};
+
+/** Writes the rows, every table's, as one lake snapshot. */
+export const append = (batch: Batch) =>
   Effect.gen(function* () {
-    if (rows.length === 0) return;
+    // Each table's rows go in as one JSON parameter, cast to its columns.
+    const inserts = (Object.entries(batch) as Array<[Table, ReadonlyArray<Row>]>)
+      .filter(([, rows]) => rows.length > 0)
+      .map(
+        ([table, rows]): [string, DuckDBValue[]] => [
+          // Struct fields become columns; lists (a timing's buckets) stay lists.
+          `INSERT INTO lake.${table} BY NAME SELECT unnest(row) FROM (SELECT unnest($1::JSON::STRUCT(${definition(TABLES[table])})[]) AS row)`,
+          [JSON.stringify(rows)],
+        ],
+      );
+    if (inserts.length === 0) return;
     const lake = yield* Lake;
-    // The rows go in as one JSON parameter, cast to the table's columns.
-    const insert: [string, DuckDBValue[]] = [
-      `INSERT INTO lake.fuwa.signals BY NAME SELECT unnest($1::JSON::STRUCT(${definition(SIGNAL_COLUMNS)})[], recursive := true)`,
-      [JSON.stringify(rows)],
-    ];
-    yield* lake.transaction([insert]);
+    yield* lake.transaction(inserts);
   });
