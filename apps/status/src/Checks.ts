@@ -1,5 +1,5 @@
 /**
- * The status page's checks. Every minute the api asks each part of fuwa.chat and
+ * The checks. Every minute this service asks each part of fuwa.chat and
  * of this site whether it's up, over the same public addresses apps and
  * browsers use, and keeps one row per part per UTC day (schema.ts). Only the
  * hosts below are ever called, and redirects are never followed; nothing a
@@ -12,7 +12,7 @@
  * process) only shows its gateways.
  */
 import { SqlClient } from "@effect/sql";
-import type { StatusComponent, StatusIncident, StatusReport, StatusState } from "@waifu-devs/domain/api";
+import type { StatusComponent, StatusIncident, StatusReport, StatusState } from "./Report.ts";
 import { Config, Duration, Effect, Schedule } from "effect";
 
 /** How often every part is checked. */
@@ -40,7 +40,7 @@ const KNOWN: Record<string, { group: Group; name: string; description: string; o
   "fuwa.server": { group: "fuwa", name: "fuwa.chat", description: "Everything, in one process", order: 1 },
   "fuwa.directory": { group: "fuwa", name: "Accounts and messages", description: "Sign-in, accounts, direct messages and settings", order: 2 },
   "fuwa.media": { group: "fuwa", name: "Calls", description: "Voice and video in calls", order: 4 },
-  "site.web": { group: "site", name: "www.waifu.dev", description: "This site", order: 10 },
+  "site.web": { group: "site", name: "www.waifu.dev", description: "The community site", order: 10 },
   "site.api": { group: "site", name: "Sign-in and profiles", description: "api.waifu.dev: signing in, profiles, themes and news", order: 11 },
   "site.analytics": { group: "site", name: "Anonymous reports", description: "analytics.waifu.dev: usage signals and bug reports", order: 12 },
 };
@@ -72,7 +72,7 @@ const get = (url: string) =>
   Effect.promise(async () => {
     const started = performance.now();
     try {
-      const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "waifu.dev status" } });
+      const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "status.fuwa.chat" } });
       const body = await response.text();
       return { status: response.status, body: body.slice(0, 64 * 1024), latencyMs: Math.round(performance.now() - started), error: null };
     } catch (error) {
@@ -124,12 +124,12 @@ const fuwa = (base: string) =>
     return { checks, partsListed: listed !== null };
   });
 
-export class Status extends Effect.Service<Status>()("Status", {
+export class Checks extends Effect.Service<Checks>()("Checks", {
   scoped: Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const fuwaUrl = (yield* Config.string("STATUS_FUWA_URL").pipe(Config.withDefault("https://fuwa.chat"))).replace(/\/$/, "");
-    const webUrl = (yield* Config.string("STATUS_WEB_URL").pipe(Config.orElse(() => Config.string("WEB_URL")))).replace(/\/$/, "");
-    const apiUrl = (yield* Config.string("STATUS_API_URL").pipe(Config.orElse(() => Config.string("ISSUER_URL")))).replace(/\/$/, "");
+    const webUrl = (yield* Config.string("STATUS_WEB_URL").pipe(Config.withDefault("https://www.waifu.dev"))).replace(/\/$/, "");
+    const apiUrl = (yield* Config.string("STATUS_API_URL").pipe(Config.withDefault("https://api.waifu.dev"))).replace(/\/$/, "");
     const analyticsUrl = (yield* Config.string("STATUS_ANALYTICS_URL").pipe(Config.withDefault("https://analytics.waifu.dev"))).replace(/\/$/, "");
     const enabled = yield* Config.boolean("STATUS_CHECKS").pipe(Config.withDefault(true));
 

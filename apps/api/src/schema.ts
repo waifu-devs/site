@@ -167,7 +167,7 @@ export const openauthStorage = pgTable(
 );
 
 /**
- * The status page (Status.ts): how each part of fuwa.chat and this site answered
+ * The status service (apps/status, status.fuwa.chat): how each part of fuwa.chat and this site answered
  * the api's health checks, one row per part per UTC day. Counts only; nothing
  * about who uses them.
  */
