@@ -80,6 +80,8 @@ OpenAuth's own storage (signing keys, codes, refresh tokens) lives in the `opena
 
 Any fuwa server can let people sign in with their waifu.dev account. The server is its own OpenAuth client: its client ID is its address (`https://chat.example.com`, or `http://localhost:…` while testing) and the sign-in can only come back to `<that address>/auth/waifu/callback`, with the code flow and PKCE (S256). Anything else gets a 400 before OpenAuth sees it, so a refused sign-in never redirects anywhere.
 
+Because GitHub approves a returning member's sign-in without asking, any site could otherwise pose as a fuwa server and quietly learn a visitor's waifu.dev account. So before a sign-in for any app but the web app goes on, `/authorize` shows a page on `api.waifu.dev` ("<host> wants to sign you in with your waifu.dev account", Continue or Cancel; `apps/api/src/Consent.ts`). Continue is the same request plus a `consent` parameter, an HMAC (keyed from `GITHUB_CLIENT_SECRET`) over that exact request, an expiry ten minutes out and a nonce whose other half is in a `SameSite=Strict` cookie set with the page; the cookie is cleared once used. The page can't be framed, and `/github/authorize` refuses cross-site navigations, so nothing gets around the question. Cancel goes back to the app's callback with `error=access_denied`.
+
 The server trades the code for an access token made out to it (`aud` is its client ID) and asks `GET /userinfo` who signed in: `sub` (the member's id, which never changes), `preferred_username`, `name`, `picture` and `profile`. The rest of the API only takes the web app's tokens (`aud` = `waifu-devs-web`), so a fuwa server learns who you are and can't act as you here.
 
 ## Local development

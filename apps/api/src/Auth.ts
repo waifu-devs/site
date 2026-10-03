@@ -1,10 +1,20 @@
-import { HttpApiBuilder, HttpApiError, HttpApp, HttpClient, HttpClientRequest, HttpClientResponse, HttpServerResponse } from "@effect/platform";
+import {
+  HttpApiBuilder,
+  HttpApiError,
+  HttpApp,
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+  HttpRouter,
+  HttpServerResponse,
+} from "@effect/platform";
 import { issuer } from "@openauthjs/openauth";
 import { createClient } from "@openauthjs/openauth/client";
 import { GithubProvider } from "@openauthjs/openauth/provider/github";
 import { createSubjects } from "@openauthjs/openauth/subject";
 import { Authentication, LinkedAuthentication, OptionalAuthentication } from "@waifu-devs/domain/api";
 import { Config, Effect, Layer, Option, Redacted, Runtime, Schema } from "effect";
+import { consentFont, makeConsent } from "./Consent.ts";
 import { downloadGithubAvatar, MediaStore, newKey, processImage } from "./Media.ts";
 import { makeStorage } from "./Storage.ts";
 import { type GithubProfile, Users } from "./Users.ts";
@@ -82,6 +92,9 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
       clientSecret: yield* Config.redacted("GITHUB_CLIENT_SECRET"),
     };
 
+    // Apps other than the web app ask first (Consent.ts); consents are signed with a key made from this secret.
+    const consent = makeConsent({ secret: Redacted.value(github.clientSecret), secure: issuerUrl.protocol === "https:" });
+
     const users = yield* Users;
     const httpClient = yield* HttpClient.HttpClient;
     const http = httpClient.pipe(HttpClient.filterStatusOk);
@@ -152,19 +165,38 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
 
     /** Runs a web request through the issuer, as if it arrived at `issuerUrl`. */
     const handle = async (request: Request): Promise<Response> => {
-      const url = new URL(request.url);
-      // OpenAuth answers a refused sign-in by redirecting to the address it was refused for,
-      // which would let anyone bounce people off waifu.dev to any site. Refuse it here instead.
+      let url = new URL(request.url);
+      let clearCookie: string | undefined;
       if (url.pathname === "/authorize") {
+        // OpenAuth answers a refused sign-in by redirecting to the address it was refused for,
+        // which would let anyone bounce people off waifu.dev to any site. Refuse it here instead.
         const clientID = url.searchParams.get("client_id") ?? "";
         const redirectURI = url.searchParams.get("redirect_uri") ?? "";
         if (!allowed(clientID, redirectURI, url.searchParams)) return new Response("This app can't sign in with waifu.dev.", { status: 400 });
+        // Any other app asks the member first.
+        if (clientID !== CLIENT_ID) {
+          const checked = consent.check(request, url, clientID);
+          if (checked.kind === "ask") return checked.response;
+          url = checked.url;
+          clearCookie = checked.clearCookie;
+        }
+      }
+      // /authorize sends the browser on to GitHub with the sign-in in a cookie, which is
+      // sent cross-site. Only that hop (from this site, or the web app's) may start it, so
+      // no other site can send someone straight here and skip /authorize and its question.
+      if (url.pathname === "/github/authorize" && !["same-origin", "same-site", "none", null].includes(request.headers.get("sec-fetch-site"))) {
+        return new Response("Start signing in from the app you're signing in to.", { status: 403 });
       }
       const headers = new Headers(request.headers);
       for (const name of ["host", "x-forwarded-host", "x-forwarded-proto", "x-forwarded-port"]) headers.delete(name);
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await readLimited(request, MAX_ISSUER_BODY);
       if (body === null) return new Response("Too big.", { status: 413 });
-      return app.fetch(new Request(new URL(url.pathname + url.search, issuerUrl), { method: request.method, headers, body }));
+      const response = await app.fetch(new Request(new URL(url.pathname + url.search, issuerUrl), { method: request.method, headers, body }));
+      if (!clearCookie) return response;
+      // The consent is spent.
+      const spent = new Response(response.body, response);
+      spent.headers.append("set-cookie", clearCookie);
+      return spent;
     };
 
     // Verifies access tokens against this issuer's keys, without leaving the process.
@@ -215,6 +247,18 @@ export const IssuerRoutes = HttpApiBuilder.Router.use((router) =>
     yield* router.all("/github/*", app);
     yield* router.all("/.well-known/*", app);
     yield* router.get("/health", HttpServerResponse.text("ok"));
+    // The site's font, for the consent page.
+    yield* router.get(
+      "/consent/fonts/:file",
+      Effect.gen(function* () {
+        const font = consentFont((yield* HttpRouter.params).file ?? "");
+        if (!font) return HttpServerResponse.empty({ status: 404 });
+        return HttpServerResponse.uint8Array(yield* Effect.promise(() => font), {
+          contentType: "font/woff2",
+          headers: { "cache-control": "public, max-age=86400" },
+        });
+      }),
+    );
   }),
 );
 
