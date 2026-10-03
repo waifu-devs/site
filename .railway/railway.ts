@@ -13,9 +13,9 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
  * token for reading analytics).
  * The DNS records for the domains live with the waifu.dev registrar.
  *
- * Also set by hand, since Railway configuration can't express them yet: on api, web and
- * analytics, Settings > Edge > Enable CDN Caching (HTML Caching stays Auto: nothing here
- * may cache a page that doesn't say so), and Edge Rules > Edit as JSON with
+ * The CDN and edge rules aren't something Railway configuration can declare yet, so
+ * .railway/edge.mjs sets them through Railway's API, from the same workflow: on api, web
+ * and analytics, the CDN with Railway's defaults (HTML only when a page says so) and
  * .railway/edge-rules.json, which turns scanners' guesses away at the edge. The apps turn
  * the same paths away themselves (packages/domain/src/probes.ts).
  */
