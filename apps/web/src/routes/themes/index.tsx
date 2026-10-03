@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { Theme } from "@waifu-devs/domain/api";
 import { BUILTIN_THEMES } from "@waifu-devs/domain/themes";
-import { Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { ActionForm } from "@/components/ActionForm";
 import { InlineMarkdown } from "@/components/Markdown";
 import { Tilt } from "@/components/motion";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { downloadForFuwa } from "@/lib/fuwa-theme";
 import { title } from "@/lib/head";
 import { useViewer } from "@/lib/viewer";
 import { deleteTheme, getThemes, wearTheme } from "@/server/functions";
@@ -60,8 +61,23 @@ function ThemeCard({ theme, wearing, mine }: { theme: Theme; wearing: boolean; m
               </Button>
             </ActionForm>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="ml-auto size-8 text-muted-foreground hover:text-primary [&_svg]:transition-transform hover:[&_svg]:translate-y-0.5"
+                type="button"
+                aria-label="Download for fuwa"
+                onClick={() => downloadForFuwa(theme)}
+              >
+                <Download />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Download for fuwa</TooltipContent>
+          </Tooltip>
           {mine ? (
-            <ActionForm action={deleteTheme} className="ml-auto">
+            <ActionForm action={deleteTheme}>
               <input type="hidden" name="theme_id" value={theme.id} />
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -97,7 +113,8 @@ function ThemesPage() {
             Each theme is a full shadcn/ui token set. Wear one to restyle the site for you.{" "}
             {user
               ? "Your profile shows it too, unless you pick a different profile theme when you customize your profile."
-              : "No account needed: this browser remembers it."}
+              : "No account needed: this browser remembers it."}{" "}
+            Download one for fuwa and import it in its Settings, Themes.
           </p>
         </div>
         <Button asChild className="btn rounded-full font-bold">
