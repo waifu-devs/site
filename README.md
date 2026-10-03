@@ -78,6 +78,8 @@ POST /v1/site/reports   (every 10 minutes, from the site's web server)
 
 Reports (up to 256 KB) go through the same buffer as signals, into the `reports` schema: `reports`, `errors`, `timings` and `usage`, each with a `_unique` view that counts a report delivered twice once.
 
+`/v1/site/reports` only takes requests that come over Railway's private network: one addressed to the public domain, or carrying any header Railway's edge adds, gets `403`. Each sender may send 30 signals or reports an hour (`INGEST_MAX_PER_SENDER_HOUR`), counted by its install id (or, without one, by source), never by address, and everyone together 300 a minute (`INGEST_MAX_PER_MINUTE`); past either, `429`, and that report is dropped. Platforms and OS families are lowercase family names and versions look like `0.1.0`, so neither can hold an address or an email. Fields a report adds beyond v1 are kept in `raw` only while they're under 2 KB together.
+
 - `GET /v1/reports/summary?days=7&source=fuwa` (same bearer token; `source` is optional) returns the most frequent errors (with how many installs saw them, on which platforms and OSes, first and last seen), the slowest timings by p95 (with p50, p99, average and how many took over a second), and feature use.
 - `node apps/analytics/dist/sql.js "FROM reports.errors_unique ORDER BY sent_at DESC LIMIT 20"` for anything else.
 

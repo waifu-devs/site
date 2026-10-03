@@ -13,7 +13,7 @@
  * are counts in fixed buckets, usage is how often a feature was used.
  *
  * Senders may add fields within v1 (anything breaking becomes v2). Fields this
- * ingest doesn't know yet are kept in the report's raw JSON.
+ * ingest doesn't know yet are kept in the report's raw JSON, up to 2 KB.
  */
 import { Schema } from "effect";
 
@@ -27,12 +27,17 @@ const Count = Schema.NonNegativeInt;
 const label = (max: number) => Schema.String.pipe(Schema.minLength(1), Schema.maxLength(max), Schema.pattern(/^[A-Za-z0-9_.:/#@-]+$/));
 const ULID = Schema.String.pipe(Schema.pattern(/^[0-9A-HJKMNP-TV-Z]{26}$/, { message: () => "Expected a ULID" }));
 
+/** A family name in lowercase letters ("chromium", "linux"), so nothing like an address or an email fits. */
+const family = Schema.String.pipe(Schema.pattern(/^[a-z]{1,16}$/));
+/** "dev", or a version number with an optional short suffix (0.1.0, 0.1.0-abc1234). */
+const Version = Schema.String.pipe(Schema.pattern(/^(?:dev|\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.]{1,16})?)$/));
+
 /** Which app, which build, on what (such as "web", "0.1.0", "chromium", "linux"). */
 const Origin = {
-  app: label(32),
-  version: label(32),
-  platform: label(16),
-  os: label(16),
+  app: family,
+  version: Version,
+  platform: family,
+  os: family,
 };
 
 export const ReportError = Schema.Struct({ ...Origin, kind: label(48), place: label(120), count: Count });
@@ -72,6 +77,17 @@ const report = <S extends string>(schema: S) =>
 export const FuwaReport = report("fuwa.report.v1");
 export const SiteReport = report("site.report.v1");
 export type Report = typeof FuwaReport.Type | typeof SiteReport.Type;
+
+/** The fields a v1 report is known to have; anything else a sender adds is kept only while small. */
+export const KNOWN_FIELDS = new Set(["schema", ...Object.keys(fields)]);
+/** Unknown fields kept per report, as JSON, at most. */
+export const MAX_EXTRA_BYTES = 2048;
+
+/** A report's fields this ingest doesn't know, while they're small; otherwise none. */
+export const extrasOf = (report: Report): Record<string, unknown> => {
+  const extras = Object.fromEntries(Object.entries(report).filter(([key]) => !KNOWN_FIELDS.has(key)));
+  return Buffer.byteLength(JSON.stringify(extras)) <= MAX_EXTRA_BYTES ? extras : {};
+};
 
 /** Which product sent a report, from its schema. */
 export const sourceOf = (report: Report) => report.schema.split(".")[0]!;

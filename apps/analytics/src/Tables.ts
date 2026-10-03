@@ -7,7 +7,7 @@
 import type { DuckDBValue } from "@duckdb/node-api";
 import { Effect } from "effect";
 import { Lake } from "./Lake.ts";
-import { type Report, sourceOf } from "./Reports.ts";
+import { extrasOf, type Report, sourceOf } from "./Reports.ts";
 import type { Signal } from "./Signals.ts";
 
 /** One row per signal. New columns go at the end (and into `migrate`). */
@@ -223,7 +223,7 @@ export const toRow = (signal: Signal, receivedAt: Date): SignalRow => {
   };
 };
 
-/** A report as table rows: one for the report, and one per entry. Fields beyond the known ones only go into `raw`. */
+/** A report as table rows: one for the report, and one per entry. Fields beyond the known ones only go into `raw`, while small. */
 export const reportRows = (report: Report, receivedAt: Date): Batch => {
   const key = {
     received_at: receivedAt.toISOString(),
@@ -242,7 +242,7 @@ export const reportRows = (report: Report, receivedAt: Date): Batch => {
   });
   return {
     "reports.reports": [
-      { ...key, schema_id: report.schema, since: new Date(report.since).toISOString(), dropped: report.dropped, raw: report },
+      { ...key, schema_id: report.schema, since: new Date(report.since).toISOString(), dropped: report.dropped, raw: extrasOf(report) },
     ],
     "reports.errors": report.errors.map((e) => ({ ...key, ...origin(e), kind: e.kind, place: e.place, count: e.count })),
     "reports.timings": report.timings.map((t) => ({
