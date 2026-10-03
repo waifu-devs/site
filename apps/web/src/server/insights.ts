@@ -19,6 +19,25 @@ const mayRead = Effect.gen(function* () {
   return user.value.githubId !== null && STATS_ADMINS.includes(user.value.githubId);
 });
 
+/** How long a range's history is reused. The year's queries are the heaviest, and the data changes daily. */
+const FRESH_MS = 5 * 60_000;
+/** The latest history per range, shared by everyone who may see it; one fetch at a time per range. */
+const cache = new Map<Range, { at: number; insights: Promise<Insights> }>();
+
+function history(base: string, days: Range): Promise<Insights> {
+  const held = cache.get(days);
+  if (held && Date.now() - held.at < FRESH_MS) return held.insights;
+  const insights = (async () => {
+    const response = await fetch(new URL(`/v1/insights?days=${days}`, base), { signal: AbortSignal.timeout(20_000) });
+    if (!response.ok) throw new Error(`analytics answered ${response.status}`);
+    return (await response.json()) as Insights;
+  })();
+  cache.set(days, { at: Date.now(), insights });
+  // A failure isn't kept: the next visit asks again.
+  insights.catch(() => cache.get(days)?.insights === insights && cache.delete(days));
+  return insights;
+}
+
 /** The stats page's history over `days`; null data when analytics can't be reached. */
 export const getStats = createServerFn({ method: "GET" })
   .validator((days: unknown): Range => (RANGES.includes(days as Range) ? (days as Range) : 90))
@@ -31,11 +50,7 @@ export const getStats = createServerFn({ method: "GET" })
         const today = new Date().toISOString().slice(0, 10);
         if (!base) return { days, today, insights: null };
         const started = performance.now();
-        const insights = yield* Effect.tryPromise(async () => {
-          const response = await fetch(new URL(`/v1/insights?days=${days}`, base), { signal: AbortSignal.timeout(20_000) });
-          if (!response.ok) throw new Error(`analytics answered ${response.status}`);
-          return (await response.json()) as Insights;
-        }).pipe(
+        const insights = yield* Effect.tryPromise(() => history(base, days)).pipe(
           Effect.tapError(() => Effect.sync(() => serverError("stats_unavailable", "/stats"))),
           Effect.option,
         );
