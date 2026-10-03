@@ -56,9 +56,9 @@ POST /v1/fuwa/signals
 { "schema": "fuwa.signal.v1", "install_id", "sent_at", "hosting", "version", "os", "arch", "uptime_seconds", "config": {...}, "totals": {...} }
 ```
 
-A valid signal (up to 64 KB) gets `202 {"accepted": 1}` and an invalid one `400`; fuwa retries anything else on its next cycle. Fields fuwa adds within v1 are kept in each row's `raw` JSON until they get a column. A signal delivered twice counts once (per install and `sent_at`). Activity such as messages sent comes from the difference between an install's consecutive signals, because fuwa's lifetime counters only grow.
+A valid signal (up to 8 KB) gets `202 {"accepted": 1}` and an invalid one `400`; fuwa retries anything else on its next cycle. Fields fuwa adds within v1 are kept in each row's `raw` JSON until they get a column. A signal delivered twice counts once (per install and `sent_at`). Activity such as messages sent comes from the difference between an install's consecutive signals, because fuwa's lifetime counters only grow.
 
-Accepted signals are buffered and written every 30 seconds as one lake snapshot, and whatever is left is written on shutdown. Small writes stay inline in Postgres until the nightly `CHECKPOINT` (04:00 UTC) moves them into monthly Parquet files, merges small files and expires snapshots older than 30 days.
+Accepted signals are buffered and written every 30 seconds as one lake snapshot, and whatever is left is written on shutdown. While the lake can't be reached, the buffer holds up to 64 MB of signals (`INGEST_MAX_PENDING_BYTES`); past that, signals get `503` and fuwa sends them again later. Small writes stay inline in Postgres until the nightly `CHECKPOINT` (04:00 UTC) moves them into monthly Parquet files, merges small files and expires snapshots older than 30 days.
 
 Reading it:
 

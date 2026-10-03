@@ -15,8 +15,11 @@
  */
 import { Schema } from "effect";
 
-/** Largest request body the ingest reads. */
-export const MAX_BODY_BYTES = 64 * 1024;
+/**
+ * Largest request body the ingest reads. A signal is well under 1 KB, so this
+ * leaves room for fields a newer fuwa adds (kept in raw) while bounding them.
+ */
+export const MAX_BODY_BYTES = 8 * 1024;
 
 /** A counter: a whole number, zero or more. */
 const Count = Schema.NonNegativeInt;
