@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { ReportSummary } from "../src/Api.ts";
+import type { Insights, ReportSummary } from "../src/Api.ts";
 import { AppLive } from "../src/App.ts";
 import { extrasOf } from "../src/Reports.ts";
 import { percentile } from "../src/ReportSummary.ts";
@@ -172,6 +172,41 @@ describe("reports", () => {
 
   it("needs the read token", async () => {
     expect((await read("", "wrong")).status).toBe(401);
+  });
+});
+
+describe("insights", () => {
+  const history = (from: { host?: string; headers?: Record<string, string> } = {}) =>
+    web.handler(
+      new Request("http://analytics.test/v1/insights?days=30", {
+        headers: { host: from.host ?? "analytics.railway.internal:4100", ...from.headers },
+      }),
+    );
+
+  it("gives the day-by-day history over the private network", async () => {
+    expect((await post("/v1/fuwa/reports", report("fuwa.report.v1"))).status).toBe(202);
+    let body: Insights | undefined;
+    for (let attempt = 0; attempt < 100 && !body?.timings.length; attempt++) {
+      const response = await history();
+      expect(response.status).toBe(200);
+      body = (await response.json()) as Insights;
+      if (!body.timings.length) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    expect(body!.days).toBe(30);
+    expect(body!.errors.find((row) => row.app === "server")).toMatchObject({ day: today, source: "fuwa", kinds: 1 });
+    const send = body!.timings.find((row) => row.metric === "rpc:MessageService/SendMessage")!;
+    expect(send).toMatchObject({ day: today, source: "fuwa", app: "server", p50_ms: 50, p95_ms: 5000 });
+    expect(body!.reports.find((row) => row.source === "fuwa")!.reports).toBeGreaterThan(0);
+    expect(body!.features.some((row) => row.feature === "message.send")).toBe(true);
+    expect(body!.problems.errors.length).toBeGreaterThan(0);
+  });
+
+  it("needs the private network or the read token", async () => {
+    expect((await history({ host: "analytics.waifu.dev" })).status).toBe(401);
+    expect((await history({ headers: { "x-forwarded-for": "203.0.113.9" } })).status).toBe(401);
+    expect((await history({ host: "analytics.waifu.dev", headers: { authorization: "Bearer wrong" } })).status).toBe(401);
+    expect((await history({ host: "analytics.waifu.dev", headers: { authorization: `Bearer ${TOKEN}` } })).status).toBe(200);
   });
 });
 

@@ -80,6 +80,8 @@ export const User = Schema.Struct({
   customAvatar: Schema.optionalWith(Schema.Boolean, { default: () => false }),
   /** An uploaded banner picture; the banner decoration plays on top of it. */
   bannerUrl: nullByDefault,
+  /** GitHub's id for the account: unlike the username, it never changes hands. */
+  githubId: Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null }),
 });
 export type User = typeof User.Type;
 
@@ -378,4 +380,72 @@ export class SessionApi extends HttpApiGroup.make("session")
   // Signing out: the refresh token itself is the credential, so no bearer token is needed.
   .add(HttpApiEndpoint.post("revoke", "/session/revoke").setPayload(Schema.Struct({ refreshToken: Schema.String }))) {}
 
-export class Api extends HttpApi.make("waifu-devs").add(UsersApi).add(MeApi).add(ThemesApi).add(PostsApi).add(SessionApi).add(LinkedApi) {}
+// ---------------------------------------------------------------------------
+// Status: how fuwa.chat and this site are doing, from the api's own health checks.
+
+/** Up and quick, up but slow, not answering, or not checked lately. */
+export const StatusState = Schema.Literal("up", "slow", "down", "unknown");
+export type StatusState = typeof StatusState.Type;
+
+/** One UTC day of checks on one part. */
+export const StatusDay = Schema.Struct({
+  day: Schema.String,
+  checks: Schema.Number,
+  up: Schema.Number,
+  slow: Schema.Number,
+  /** Average answer time of the checks it answered. */
+  avgMs: Schema.NullOr(Schema.Number),
+});
+export type StatusDay = typeof StatusDay.Type;
+
+export const StatusComponent = Schema.Struct({
+  id: Schema.String,
+  /** Which service it's part of. */
+  group: Schema.Literal("fuwa", "site"),
+  name: Schema.String,
+  description: Schema.String,
+  state: StatusState,
+  latencyMs: Schema.NullOr(Schema.Number),
+  checkedAt: Schema.NullOr(Schema.String),
+  /** When it went into its current state. */
+  since: Schema.NullOr(Schema.String),
+  /** Share of checks answered over the days shown, or null with none. */
+  uptime: Schema.NullOr(Schema.Number),
+  /** Days with checks, oldest first (days without any are missing). */
+  days: Schema.Array(StatusDay),
+});
+export type StatusComponent = typeof StatusComponent.Type;
+
+export const StatusIncident = Schema.Struct({
+  id: Schema.String,
+  component: Schema.String,
+  name: Schema.String,
+  reason: Schema.String,
+  startedAt: Schema.String,
+  endedAt: Schema.NullOr(Schema.String),
+});
+export type StatusIncident = typeof StatusIncident.Type;
+
+export const StatusReport = Schema.Struct({
+  /** When this answer was put together. */
+  at: Schema.String,
+  /** How many days `days` covers, today included. */
+  window: Schema.Number,
+  /** How often each part is checked. */
+  everySeconds: Schema.Number,
+  components: Schema.Array(StatusComponent),
+  /** The latest incidents, newest first, open ones included. */
+  incidents: Schema.Array(StatusIncident),
+});
+export type StatusReport = typeof StatusReport.Type;
+
+export class StatusApi extends HttpApiGroup.make("status").add(HttpApiEndpoint.get("get", "/status").addSuccess(StatusReport)) {}
+
+export class Api extends HttpApi.make("waifu-devs")
+  .add(UsersApi)
+  .add(MeApi)
+  .add(ThemesApi)
+  .add(PostsApi)
+  .add(SessionApi)
+  .add(LinkedApi)
+  .add(StatusApi) {}

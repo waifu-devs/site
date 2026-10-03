@@ -105,6 +105,30 @@ export function addReport(body: unknown): string | null {
   return null;
 }
 
+declare const __SITE_VERSION__: string;
+/** What this server counts about itself (status and stats pages it couldn't load, and how long they took). */
+const SERVER: Origin = { app: "web", version: typeof __SITE_VERSION__ === "string" ? __SITE_VERSION__ : "dev", platform: "node", os: "linux" };
+
+/** One failure of this server's own, by kind and the route it happened on. */
+export function serverError(kind: string, place: string) {
+  if (!LABEL.test(kind) || !LABEL.test(place)) return;
+  bump(errors, keyOf(SERVER, kind, place), 1);
+  scheduleSending();
+}
+
+/** How long one of this server's own steps took. */
+export function serverTiming(metric: string, ms: number) {
+  if (!LABEL.test(metric)) return;
+  const at = BOUNDS_MS.findIndex((bound) => ms <= bound);
+  const key = keyOf(SERVER, metric);
+  const total = timings.get(key) ?? (timings.size < MAX_ENTRIES ? { buckets: Array<number>(BUCKETS).fill(0), sum_ms: 0 } : null);
+  if (!total) return void dropped++;
+  total.buckets[at === -1 ? BUCKETS - 1 : at]! += 1;
+  total.sum_ms += Math.min(Math.round(ms), BOUNDS_MS[BOUNDS_MS.length - 1]!);
+  timings.set(key, total);
+  scheduleSending();
+}
+
 /** A ULID: the time, then randomness, in Crockford's base32. */
 function ulid(now = Date.now()): string {
   const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";

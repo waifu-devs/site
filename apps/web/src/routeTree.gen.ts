@@ -14,6 +14,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StatsRouteImport } from './routes/stats'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiReportsRouteImport } from './routes/api/reports'
 import { Route as NewsIndexRouteImport } from './routes/news/index'
@@ -48,6 +50,16 @@ const ProjectsRoute = ProjectsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -107,6 +119,8 @@ export interface FileRoutesByFullPath {
   '/members': typeof MembersRoute
   '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
+  '/stats': typeof StatsRoute
+  '/status': typeof StatusRoute
   '/api/health': typeof ApiHealthRoute
   '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
@@ -124,6 +138,8 @@ export interface FileRoutesByTo {
   '/members': typeof MembersRoute
   '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
+  '/stats': typeof StatsRoute
+  '/status': typeof StatusRoute
   '/api/health': typeof ApiHealthRoute
   '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
@@ -142,6 +158,8 @@ export interface FileRoutesById {
   '/members': typeof MembersRoute
   '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
+  '/stats': typeof StatsRoute
+  '/status': typeof StatusRoute
   '/api/health': typeof ApiHealthRoute
   '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
@@ -161,6 +179,8 @@ export interface FileRouteTypes {
     | '/members'
     | '/projects'
     | '/settings'
+    | '/stats'
+    | '/status'
     | '/api/health'
     | '/api/reports'
     | '/news/$postId'
@@ -178,6 +198,8 @@ export interface FileRouteTypes {
     | '/members'
     | '/projects'
     | '/settings'
+    | '/stats'
+    | '/status'
     | '/api/health'
     | '/api/reports'
     | '/news/$postId'
@@ -195,6 +217,8 @@ export interface FileRouteTypes {
     | '/members'
     | '/projects'
     | '/settings'
+    | '/stats'
+    | '/status'
     | '/api/health'
     | '/api/reports'
     | '/news/$postId'
@@ -213,6 +237,8 @@ export interface RootRouteChildren {
   MembersRoute: typeof MembersRoute
   ProjectsRoute: typeof ProjectsRoute
   SettingsRoute: typeof SettingsRoute
+  StatsRoute: typeof StatsRoute
+  StatusRoute: typeof StatusRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiReportsRoute: typeof ApiReportsRoute
   NewsPostIdRoute: typeof NewsPostIdRoute
@@ -260,6 +286,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -341,6 +381,8 @@ const rootRouteChildren: RootRouteChildren = {
   MembersRoute: MembersRoute,
   ProjectsRoute: ProjectsRoute,
   SettingsRoute: SettingsRoute,
+  StatsRoute: StatsRoute,
+  StatusRoute: StatusRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiReportsRoute: ApiReportsRoute,
   NewsPostIdRoute: NewsPostIdRoute,

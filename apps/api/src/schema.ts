@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { type AnyPgColumn, bigint, boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, bigint, boolean, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { ThemeVariant } from "@waifu-devs/domain/api";
 import { type Banner, DEFAULT_BANNER } from "@waifu-devs/domain/profile";
 
@@ -164,4 +164,53 @@ export const openauthStorage = pgTable(
     expiresAt: timestamp({ withTimezone: true }),
   },
   (t) => [index("openauth_storage_expires_at").on(t.expiresAt).where(sql`${t.expiresAt} IS NOT NULL`)],
+);
+
+/**
+ * The status page (Status.ts): how each part of fuwa.chat and this site answered
+ * the api's health checks, one row per part per UTC day. Counts only; nothing
+ * about who uses them.
+ */
+export const statusDays = pgTable(
+  "status_days",
+  {
+    // Which part, such as "fuwa.gateways" or "site.api".
+    component: text().notNull(),
+    day: date({ mode: "string" }).notNull(),
+    checks: integer().notNull().default(0),
+    // Answered well (slow answers included).
+    up: integer().notNull().default(0),
+    // Answered well, but slowly.
+    slow: integer().notNull().default(0),
+    latencyMsSum: bigint({ mode: "number" }).notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.component, t.day] })],
+);
+
+/** Each part as its latest check found it. */
+export const statusComponents = pgTable("status_components", {
+  component: text().primaryKey(),
+  state: text().$type<"up" | "slow" | "down">().notNull(),
+  latencyMs: integer(),
+  checkedAt: timestamp({ withTimezone: true }).notNull(),
+  // When it went into this state.
+  since: timestamp({ withTimezone: true }).notNull(),
+});
+
+/** A part that failed two checks in a row, until it answers again. */
+export const statusIncidents = pgTable(
+  "status_incidents",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    component: text().notNull(),
+    // What the checks saw, in a few words ("timed out", "HTTP 503").
+    reason: text().notNull(),
+    startedAt: timestamp({ withTimezone: true }).notNull(),
+    endedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    index("status_incidents_started_at").on(t.startedAt.desc()),
+    // At most one open incident per part, however many api replicas check.
+    uniqueIndex("status_incidents_open").on(t.component).where(sql`${t.endedAt} IS NULL`),
+  ],
 );

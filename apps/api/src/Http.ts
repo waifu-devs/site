@@ -6,6 +6,7 @@ import { MediaStore, newKey, processImage } from "./Media.ts";
 import { GithubError } from "./Github.ts";
 import { Posts } from "./Posts.ts";
 import { Repos } from "./Repos.ts";
+import { Status } from "./Status.ts";
 import { revokeRefreshToken } from "./Storage.ts";
 import { Themes } from "./Themes.ts";
 import { Users } from "./Users.ts";
@@ -160,4 +161,14 @@ const SessionLive = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("revoke", ({ payload }) => Effect.orDie(revokeRefreshToken(payload.refreshToken))),
 );
 
-export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([UsersLive, MeLive, ThemesLive, PostsLive, SessionLive, LinkedLive]));
+/** The status page's data: public, the same for everyone, and reused for a few seconds. */
+const StatusLive = HttpApiBuilder.group(Api, "status", (handlers) =>
+  Effect.gen(function* () {
+    const status = yield* Status;
+    return handlers.handle("get", () => Effect.orDie(status.report));
+  }),
+);
+
+export const HttpLive = HttpApiBuilder.api(Api).pipe(
+  Layer.provide([UsersLive, MeLive, ThemesLive, PostsLive, SessionLive, LinkedLive, StatusLive]),
+);

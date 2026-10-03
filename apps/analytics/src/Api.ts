@@ -86,6 +86,36 @@ export const ReportSummary = Schema.Struct({
 });
 export type ReportSummary = typeof ReportSummary.Type;
 
+/**
+ * The stats page's history: usage signals and health reports, day by day, over
+ * the last `days`. `usage` and `problems` are the summaries above for the same days.
+ */
+export const Insights = Schema.Struct({
+  days: Count,
+  usage: Summary,
+  problems: ReportSummary,
+  /** Reports received per day and sender kind, and how many distinct senders sent them. */
+  reports: Schema.Array(Schema.Struct({ day: Schema.String, source: Schema.String, reports: Count, senders: Count, dropped: Count })),
+  /** Failures counted per day and app, and how many different ones. */
+  errors: Schema.Array(Schema.Struct({ day: Schema.String, source: Schema.String, app: Schema.String, count: Count, kinds: Count })),
+  /** The busiest timed things, per day. */
+  timings: Schema.Array(
+    Schema.Struct({
+      day: Schema.String,
+      source: Schema.String,
+      app: Schema.String,
+      metric: Schema.String,
+      count: Count,
+      avg_ms: Count,
+      p50_ms: Count,
+      p95_ms: Count,
+    }),
+  ),
+  /** The most used features, per day. */
+  features: Schema.Array(Schema.Struct({ day: Schema.String, source: Schema.String, app: Schema.String, feature: Schema.String, count: Count })),
+});
+export type Insights = typeof Insights.Type;
+
 // ---------------------------------------------------------------------------
 
 export const Accepted = Schema.Struct({ accepted: Schema.Number });
@@ -143,6 +173,17 @@ export class ReportsApi extends HttpApiGroup.make("reports")
       .middleware(ReadAccess),
   ) {}
 
+/**
+ * Reading the history: the site's web server asks over Railway's private network
+ * (for the stats page), and anyone else needs the read token.
+ */
+export class InsightsApi extends HttpApiGroup.make("insights").add(
+  HttpApiEndpoint.get("history", "/v1/insights")
+    .setUrlParams(Schema.Struct({ days: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 400))) }))
+    .addSuccess(Insights)
+    .addError(HttpApiError.Unauthorized),
+) {}
+
 export class HealthApi extends HttpApiGroup.make("health").add(HttpApiEndpoint.get("health", "/health").addSuccess(Schema.String)) {}
 
-export class Api extends HttpApi.make("analytics").add(FuwaApi).add(ReportsApi).add(HealthApi) {}
+export class Api extends HttpApi.make("analytics").add(FuwaApi).add(ReportsApi).add(InsightsApi).add(HealthApi) {}

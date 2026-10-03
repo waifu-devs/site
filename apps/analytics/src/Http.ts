@@ -1,8 +1,9 @@
-import { HttpApiBuilder, HttpApiError } from "@effect/platform";
+import { HttpApiBuilder, HttpApiError, HttpServerRequest } from "@effect/platform";
 import { Clock, Config, Effect, Layer, Option, Redacted } from "effect";
 import { timingSafeEqual } from "node:crypto";
 import { Api, ReadAccess } from "./Api.ts";
 import { Ingest } from "./Ingest.ts";
+import { insights } from "./Insights.ts";
 import { Lake } from "./Lake.ts";
 import { fromInside, Limits } from "./Limits.ts";
 import { type Report, sourceOf } from "./Reports.ts";
@@ -59,30 +60,51 @@ const ReportsLive = HttpApiBuilder.group(Api, "reports", (handlers) =>
   }),
 );
 
+const InsightsLive = HttpApiBuilder.group(Api, "insights", (handlers) =>
+  Effect.gen(function* () {
+    const lake = yield* Lake;
+    const matches = yield* readToken;
+    return handlers.handle("history", ({ urlParams }) =>
+      Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const bearer = /^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1];
+        if (!(yield* fromInside) && !(bearer !== undefined && matches(bearer))) return yield* new HttpApiError.Unauthorized();
+        return yield* insights(urlParams.days ?? 90).pipe(Effect.provideService(Lake, lake), Effect.orDie);
+      }),
+    );
+  }),
+);
+
 const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) => handlers.handle("health", () => Effect.succeed("ok")));
 
 /** Reading needs ANALYTICS_READ_TOKEN as a bearer token; while it isn't set, nobody can read. */
+/** Whether a bearer token is ANALYTICS_READ_TOKEN; while that isn't set, none is. */
+const readToken = Effect.gen(function* () {
+  const token = yield* Config.option(Config.redacted("ANALYTICS_READ_TOKEN"));
+  const expected = Option.filter(
+    Option.map(token, (token) => Buffer.from(Redacted.value(token))),
+    (token) => token.length > 0,
+  );
+  return (given: string) => {
+    const bytes = Buffer.from(given);
+    return Option.isSome(expected) && bytes.length === expected.value.length && timingSafeEqual(bytes, expected.value);
+  };
+});
+
 export const ReadAccessLive = Layer.effect(
   ReadAccess,
   Effect.gen(function* () {
-    const token = yield* Config.option(Config.redacted("ANALYTICS_READ_TOKEN"));
-    const expected = Option.filter(
-      Option.map(token, (token) => Buffer.from(Redacted.value(token))),
-      (token) => token.length > 0,
-    );
-    if (Option.isNone(expected)) yield* Effect.logWarning("ANALYTICS_READ_TOKEN is not set, so the summaries refuse every request.");
+    if (Option.isNone(yield* Config.option(Config.nonEmptyString("ANALYTICS_READ_TOKEN")))) {
+      yield* Effect.logWarning("ANALYTICS_READ_TOKEN is not set, so the summaries refuse every request.");
+    }
+    const matches = yield* readToken;
     return ReadAccess.of({
-      bearer: (given) => {
-        const bytes = Buffer.from(Redacted.value(given));
-        return Option.isSome(expected) && bytes.length === expected.value.length && timingSafeEqual(bytes, expected.value)
-          ? Effect.void
-          : new HttpApiError.Unauthorized();
-      },
+      bearer: (given) => (matches(Redacted.value(given)) ? Effect.void : new HttpApiError.Unauthorized()),
     });
   }),
 );
 
 export const HttpLive = HttpApiBuilder.api(Api).pipe(
-  Layer.provide([FuwaLive, ReportsLive, HealthLive]),
+  Layer.provide([FuwaLive, ReportsLive, InsightsLive, HealthLive]),
   Layer.provide(Limits.Default),
 );

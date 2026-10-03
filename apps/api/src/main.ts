@@ -9,10 +9,11 @@ import { MediaRoutes, MediaStoreLive } from "./Media.ts";
 import { harden } from "./Middleware.ts";
 import { Posts } from "./Posts.ts";
 import { Repos } from "./Repos.ts";
+import { Status } from "./Status.ts";
 import { Themes } from "./Themes.ts";
 import { Users } from "./Users.ts";
 
-const ServicesLive = Layer.mergeAll(Users.Default, Themes.Default, Posts.Default, Repos.Default, MediaStoreLive).pipe(
+const ServicesLive = Layer.mergeAll(Users.Default, Themes.Default, Posts.Default, Repos.Default, Status.Default, MediaStoreLive).pipe(
   Layer.provide(FetchHttpClient.layer),
   Layer.provideMerge(DbLive),
 );
