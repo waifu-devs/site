@@ -1,7 +1,7 @@
-import { CircleCheck, CircleDashed, Cloud, Database, Hash, House, Laptop, LoaderCircle, Plus } from "lucide-react";
+import { CalendarClock, CircleCheck, CircleDashed, Cloud, Database, Hash, House, Laptop, LoaderCircle, Plus } from "lucide-react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import type { Project, RoadmapState } from "@/lib/projects";
+import type { Project, RoadmapItem, RoadmapState } from "@/lib/projects";
 import { cn } from "@/lib/utils";
 import { ProjectCard } from "./ProjectCard";
 
@@ -64,8 +64,9 @@ export function FuwaProject({ project, index }: { project: Project; index: numbe
     <ProjectCard project={project} index={index} visual={<Client active={active} onSelect={setActive} />}>
       <div className="grid gap-12 border-t p-6 sm:p-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-14">
         <Network active={active} onSelect={setActive} />
-        {project.roadmap ? <Roadmap items={project.roadmap} /> : null}
+        {project.roadmap ? <Roadmap items={project.roadmap} updated={project.roadmapUpdated} /> : null}
       </div>
+      {project.roadmap ? <RoadmapLog items={project.roadmap} /> : null}
     </ProjectCard>
   );
 }
@@ -339,20 +340,31 @@ const STATE_ICON = {
   next: <CircleDashed className="mt-px size-5 shrink-0 text-muted-foreground/60" />,
 };
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-10-03" as "Oct 3", spelled out by hand so the server and the browser agree whatever their locale. */
+function shortDate(iso: string, withYear = false) {
+  const [year, month, day] = iso.split("-").map(Number);
+  return `${MONTHS[month - 1]} ${day}${withYear ? `, ${year}` : ""}`;
+}
+
 /**
- * What's done, what's being built and what's next. The bar fills solid for
- * what's done and with moving stripes for what's in progress.
+ * Where things stand: how much has shipped, a bar that fills solid for what's
+ * done and with moving stripes for what's being built, and what's being built
+ * right now.
  */
-function Roadmap({ items }: { items: NonNullable<Project["roadmap"]> }) {
+function Roadmap({ items, updated }: { items: RoadmapItem[]; updated?: string }) {
   const count = (state: RoadmapState) => items.filter((item) => item.state === state).length;
   const done = count("done");
   const now = count("now");
   const next = count("next");
-  const summary = [done && `${done} done`, now && `${now} in progress`, next && `${next} up next`].filter(Boolean).join(" · ");
+  const summary = [done && `${done} shipped`, now && `${now} being built`, next && `${next} up next`].filter(Boolean).join(" · ");
+  const building = items.filter((item) => item.state === "now");
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">Roadmap</p>
+        <h3 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Where fuwa is at.</h3>
         <p className="text-sm text-muted-foreground">{summary}</p>
         {/* The track watches the viewport: a bar squashed to nothing never counts as in view. */}
         <motion.div initial="hidden" whileInView="shown" viewport={{ once: true }} className="h-2 overflow-hidden rounded-full bg-muted">
@@ -370,33 +382,113 @@ function Roadmap({ items }: { items: NonNullable<Project["roadmap"]> }) {
           </motion.div>
         </motion.div>
       </div>
-      <ol className="flex flex-col gap-3">
-        {items.map((item, i) => (
-          <motion.li
-            key={item.label}
-            initial={{ opacity: 0, x: -16 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.3 + i * 0.1, ease: EASE }}
-            className={cn("flex items-start gap-3 text-sm", item.state === "next" ? "text-muted-foreground" : "font-bold")}
-          >
-            {STATE_ICON[item.state]}
-            <span>
-              {item.label}
-              {item.state === "done" ? null : (
-                <span
-                  className={cn(
-                    "ml-2 whitespace-nowrap rounded-full px-2 py-0.5 text-[0.65rem] font-extrabold",
-                    item.state === "now" ? "bg-primary/12 text-primary" : "bg-secondary text-secondary-foreground",
-                  )}
-                >
-                  {item.state === "now" ? "in progress" : "next"}
-                </span>
-              )}
-            </span>
-          </motion.li>
-        ))}
-      </ol>
+      {building.length ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-muted-foreground">Being built now</p>
+          <ol className="flex flex-col gap-3">
+            {building.map((item, i) => (
+              <motion.li
+                key={item.label}
+                initial={{ opacity: 0, x: -16 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.3 + i * 0.1, ease: EASE }}
+                className="flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-3 text-sm font-bold"
+              >
+                {STATE_ICON.now}
+                <span>{item.label}</span>
+              </motion.li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+      {updated ? (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CalendarClock className="size-3.5 shrink-0" />
+          Last updated <time dateTime={updated}>{shortDate(updated, true)}</time>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+const LOG_LIST = { hidden: {}, shown: { transition: { staggerChildren: 0.06, delayChildren: 0.15 } } };
+const LOG_ROW = {
+  hidden: { opacity: 0, x: -14 },
+  shown: { opacity: 1, x: 0, transition: { duration: 0.5, ease: EASE } },
+};
+const LOG_CHIP = {
+  hidden: { opacity: 0, scale: 0.6 },
+  shown: { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 420, damping: 20 } },
+};
+
+/**
+ * What's coming after that, and everything that has shipped, newest first on
+ * a timeline whose line draws itself down as it scrolls in.
+ */
+function RoadmapLog({ items }: { items: RoadmapItem[] }) {
+  const next = items.filter((item) => item.state === "next");
+  const shipped = items.filter((item) => item.state === "done");
+  // Newest day first, keeping each day's own order.
+  const days: { date: string; items: RoadmapItem[] }[] = [];
+  for (const item of [...shipped].reverse()) {
+    const date = item.date ?? "";
+    const day = days.find((d) => d.date === date);
+    if (day) day.items.unshift(item);
+    else days.push({ date, items: [item] });
+  }
+
+  return (
+    <div className="grid gap-12 border-t p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:gap-14">
+      {next.length ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">Up next</p>
+          <motion.ol initial="hidden" whileInView="shown" viewport={{ once: true, margin: "-40px" }} variants={LOG_LIST} className="flex flex-col gap-3">
+            {next.map((item) => (
+              <motion.li key={item.label} variants={LOG_ROW} className="flex items-start gap-3 text-sm text-muted-foreground">
+                {STATE_ICON.next}
+                <span>{item.label}</span>
+              </motion.li>
+            ))}
+          </motion.ol>
+        </div>
+      ) : null}
+
+      {days.length ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">Shipped</p>
+          {/* The list watches the viewport, so the rows and the line under them start together. */}
+          <motion.ol initial="hidden" whileInView="shown" viewport={{ once: true, margin: "-40px" }} variants={LOG_LIST} className="relative flex flex-col gap-6">
+            <motion.span
+              aria-hidden
+              variants={{ hidden: { scaleY: 0 }, shown: { scaleY: 1, transition: { duration: 1.4, ease: EASE } } }}
+              className="absolute bottom-2 left-[0.6875rem] top-2 w-0.5 origin-top rounded-full bg-[linear-gradient(var(--primary),color-mix(in_srgb,var(--primary)_20%,transparent))]"
+            />
+            {days.map((day) => (
+              <li key={day.date} className="relative flex flex-col gap-3">
+                {day.date ? (
+                  <motion.p variants={LOG_CHIP} className="relative flex origin-left items-center gap-3">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary ring-4 ring-card">
+                      <span className="size-2 rounded-full bg-primary-foreground" />
+                    </span>
+                    <time dateTime={day.date} className="rounded-full bg-primary/12 px-2.5 py-0.5 text-xs font-extrabold text-primary">
+                      {shortDate(day.date)}
+                    </time>
+                  </motion.p>
+                ) : null}
+                <ul className="flex flex-col gap-2.5 pl-9">
+                  {day.items.map((item) => (
+                    <motion.li key={item.label} variants={LOG_ROW} className="flex items-start gap-2.5 text-sm">
+                      <CircleCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+                      <span>{item.label}</span>
+                    </motion.li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </motion.ol>
+        </div>
+      ) : null}
     </div>
   );
 }

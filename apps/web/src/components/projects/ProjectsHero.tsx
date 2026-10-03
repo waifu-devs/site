@@ -221,7 +221,7 @@ function Stage() {
             <span className="ml-2 text-[0.65rem] text-muted-foreground">~/home-lab</span>
           </div>
           <pre className="px-3 py-2.5 font-mono text-[0.7rem] leading-5">
-            <span className="tok-kw">$</span> ./fuwa-server{"\n"}
+            <span className="tok-kw">$</span> ./fuwa{"\n"}
             <span className="tok-cm">loading servers from ./data</span>
             {"\n"}
             <span className="tok-str">✓</span> home-lab.db{"  "}
