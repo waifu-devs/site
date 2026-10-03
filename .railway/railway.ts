@@ -2,8 +2,9 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
 
 /**
  * Everything Waifu Devs runs on Railway: Postgres, the Effect API (which is also the
- * OpenAuth issuer), the TanStack Start site, and the analytics service that keeps the
- * anonymous usage signals and bug reports fuwa servers and the site send in a DuckLake. Pull requests that touch
+ * OpenAuth issuer), the TanStack Start site, the analytics service that keeps the
+ * anonymous usage signals and bug reports fuwa servers and the site send in a DuckLake,
+ * and the status service (status.waifu.dev) that checks fuwa.chat and the site every minute. Pull requests that touch
  * .railway/ get a plan comment; merging applies it (.github/workflows/railway-config.yml).
  *
  * Set once by hand, not here: the shared variables GITHUB_CLIENT_ID and
@@ -130,5 +131,27 @@ export default defineRailway((ctx) => {
     },
   });
 
-  return project("waifu-devs", { resources: [db, uploads, lake, api, web, analytics] });
+  // status.waifu.dev: checks fuwa.chat and this site every minute over their public
+  // addresses, keeps 90 days of history in Postgres (tables migrated by the api) and
+  // serves the page. Volume-less, so deploys overlap with no gap. Its custom domain is
+  // added in the dashboard after the apply that creates it, then declared here.
+  const status = service("status", {
+    source: repo,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: "pnpm --filter @waifu-devs/status build",
+      watchPatterns: ["apps/status/**", "packages/domain/**", "pnpm-lock.yaml"],
+    },
+    start: "node apps/status/dist/main.js",
+    healthcheck: "/health",
+    regions: { [REGION]: 1 },
+    env: {
+      NODE_ENV: "production",
+      PORT: "4200",
+      DATABASE_URL: db.env.DATABASE_URL,
+      DATABASE_POOL_SIZE: "4",
+    },
+  });
+
+  return project("waifu-devs", { resources: [db, uploads, lake, api, web, analytics, status] });
 });
