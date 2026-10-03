@@ -12,6 +12,7 @@
  * no query, headers or addresses.
  */
 import { PgClient } from "@effect/sql-pg";
+import { isProbe, PROBE_RESPONSE } from "@waifu-devs/domain/probes";
 import { Config, Effect, Layer, Logger, ManagedRuntime } from "effect";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -75,6 +76,11 @@ function send(response: ServerResponse, status: number, type: string, body: stri
 }
 
 const server = createServer(async (request, response) => {
+  // Scanners' guesses get a plain 404 before anything else, and aren't logged.
+  if (isProbe(request.url ?? "/")) {
+    response.writeHead(PROBE_RESPONSE.status, { ...HEADERS, ...PROBE_RESPONSE.headers });
+    return void response.end(PROBE_RESPONSE.body);
+  }
   const [path, query = ""] = (request.url ?? "/").split("?", 2) as [string, string?];
   response.on("finish", () => {
     // Page views and failures only, by path: never the query, headers or who asked.
