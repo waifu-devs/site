@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import type { Repo } from "@waifu-devs/domain/api";
-import { Config, Data, Effect, Option, Redacted, Schema } from "effect";
+import { Config, Data, Effect, Option, Redacted, Ref, Schema } from "effect";
 
 /** GitHub didn't answer usefully: it's down, slow, or this app is over its rate limit. */
 export class GithubError extends Data.TaggedError("GithubError")<{ readonly cause: unknown }> {}
@@ -45,22 +45,30 @@ const OWN_PAGES = 3;
 /** How many of a member's public organizations the picker offers repos from. */
 const MAX_ORGS = 8;
 
+/** One way of asking GitHub; `apply` adds its credentials to a request. */
+interface Credential {
+  readonly name: string;
+  readonly apply: (request: HttpClientRequest.HttpClientRequest) => HttpClientRequest.HttpClientRequest;
+}
+
 /**
- * GitHub's REST API, for public repos only. Calls are made as the site's
- * GitHub OAuth app (its client ID and secret), which GitHub allows for public
- * data with a much higher rate limit than anonymous calls.
+ * GitHub's REST API, for public repos only. Calls carry the best credentials
+ * GitHub accepts, in this order: GITHUB_TOKEN when it's set (a token that can
+ * read public data, 5,000 calls an hour), the site's GitHub app (its client ID
+ * and secret, which GitHub only takes from OAuth apps), then none at all (60 an
+ * hour). When GitHub turns one down with a 401, the next is used from then on.
  */
 export class Github extends Effect.Service<Github>()("Github", {
   effect: Effect.gen(function* () {
     // Overridable so the API can run against a stand-in locally.
     const base = yield* Config.string("GITHUB_API_URL").pipe(Config.withDefault("https://api.github.com"));
+    const token = yield* Config.option(Config.redacted("GITHUB_TOKEN"));
     const clientId = yield* Config.string("GITHUB_CLIENT_ID");
     const clientSecret = yield* Config.redacted("GITHUB_CLIENT_SECRET");
     const http = (yield* HttpClient.HttpClient).pipe(
       HttpClient.mapRequest((request) =>
         request.pipe(
           HttpClientRequest.prependUrl(base),
-          HttpClientRequest.basicAuth(clientId, Redacted.value(clientSecret)),
           HttpClientRequest.acceptJson,
           HttpClientRequest.setHeader("User-Agent", "waifu-devs"),
           HttpClientRequest.setHeader("X-GitHub-Api-Version", "2022-11-28"),
@@ -68,20 +76,55 @@ export class Github extends Effect.Service<Github>()("Github", {
       ),
     );
 
-    /** A GET that decodes the body, or None when GitHub says there's no such thing (404). */
-    const get = <A, I>(path: string, schema: Schema.Schema<A, I>, urlParams: Record<string, string> = {}) =>
-      http.get(path, { urlParams }).pipe(
+    const credentials: ReadonlyArray<Credential> = [
+      ...Option.match(token, {
+        onNone: () => [],
+        onSome: (value) => [{ name: "GITHUB_TOKEN", apply: HttpClientRequest.bearerToken(Redacted.value(value)) }],
+      }),
+      { name: "the GitHub app's client ID and secret", apply: HttpClientRequest.basicAuth(clientId, Redacted.value(clientSecret)) },
+      { name: "no credentials", apply: (request) => request },
+    ];
+    /** Which of `credentials` GitHub still takes. */
+    const using = yield* Ref.make(0);
+
+    /** Asks GitHub, moving on to the next credentials if these are turned down. */
+    const send = (path: string, urlParams: Record<string, string>) =>
+      Effect.gen(function* () {
+        while (true) {
+          const index = yield* Ref.get(using);
+          const credential = credentials[index]!;
+          const response = yield* http.execute(credential.apply(HttpClientRequest.get(path, { urlParams })));
+          if (response.status !== 401 || index === credentials.length - 1) return response;
+          // Another request may have moved on already; only the first says so.
+          if (yield* Ref.modify(using, (now) => (now === index ? [true, index + 1] : [false, now]))) {
+            yield* Effect.logWarning(`GitHub turned down ${credential.name} (401); using ${credentials[index + 1]!.name} from now on`);
+          }
+        }
+      });
+
+    /**
+     * A GET that decodes the body, or None when GitHub says there's no such thing (404).
+     * `route` names the endpoint for the logs without the login or org in it.
+     */
+    const get = <A, I>(route: string, path: string, schema: Schema.Schema<A, I>, urlParams: Record<string, string> = {}) =>
+      send(path, urlParams).pipe(
         Effect.flatMap((response) =>
           response.status === 404
             ? Effect.succeedNone
             : response.status === 200
-              ? HttpClientResponse.schemaBodyJson(schema)(response).pipe(Effect.map(Option.some))
-              : Effect.fail(new Error(`GitHub answered ${response.status} for ${path}`)),
+              ? HttpClientResponse.schemaBodyJson(schema)(response).pipe(
+                  Effect.tapError(() => Effect.logWarning(`GitHub's answer for ${route} didn't decode`)),
+                  Effect.map(Option.some),
+                )
+              : Effect.logWarning(
+                  `GitHub answered ${response.status} for ${route}` +
+                    (response.headers["x-ratelimit-remaining"] === "0" ? " (rate limit spent)" : ""),
+                ).pipe(Effect.zipRight(Effect.fail(new Error(`GitHub answered ${response.status} for ${route}`)))),
         ),
         Effect.scoped,
         Effect.timeout("10 seconds"),
         Effect.mapError((cause) => new GithubError({ cause })),
-        Effect.withSpan("Github.get", { attributes: { path } }),
+        Effect.withSpan("Github.get", { attributes: { route } }),
       );
 
     const segment = encodeURIComponent;
@@ -89,7 +132,7 @@ export class Github extends Effect.Service<Github>()("Github", {
 
     /** One public repo by its id, or None if it's gone or private now. */
     const repo = (id: number) =>
-      get(`/repositories/${id}`, RepoJson).pipe(Effect.map(Option.filter((json) => !json.private)), Effect.map(Option.map(toRepo)));
+      get("/repositories/:id", `/repositories/${id}`, RepoJson).pipe(Effect.map(Option.filter((json) => !json.private)), Effect.map(Option.map(toRepo)));
 
     /** The public repos a user owns, most recently pushed first. */
     const ownRepos = (login: string) =>
@@ -97,7 +140,7 @@ export class Github extends Effect.Service<Github>()("Github", {
         const repos: Repo[] = [];
         for (let page = 1; page <= OWN_PAGES; page++) {
           const batch = Option.getOrElse(
-            yield* get(`/users/${segment(login)}/repos`, Schema.Array(RepoJson), {
+            yield* get("/users/:login/repos", `/users/${segment(login)}/repos`, Schema.Array(RepoJson), {
               type: "owner",
               sort: "pushed",
               per_page: String(PAGE),
@@ -113,13 +156,13 @@ export class Github extends Effect.Service<Github>()("Github", {
 
     /** The organizations a user is a public member of. */
     const orgs = (login: string) =>
-      get(`/users/${segment(login)}/orgs`, Schema.Array(OrgJson), { per_page: String(PAGE) }).pipe(
+      get("/users/:login/orgs", `/users/${segment(login)}/orgs`, Schema.Array(OrgJson), { per_page: String(PAGE) }).pipe(
         Effect.map((found) => Option.getOrElse(found, () => []).map((org) => org.login)),
       );
 
     /** An organization's public repos, most recently pushed first. */
     const orgRepos = (org: string) =>
-      get(`/orgs/${segment(org)}/repos`, Schema.Array(RepoJson), { type: "public", sort: "pushed", per_page: String(PAGE) }).pipe(
+      get("/orgs/:org/repos", `/orgs/${segment(org)}/repos`, Schema.Array(RepoJson), { type: "public", sort: "pushed", per_page: String(PAGE) }).pipe(
         Effect.map((found) => publicRepos(Option.getOrElse(found, () => []))),
       );
 
