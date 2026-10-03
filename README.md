@@ -65,6 +65,22 @@ Reading it:
 - `GET /v1/fuwa/summary?days=30` with `Authorization: Bearer $ANALYTICS_READ_TOKEN` returns installs, totals and activity per day and kind of hosting, plus which versions installs run.
 - For any other question, open a read-only SQL console next to the lake with `railway ssh --service analytics`, then `node apps/analytics/dist/sql.js "FROM daily ORDER BY day DESC"`. The views are `signals_unique`, `installs` (each install as of its last signal), `activity` (each signal with what happened since the previous one) and `daily`.
 
+### Bug and performance reports
+
+Our apps also count what went wrong and how long things took, so we can find bugs and slow paths. No app sends these here itself: each fuwa server adds its web and desktop apps' counts to its own, and this site's web server adds visitors' browsers' counts together (`POST /api/reports` on the site, then over Railway's private network), so no browser or desktop app ever talks to the analytics service. Reports are counts only: kinds of errors and where in the code or which page (a route pattern, never an address), durations in fixed buckets, how often a few features are used, with app version, platform and OS family. Never message text, names, ids, links or IP addresses. fuwa operators turn reports off with the same switch as the signal; every app has its own "Help fix bugs" or "Anonymous bug reports" switch, and the site's starts off for browsers that send Global Privacy Control or Do Not Track.
+
+```http
+POST /v1/fuwa/reports   (hourly, from each fuwa server process)
+POST /v1/site/reports   (every 10 minutes, from the site's web server)
+{ "schema": "fuwa.report.v1" | "site.report.v1", "report_id", "install_id"?, "hosting", "part", "since", "sent_at", "bounds_ms": [...],
+  "errors": [{ app, version, platform, os, kind, place, count }], "timings": [{ ..., metric, buckets, count, sum_ms }], "usage": [{ ..., feature, count }] }
+```
+
+Reports (up to 256 KB) go through the same buffer as signals, into the `reports` schema: `reports`, `errors`, `timings` and `usage`, each with a `_unique` view that counts a report delivered twice once.
+
+- `GET /v1/reports/summary?days=7&source=fuwa` (same bearer token; `source` is optional) returns the most frequent errors (with how many installs saw them, on which platforms and OSes, first and last seen), the slowest timings by p95 (with p50, p99, average and how many took over a second), and feature use.
+- `node apps/analytics/dist/sql.js "FROM reports.errors_unique ORDER BY sent_at DESC LIMIT 20"` for anything else.
+
 ## How sign-in works
 
 The API hosts the OpenAuth issuer (at the root, because OpenAuth hardcodes its paths). The web app is its own client (`waifu-devs-web`), and the only one whose tokens open the API; fuwa servers sign people in too (below).

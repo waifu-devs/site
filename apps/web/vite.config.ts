@@ -31,7 +31,11 @@ type FontFaceRule = { remove: () => void; walkDecls: (fn: (decl: { prop: string;
 export default defineConfig(({ mode }) => {
   // The server reads its settings from process.env (Railway sets them there); in dev they come from .env.
   Object.assign(process.env, { ...loadEnv(mode, process.cwd(), ""), ...process.env });
+  // Bug reports say which build they're from: the version, and on Railway the commit.
+  const commit = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7);
+  const version = commit ? `0.1.0-${commit}` : "0.1.0";
   return {
+    define: { __SITE_VERSION__: JSON.stringify(version) },
     server: { port: 3000 },
     css: { postcss: { plugins: [lateFonts] } },
     resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },

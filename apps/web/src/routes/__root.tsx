@@ -1,12 +1,14 @@
 /// <reference types="vite/client" />
-import { createRootRoute, HeadContent, Link, Outlet, Scripts, useMatch } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, Link, Outlet, Scripts, useMatch, useRouter } from "@tanstack/react-router";
 import { DEFAULT_THEME, themeStyle } from "@waifu-devs/domain/themes";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { UserAvatar } from "@/components/Avatar";
+import { BugReportsFooter } from "@/components/BugReports";
 import { Sparkles } from "@/components/motion";
 import { Petals } from "@/components/Petals";
 import { Button } from "@/components/ui/button";
 import { title } from "@/lib/head";
+import { pageChange, startReports } from "@/lib/reports";
 import { getViewer } from "@/server/functions";
 import appCss from "@/styles/app.css?url";
 import fontsCss from "@/styles/fonts.css?url";
@@ -78,8 +80,29 @@ function RootDocument({ children }: { children: ReactNode }) {
   );
 }
 
+/** Anonymous bug reports (lib/reports.ts): started once the page is up, and told of each page change. */
+function useBugReports() {
+  const router = useRouter();
+  useEffect(() => {
+    const current = () => router.state.matches.at(-1)?.routeId;
+    startReports(current);
+    pageChange(current(), 0);
+    let started = 0;
+    const before = router.subscribe("onBeforeNavigate", () => (started = performance.now()));
+    const resolved = router.subscribe("onResolved", () => {
+      if (started) pageChange(current(), performance.now() - started);
+      started = 0;
+    });
+    return () => {
+      before();
+      resolved();
+    };
+  }, [router]);
+}
+
 function RootLayout() {
   const { user } = Route.useLoaderData();
+  useBugReports();
   return (
     <>
       <Petals />
@@ -121,11 +144,14 @@ function RootLayout() {
         <div className="flex-1">
           <Outlet />
         </div>
-        <footer className="border-t py-6 text-center text-xs text-muted-foreground">
-          Made with ♡ by the Waifu Devs community ·{" "}
-          <a className="underline hover:text-primary" href="https://github.com/waifu-devs">
-            GitHub
-          </a>
+        <footer className="flex flex-col gap-2 border-t py-6 text-center text-xs text-muted-foreground">
+          <p>
+            Made with ♡ by the Waifu Devs community ·{" "}
+            <a className="underline hover:text-primary" href="https://github.com/waifu-devs">
+              GitHub
+            </a>
+          </p>
+          <BugReportsFooter />
         </footer>
       </div>
     </>

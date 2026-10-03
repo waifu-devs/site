@@ -3,7 +3,7 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
 /**
  * Everything Waifu Devs runs on Railway: Postgres, the Effect API (which is also the
  * OpenAuth issuer), the TanStack Start site, and the analytics service that keeps the
- * anonymous usage signals fuwa servers send in a DuckLake. Pull requests that touch
+ * anonymous usage signals and bug reports fuwa servers and the site send in a DuckLake. Pull requests that touch
  * .railway/ get a plan comment; merging applies it (.github/workflows/railway-config.yml).
  *
  * Set once by hand, not here: the shared variables GITHUB_CLIENT_ID and
@@ -83,6 +83,8 @@ export default defineRailway((ctx) => {
       API_URL,
       // ...while the web server calls it over the private network.
       API_INTERNAL_URL: "http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}",
+      // Visitors' anonymous bug reports, added together, go to analytics the same way.
+      ANALYTICS_INTERNAL_URL: "http://${{analytics.RAILWAY_PRIVATE_DOMAIN}}:${{analytics.PORT}}",
     },
   });
 
