@@ -9,6 +9,7 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 | `apps/api` | The API: an Effect `HttpApi` server on Node, Drizzle on Postgres, and the [OpenAuth](https://openauth.js.org) issuer for GitHub sign-in |
 | `apps/analytics` | Anonymous usage signals from fuwa servers, stored in a [DuckLake](https://ducklake.select) with DuckDB (see [Analytics](#analytics)) |
 | `apps/web` | The site: [TanStack Start](https://tanstack.com/start) (React, SSR), shadcn/ui and [Animate UI](https://animate-ui.com); its server side calls the API through a typed Effect client |
+| `apps/status` | [status.waifu.dev](https://status.waifu.dev): checks fuwa.chat and this site every minute from outside and serves the 90 day history (see [Status and stats](#status-and-stats)) |
 | `packages/domain` | Shared between the two: the API contract (`Api.ts`, Effect Schema) and the theme system (`themes.ts`) |
 | `.railway/` | Railway Infrastructure as Code: Postgres, `api`, `web`, `analytics`, and the `uploads` and `lake` buckets |
 | `.github/workflows` | `ci.yml` (typecheck, build, test) and `railway-config.yml` (plan on PR, apply on merge) |
@@ -44,6 +45,12 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 | `GET /health` | Healthcheck |
 
 The schema is in `apps/api/src/schema.ts`; Drizzle Kit writes migrations into `apps/api/migrations`, and Railway runs them before each API deploy.
+
+## Status and stats
+
+`apps/status` is its own small service. Every minute it asks fuwa.chat (`/healthz` from the gateways, and `/healthz/parts` for the directory, each shard and calls) and this site's web, API and analytics whether they're up, over their public addresses, and keeps one row per part per UTC day in Postgres (`status_*` tables, migrated by the API). Two failed checks in a row open an incident. Its page is rendered on the server and loads nothing from anywhere else, its font included; `GET /status.json` gives the same data. Only the hosts in `apps/status/src/Checks.ts` (or its `STATUS_*_URL` variables) are ever checked.
+
+`/stats` on the site charts the history of the anonymous reports (installs, accounts, messages, problems, slow paths, feature use) from analytics' `GET /v1/insights`. Only the GitHub ids in `STATS_ADMINS` (`apps/web/src/lib/stats.ts`) can see it until `STATS_PUBLIC` is turned on.
 
 ## Analytics
 

@@ -9,6 +9,7 @@ import { Petals } from "@/components/Petals";
 import { Button } from "@/components/ui/button";
 import { title } from "@/lib/head";
 import { pageChange, startReports } from "@/lib/reports";
+import { STATS_ADMINS, STATS_PUBLIC } from "@/lib/stats";
 import { getViewer } from "@/server/functions";
 import appCss from "@/styles/app.css?url";
 import fontsCss from "@/styles/fonts.css?url";
@@ -149,7 +150,20 @@ function RootLayout() {
             Made with ♡ by the Waifu Devs community ·{" "}
             <a className="underline hover:text-primary" href="https://github.com/waifu-devs">
               GitHub
+            </a>{" "}
+            ·{" "}
+            <a className="underline hover:text-primary" href="https://status.waifu.dev">
+              Status
             </a>
+            {(STATS_PUBLIC || (user?.githubId != null && STATS_ADMINS.includes(user.githubId))) && (
+              <>
+                {" "}
+                ·{" "}
+                <Link to="/stats" className="underline hover:text-primary">
+                  Stats
+                </Link>
+              </>
+            )}
           </p>
           <BugReportsFooter />
         </footer>

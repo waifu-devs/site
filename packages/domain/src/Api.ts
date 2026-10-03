@@ -80,6 +80,8 @@ export const User = Schema.Struct({
   customAvatar: Schema.optionalWith(Schema.Boolean, { default: () => false }),
   /** An uploaded banner picture; the banner decoration plays on top of it. */
   bannerUrl: nullByDefault,
+  /** GitHub's id for the account: unlike the username, it never changes hands. */
+  githubId: Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null }),
 });
 export type User = typeof User.Type;
 
@@ -378,4 +380,10 @@ export class SessionApi extends HttpApiGroup.make("session")
   // Signing out: the refresh token itself is the credential, so no bearer token is needed.
   .add(HttpApiEndpoint.post("revoke", "/session/revoke").setPayload(Schema.Struct({ refreshToken: Schema.String }))) {}
 
-export class Api extends HttpApi.make("waifu-devs").add(UsersApi).add(MeApi).add(ThemesApi).add(PostsApi).add(SessionApi).add(LinkedApi) {}
+export class Api extends HttpApi.make("waifu-devs")
+  .add(UsersApi)
+  .add(MeApi)
+  .add(ThemesApi)
+  .add(PostsApi)
+  .add(SessionApi)
+  .add(LinkedApi) {}
