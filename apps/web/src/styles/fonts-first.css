@@ -1,0 +1,76 @@
+/* The site font's faces a first paint waits for: Latin, Latin Extended and
+   the slice with the logo's ♡, in 400, 700 and 800. They are copied from
+   @fontsource/m-plus-rounded-1c. Every other script, Japanese included, is in
+   fonts.css, which the page switches on once it's up. */
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-97-400-normal.woff2") format("woff2");
+  unicode-range: U+7e,U+b4,U+25c6,U+2661,U+4e92,U+4eee,U+4ffa,U+5144,U+5237,U+5287,U+52b4,U+58c1,U+5bff,U+5c04,U+5c06,U+5e95,U+5f31,U+5f93,U+63c3,U+640d,U+6557,U+6614,U+662f,U+67d3,U+690d,U+6bba,U+6e6f,U+72af,U+732b,U+7518,U+7ae0,U+7ae5,U+7af6,U+822a,U+89e6,U+8a3a,U+8a98,U+8cb8,U+8de1,U+8e8d,U+95d8,U+961c,U+96a3,U+96ea,U+9bae,U+ff20,U+ff22,U+ff29,U+ff2b-ff2c;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-97-700-normal.woff2") format("woff2");
+  unicode-range: U+7e,U+b4,U+25c6,U+2661,U+4e92,U+4eee,U+4ffa,U+5144,U+5237,U+5287,U+52b4,U+58c1,U+5bff,U+5c04,U+5c06,U+5e95,U+5f31,U+5f93,U+63c3,U+640d,U+6557,U+6614,U+662f,U+67d3,U+690d,U+6bba,U+6e6f,U+72af,U+732b,U+7518,U+7ae0,U+7ae5,U+7af6,U+822a,U+89e6,U+8a3a,U+8a98,U+8cb8,U+8de1,U+8e8d,U+95d8,U+961c,U+96a3,U+96ea,U+9bae,U+ff20,U+ff22,U+ff29,U+ff2b-ff2c;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-latin-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-97-800-normal.woff2") format("woff2");
+  unicode-range: U+7e,U+b4,U+25c6,U+2661,U+4e92,U+4eee,U+4ffa,U+5144,U+5237,U+5287,U+52b4,U+58c1,U+5bff,U+5c04,U+5c06,U+5e95,U+5f31,U+5f93,U+63c3,U+640d,U+6557,U+6614,U+662f,U+67d3,U+690d,U+6bba,U+6e6f,U+72af,U+732b,U+7518,U+7ae0,U+7ae5,U+7af6,U+822a,U+89e6,U+8a3a,U+8a98,U+8cb8,U+8de1,U+8e8d,U+95d8,U+961c,U+96a3,U+96ea,U+9bae,U+ff20,U+ff22,U+ff29,U+ff2b-ff2c;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-latin-ext-800-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-latin-800-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
