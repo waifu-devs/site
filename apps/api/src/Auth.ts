@@ -162,7 +162,8 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
       }
       const headers = new Headers(request.headers);
       for (const name of ["host", "x-forwarded-host", "x-forwarded-proto", "x-forwarded-port"]) headers.delete(name);
-      const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
+      const body = request.method === "GET" || request.method === "HEAD" ? undefined : await readLimited(request, MAX_ISSUER_BODY);
+      if (body === null) return new Response("Too big.", { status: 413 });
       return app.fetch(new Request(new URL(url.pathname + url.search, issuerUrl), { method: request.method, headers, body }));
     };
 
@@ -186,6 +187,23 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
     return { handle, verify, verifyAny } as const;
   }),
 }) {}
+
+/** OpenAuth's endpoints only take small forms (codes and tokens). */
+const MAX_ISSUER_BODY = 64 * 1024;
+
+/** A request's body, or null as soon as it passes `max` bytes (whatever Content-Length claimed). */
+async function readLimited(request: Request, max: number): Promise<Uint8Array | null> {
+  if (Number(request.headers.get("content-length") ?? 0) > max) return null;
+  if (!request.body) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of request.body as unknown as AsyncIterable<Uint8Array>) {
+    size += chunk.byteLength;
+    if (size > max) return null;
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
 
 /** Mounts the issuer's routes next to the HttpApi endpoints. */
 export const IssuerRoutes = HttpApiBuilder.Router.use((router) =>

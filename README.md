@@ -104,6 +104,8 @@ You need Node 22 and a local Postgres (`postgres://postgres:postgres@localhost:5
 
 The Railway project is public, so anyone can check out the live infrastructure behind the site at <https://railway.com/project/c1d0e00f-7c4c-408f-8422-41cd680bc304>. It's what `.railway/railway.ts` declares: Postgres, the `api`, `web` and `analytics` services, and the `uploads` and `lake` buckets.
 
+Its logs are public too, so the services log requests as method, path and status only: no query strings (they can carry sign-in codes), no addresses, no bodies, and nothing at all for the sign-in paths (`/authorize`, `/github/*`). Failures are logged by kind, without the values that caused them.
+
 ## Deploying on Railway
 
 Everything lives in the **waifu-devs** Railway project, production environment, in the US East (Virginia) region. `.railway/railway.ts` declares Postgres, the `uploads` and `lake` buckets, and the `api`, `web` and `analytics` services (built from `main` of this repo with Railpack) along with their domains, `api.waifu.dev`, `www.waifu.dev` and `analytics.waifu.dev`; a pull request that touches `.railway/` gets a plan comment, and merging applies it. Code changes deploy on their own when they land on `main`.

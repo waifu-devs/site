@@ -7,6 +7,11 @@ settings:
 overrides:
   undici: ^7.29.1
 
+patchedDependencies:
+  '@openauthjs/openauth@0.4.3':
+    hash: b2d8503d2c0f9ad0ca7501a36c479b1fde3b6f106ffe9708ec81cd7c65f3dade
+    path: patches/@openauthjs__openauth@0.4.3.patch
+
 importers:
 
   .:
@@ -74,7 +79,7 @@ importers:
         version: 0.53.0(@effect/experimental@0.61.1(@effect/platform@0.97.2(effect@3.22.2))(effect@3.22.2))(@effect/platform@0.97.2(effect@3.22.2))(@effect/sql@0.52.1(@effect/experimental@0.61.1(@effect/platform@0.97.2(effect@3.22.2))(effect@3.22.2))(@effect/platform@0.97.2(effect@3.22.2))(effect@3.22.2))(effect@3.22.2)
       '@openauthjs/openauth':
         specifier: ^0.4.3
-        version: 0.4.3(arctic@2.3.4)(hono@4.13.10)
+        version: 0.4.3(patch_hash=b2d8503d2c0f9ad0ca7501a36c479b1fde3b6f106ffe9708ec81cd7c65f3dade)(arctic@2.3.4)(hono@4.13.10)
       '@waifu-devs/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -126,7 +131,7 @@ importers:
         version: 5.3.0
       '@openauthjs/openauth':
         specifier: ^0.4.3
-        version: 0.4.3(arctic@2.3.4)(hono@4.13.10)
+        version: 0.4.3(patch_hash=b2d8503d2c0f9ad0ca7501a36c479b1fde3b6f106ffe9708ec81cd7c65f3dade)(arctic@2.3.4)(hono@4.13.10)
       '@radix-ui/react-avatar':
         specifier: ^1.2.6
         version: 1.2.6(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -4756,7 +4761,7 @@ snapshots:
 
   '@oozcitak/util@10.0.0': {}
 
-  '@openauthjs/openauth@0.4.3(arctic@2.3.4)(hono@4.13.10)':
+  '@openauthjs/openauth@0.4.3(patch_hash=b2d8503d2c0f9ad0ca7501a36c479b1fde3b6f106ffe9708ec81cd7c65f3dade)(arctic@2.3.4)(hono@4.13.10)':
     dependencies:
       '@standard-schema/spec': 1.0.0-beta.3
       arctic: 2.3.4

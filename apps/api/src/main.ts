@@ -1,4 +1,4 @@
-import { FetchHttpClient, HttpApiBuilder, HttpMiddleware, HttpServer } from "@effect/platform";
+import { FetchHttpClient, HttpApiBuilder, HttpServer } from "@effect/platform";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Config, Layer } from "effect";
 import { createServer } from "node:http";
@@ -6,6 +6,7 @@ import { AuthenticationLive, Issuer, IssuerRoutes, LinkedAuthenticationLive, Opt
 import { DbLive } from "./Db.ts";
 import { HttpLive } from "./Http.ts";
 import { MediaRoutes, MediaStoreLive } from "./Media.ts";
+import { harden } from "./Middleware.ts";
 import { Posts } from "./Posts.ts";
 import { Repos } from "./Repos.ts";
 import { Themes } from "./Themes.ts";
@@ -17,7 +18,7 @@ const ServicesLive = Layer.mergeAll(Users.Default, Themes.Default, Posts.Default
 );
 const IssuerLive = Issuer.Default.pipe(Layer.provide(FetchHttpClient.layer), Layer.provideMerge(ServicesLive));
 
-const ServerLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
+const ServerLive = HttpApiBuilder.serve(harden).pipe(
   Layer.provide(IssuerRoutes),
   Layer.provide(MediaRoutes),
   Layer.provide(HttpLive),
