@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ReportSummary } from "../src/Api.ts";
 import { AppLive } from "../src/App.ts";
+import { extrasOf } from "../src/Reports.ts";
 import { percentile } from "../src/ReportSummary.ts";
 
 const directory = mkdtempSync(join(tmpdir(), "analytics-reports-test-"));
@@ -30,11 +31,12 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true });
 });
 
-const post = (path: string, body: unknown) =>
+/** Over Railway's private network, as the site's web server sends; `from` changes where it seems to come from. */
+const post = (path: string, body: unknown, from: { host?: string; headers?: Record<string, string> } = {}) =>
   web.handler(
     new Request(`http://analytics.test${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", host: from.host ?? "analytics.railway.internal:4100", ...from.headers },
       body: JSON.stringify(body),
     }),
   );
@@ -132,6 +134,40 @@ describe("reports", () => {
       ["/v1/fuwa/reports", { ...valid, sent_at: Date.now() + 3 * 86_400_000 }],
     ];
     for (const [path, body] of cases) expect((await post(path, body)).status).toBe(400);
+  });
+
+  it("takes the site's reports only over the private network", async () => {
+    const site = () => report("site.report.v1", { install_id: undefined, part: "web" });
+    expect((await post("/v1/site/reports", site(), { host: "analytics.waifu.dev" })).status).toBe(403);
+    // Through Railway's edge, whatever host it claims.
+    expect((await post("/v1/site/reports", site(), { headers: { "x-forwarded-for": "203.0.113.9" } })).status).toBe(403);
+    expect((await post("/v1/site/reports", site(), { headers: { "x-railway-edge": "railway/us-east4" } })).status).toBe(403);
+    // fuwa instances send from anywhere.
+    expect((await post("/v1/fuwa/reports", report("fuwa.report.v1"), { host: "analytics.waifu.dev" })).status).toBe(202);
+  });
+
+  it("limits each sender by its id, never by address", async () => {
+    const install_id = ulid();
+    const statuses: number[] = [];
+    for (let i = 0; i < 31; i++) statuses.push((await post("/v1/fuwa/reports", report("fuwa.report.v1", { install_id }))).status);
+    expect(statuses.slice(0, 30).every((status) => status === 202)).toBe(true);
+    expect(statuses[30]).toBe(429);
+    // Another install isn't held back.
+    expect((await post("/v1/fuwa/reports", report("fuwa.report.v1"))).status).toBe(202);
+  });
+
+  it("keeps unknown fields only while they're small", async () => {
+    const small = report("fuwa.report.v1", { future_field: "x" });
+    const big = report("fuwa.report.v1", { stuffing: "x".repeat(4096) });
+    expect(extrasOf(small as never)).toEqual({ future_field: "x" });
+    expect(extrasOf(big as never)).toEqual({});
+  });
+
+  it("refuses origins shaped like an address or an email", async () => {
+    for (const origin of [{ version: "10.0.0.1" }, { os: "someone@example.com" }, { platform: "Chromium" }]) {
+      const body = report("fuwa.report.v1", { usage: [{ ...web_, ...origin, feature: "x", count: 1 }] });
+      expect((await post("/v1/fuwa/reports", body)).status).toBe(400);
+    }
   });
 
   it("needs the read token", async () => {

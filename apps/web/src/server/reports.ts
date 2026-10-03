@@ -26,6 +26,12 @@ const label = (value: unknown, max: number): string | null =>
 const count = (value: unknown): number | null =>
   typeof value === "number" && Number.isInteger(value) && value >= 0 ? Math.min(value, MAX_COUNT) : null;
 
+/** What lib/reports.ts says it runs on, and nothing else, so a report can't carry a name or an address there. */
+const PLATFORMS = ["chromium", "firefox", "safari", "other"];
+const OSES = ["windows", "android", "ios", "chromeos", "macos", "linux", "other"];
+const VERSION = /^(?:dev|\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.]{1,16})?)$/;
+const oneOf = (value: unknown, allowed: string[]): string | null => (typeof value === "string" && allowed.includes(value) ? value : null);
+
 type Origin = { app: string; version: string; platform: string; os: string };
 type Timing = { buckets: number[]; sum_ms: number };
 
@@ -51,9 +57,9 @@ export function addReport(body: unknown): string | null {
   const report = body as Record<string, unknown>;
   const origin = {
     app: report.app === "web" ? "web" : null,
-    version: label(report.version, 32),
-    platform: label(report.platform, 16),
-    os: label(report.os, 16),
+    version: typeof report.version === "string" && VERSION.test(report.version) ? report.version : null,
+    platform: oneOf(report.platform, PLATFORMS),
+    os: oneOf(report.os, OSES),
   };
   if (!origin.app || !origin.version || !origin.platform || !origin.os) return "app, version, platform and os are required";
   const list = (value: unknown) => (Array.isArray(value) && value.length <= MAX_REPORT_ENTRIES ? (value as Record<string, unknown>[]) : null);

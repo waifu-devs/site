@@ -1,6 +1,7 @@
 /** The analytics service's HTTP contract. */
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
 import { Schema } from "effect";
+import { TooMany } from "./Limits.ts";
 import { FuwaReport, SiteReport } from "./Reports.ts";
 import { Signal } from "./Signals.ts";
 
@@ -96,6 +97,8 @@ export class FuwaApi extends HttpApiGroup.make("fuwa")
       .addSuccess(Accepted, { status: 202 })
       // A signal dated more than a day ahead.
       .addError(HttpApiError.BadRequest)
+      // Too many from this install this hour, or from everyone this minute; try again later.
+      .addError(TooMany)
       // The lake is unreachable and the buffer is full; try again later.
       .addError(HttpApiError.ServiceUnavailable),
   )
@@ -108,19 +111,24 @@ export class FuwaApi extends HttpApiGroup.make("fuwa")
 
 /** Health reports: errors, timings and feature use from fuwa and the site, and reading them back. */
 export class ReportsApi extends HttpApiGroup.make("reports")
-  // Dated more than a day ahead: BadRequest. The lake is unreachable and the buffer is full: ServiceUnavailable.
+  // Dated more than a day ahead: BadRequest. Too many from this sender this hour, or from everyone this
+  // minute: TooMany. The lake is unreachable and the buffer is full: ServiceUnavailable.
   .add(
     HttpApiEndpoint.post("fuwa", "/v1/fuwa/reports")
       .setPayload(FuwaReport)
       .addSuccess(Accepted, { status: 202 })
       .addError(HttpApiError.BadRequest)
+      .addError(TooMany)
       .addError(HttpApiError.ServiceUnavailable),
   )
+  // Only from the site's web server, over Railway's private network: through the public domain, Forbidden.
   .add(
     HttpApiEndpoint.post("site", "/v1/site/reports")
       .setPayload(SiteReport)
       .addSuccess(Accepted, { status: 202 })
       .addError(HttpApiError.BadRequest)
+      .addError(HttpApiError.Forbidden)
+      .addError(TooMany)
       .addError(HttpApiError.ServiceUnavailable),
   )
   .add(

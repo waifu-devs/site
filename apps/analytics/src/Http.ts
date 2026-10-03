@@ -4,7 +4,8 @@ import { timingSafeEqual } from "node:crypto";
 import { Api, ReadAccess } from "./Api.ts";
 import { Ingest } from "./Ingest.ts";
 import { Lake } from "./Lake.ts";
-import type { Report } from "./Reports.ts";
+import { fromInside, Limits } from "./Limits.ts";
+import { type Report, sourceOf } from "./Reports.ts";
 import { reportSummary } from "./ReportSummary.ts";
 import { summary } from "./Summary.ts";
 
@@ -15,11 +16,13 @@ const FuwaLive = HttpApiBuilder.group(Api, "fuwa", (handlers) =>
   Effect.gen(function* () {
     const ingest = yield* Ingest;
     const lake = yield* Lake;
+    const limits = yield* Limits;
     return handlers
       .handle("ingest", ({ payload }) =>
         Effect.gen(function* () {
           const now = yield* Clock.currentTimeMillis;
           if (payload.sent_at > now + MAX_CLOCK_SKEW_MS) return yield* new HttpApiError.BadRequest();
+          yield* limits.take(`signal:${payload.install_id}`);
           yield* ingest.add(payload, new Date(now)).pipe(Effect.catchTag("IngestFull", () => new HttpApiError.ServiceUnavailable()));
           return { accepted: 1 };
         }),
@@ -32,16 +35,24 @@ const ReportsLive = HttpApiBuilder.group(Api, "reports", (handlers) =>
   Effect.gen(function* () {
     const ingest = yield* Ingest;
     const lake = yield* Lake;
+    const limits = yield* Limits;
     const take = (report: Report) =>
       Effect.gen(function* () {
         const now = yield* Clock.currentTimeMillis;
         if (report.sent_at > now + MAX_CLOCK_SKEW_MS) return yield* new HttpApiError.BadRequest();
+        // By install when the sender has one; the site's web server (and any sender without one) by source.
+        yield* limits.take(`report:${sourceOf(report)}:${report.install_id ?? "-"}`);
         yield* ingest.addReport(report, new Date(now)).pipe(Effect.catchTag("IngestFull", () => new HttpApiError.ServiceUnavailable()));
         return { accepted: 1 };
       });
     return handlers
       .handle("fuwa", ({ payload }) => take(payload))
-      .handle("site", ({ payload }) => take(payload))
+      .handle("site", ({ payload }) =>
+        Effect.gen(function* () {
+          if (!(yield* fromInside)) return yield* new HttpApiError.Forbidden();
+          return yield* take(payload);
+        }),
+      )
       .handle("summary", ({ urlParams }) =>
         reportSummary(urlParams.days ?? 7, urlParams.source).pipe(Effect.provideService(Lake, lake), Effect.orDie),
       );
@@ -71,4 +82,7 @@ export const ReadAccessLive = Layer.effect(
   }),
 );
 
-export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([FuwaLive, ReportsLive, HealthLive]));
+export const HttpLive = HttpApiBuilder.api(Api).pipe(
+  Layer.provide([FuwaLive, ReportsLive, HealthLive]),
+  Layer.provide(Limits.Default),
+);
