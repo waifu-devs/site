@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import type { Repo } from "@waifu-devs/domain/api";
-import { Config, Data, Effect, Option, Redacted, Ref, Schema } from "effect";
+import { Clock, Config, Data, Duration, Effect, Option, Redacted, Ref, Schema } from "effect";
 
 /** GitHub didn't answer usefully: it's down, slow, or this app is over its rate limit. */
 export class GithubError extends Data.TaggedError("GithubError")<{ readonly cause: unknown }> {}
@@ -44,6 +44,8 @@ const PAGE = 100;
 const OWN_PAGES = 3;
 /** How many of a member's public organizations the picker offers repos from. */
 const MAX_ORGS = 8;
+/** How long turned-down credentials are left alone before they're tried again (GitHub can 401 by mistake). */
+const RETRY_CREDENTIALS_AFTER = Duration.minutes(15);
 
 /** One way of asking GitHub; `apply` adds its credentials to a request. */
 interface Credential {
@@ -56,13 +58,17 @@ interface Credential {
  * GitHub accepts, in this order: GITHUB_TOKEN when it's set (a token that can
  * read public data, 5,000 calls an hour), the site's GitHub app (its client ID
  * and secret, which GitHub only takes from OAuth apps), then none at all (60 an
- * hour). When GitHub turns one down with a 401, the next is used from then on.
+ * hour). When GitHub turns one down with a 401, the next is used, and the
+ * better ones are tried again after RETRY_CREDENTIALS_AFTER.
  */
 export class Github extends Effect.Service<Github>()("Github", {
   effect: Effect.gen(function* () {
     // Overridable so the API can run against a stand-in locally.
     const base = yield* Config.string("GITHUB_API_URL").pipe(Config.withDefault("https://api.github.com"));
-    const token = yield* Config.option(Config.redacted("GITHUB_TOKEN"));
+    // Railway passes an unset shared variable through as an empty string.
+    const token = (yield* Config.option(Config.redacted("GITHUB_TOKEN"))).pipe(
+      Option.filter((value) => Redacted.value(value).trim() !== ""),
+    );
     const clientId = yield* Config.string("GITHUB_CLIENT_ID");
     const clientSecret = yield* Config.redacted("GITHUB_CLIENT_SECRET");
     const http = (yield* HttpClient.HttpClient).pipe(
@@ -84,20 +90,26 @@ export class Github extends Effect.Service<Github>()("Github", {
       { name: "the GitHub app's client ID and secret", apply: HttpClientRequest.basicAuth(clientId, Redacted.value(clientSecret)) },
       { name: "no credentials", apply: (request) => request },
     ];
-    /** Which of `credentials` GitHub still takes. */
-    const using = yield* Ref.make(0);
+    /** Which of `credentials` GitHub still takes, and since when. */
+    const using = yield* Ref.make({ index: 0, since: 0 });
+    const retryAfter = Duration.toMillis(RETRY_CREDENTIALS_AFTER);
 
     /** Asks GitHub, moving on to the next credentials if these are turned down. */
     const send = (path: string, urlParams: Record<string, string>) =>
       Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
+        yield* Ref.update(using, (state) => (state.index > 0 && now - state.since >= retryAfter ? { index: 0, since: now } : state));
         while (true) {
-          const index = yield* Ref.get(using);
+          const { index } = yield* Ref.get(using);
           const credential = credentials[index]!;
           const response = yield* http.execute(credential.apply(HttpClientRequest.get(path, { urlParams })));
           if (response.status !== 401 || index === credentials.length - 1) return response;
           // Another request may have moved on already; only the first says so.
-          if (yield* Ref.modify(using, (now) => (now === index ? [true, index + 1] : [false, now]))) {
-            yield* Effect.logWarning(`GitHub turned down ${credential.name} (401); using ${credentials[index + 1]!.name} from now on`);
+          const movedOn = yield* Ref.modify(using, (state) =>
+            state.index === index ? [true, { index: index + 1, since: now }] : [false, state],
+          );
+          if (movedOn) {
+            yield* Effect.logWarning(`GitHub turned down ${credential.name} (401); using ${credentials[index + 1]!.name} for now`);
           }
         }
       });

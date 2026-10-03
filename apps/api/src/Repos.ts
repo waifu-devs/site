@@ -13,6 +13,11 @@ type Row = typeof featuredRepos.$inferSelect;
 const REFRESH_AFTER = Duration.hours(6);
 /** How long the list of repos a member could feature is kept between picker visits and saves. */
 const CHOICES_TTL = Duration.minutes(10);
+/**
+ * How long a failed lookup is kept, so reopening the picker doesn't spend a dozen
+ * more GitHub calls right away (the picker says to try again in a minute).
+ */
+const FAILURE_TTL = Duration.minutes(1);
 
 const toRepo = (row: Row): Repo => ({
   id: row.repoId,
@@ -54,11 +59,10 @@ export class Repos extends Effect.Service<Repos>()("Repos", {
     const client = yield* SqlClient.SqlClient;
     const github = yield* Github;
 
-    // Failures aren't kept, so the next try asks GitHub again.
     const choices = yield* Cache.makeWith({
       capacity: 1024,
       lookup: github.featurable,
-      timeToLive: (exit) => (Exit.isSuccess(exit) ? CHOICES_TTL : Duration.zero),
+      timeToLive: (exit) => (Exit.isSuccess(exit) ? CHOICES_TTL : FAILURE_TTL),
     });
 
     /** What a member could feature. GitHub logins aren't case-sensitive, so neither is the cache. */
