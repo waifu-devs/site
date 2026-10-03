@@ -9,7 +9,7 @@ It's a pnpm monorepo with a separate API and web app, both written with [Effect]
 | `apps/api` | The API: an Effect `HttpApi` server on Node, Drizzle on Postgres, and the [OpenAuth](https://openauth.js.org) issuer for GitHub sign-in |
 | `apps/analytics` | Anonymous usage signals from fuwa servers, stored in a [DuckLake](https://ducklake.select) with DuckDB (see [Analytics](#analytics)) |
 | `apps/web` | The site: [TanStack Start](https://tanstack.com/start) (React, SSR), shadcn/ui and [Animate UI](https://animate-ui.com); its server side calls the API through a typed Effect client |
-| `apps/status` | [status.fuwa.chat](https://status.fuwa.chat): checks fuwa.chat and this site every minute from outside and serves the 90 day history (see [Status and stats](#status-and-stats)) |
+| `apps/status` | [status.waifu.dev](https://status.waifu.dev): checks fuwa.chat and this site every minute from outside and serves the 90 day history (see [Status and stats](#status-and-stats)) |
 | `packages/domain` | Shared between the two: the API contract (`Api.ts`, Effect Schema) and the theme system (`themes.ts`) |
 | `.railway/` | Railway Infrastructure as Code: Postgres, `api`, `web`, `analytics`, and the `uploads` and `lake` buckets |
 | `.github/workflows` | `ci.yml` (typecheck, build, test) and `railway-config.yml` (plan on PR, apply on merge) |

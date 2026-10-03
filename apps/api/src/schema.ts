@@ -167,8 +167,9 @@ export const openauthStorage = pgTable(
 );
 
 /**
- * The status service (apps/status, status.fuwa.chat): how each part of fuwa.chat and this site answered
- * the api's health checks, one row per part per UTC day. Counts only; nothing
+ * The status service's history (apps/status, status.waifu.dev; the api only migrates
+ * these tables): how each part of fuwa.chat and this site answered its checks,
+ * one row per part per UTC day. Counts only; nothing
  * about who uses them.
  */
 export const statusDays = pgTable(
@@ -210,7 +211,7 @@ export const statusIncidents = pgTable(
   },
   (t) => [
     index("status_incidents_started_at").on(t.startedAt.desc()),
-    // At most one open incident per part, however many api replicas check.
+    // At most one open incident per part, however many status replicas check.
     uniqueIndex("status_incidents_open").on(t.component).where(sql`${t.endedAt} IS NULL`),
   ],
 );

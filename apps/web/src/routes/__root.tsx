@@ -152,7 +152,7 @@ function RootLayout() {
               GitHub
             </a>{" "}
             ·{" "}
-            <a className="underline hover:text-primary" href="https://status.fuwa.chat">
+            <a className="underline hover:text-primary" href="https://status.waifu.dev">
               Status
             </a>
             {(STATS_PUBLIC || (user?.githubId != null && STATS_ADMINS.includes(user.githubId))) && (

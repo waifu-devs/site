@@ -1,5 +1,5 @@
 /**
- * status.fuwa.chat: runs the checks (Checks.ts) and serves the page.
+ * status.waifu.dev: runs the checks (Checks.ts) and serves the page.
  *
  * GET /            the page, rendered here (works without its script)
  * GET /?part=main  just the page's contents, which the script swaps in every minute
@@ -64,7 +64,8 @@ const report = (): Promise<StatusReport | null> =>
   runtime.runPromise(
     Checks.pipe(
       Effect.flatMap((checks) => checks.report),
-      Effect.catchAllCause((cause) => Effect.logWarning("Status couldn't be read", cause).pipe(Effect.as(null))),
+      // No cause: database errors name internal hosts and addresses, and the logs are public.
+      Effect.catchAllCause(() => Effect.logWarning("Status couldn't be read").pipe(Effect.as(null))),
     ),
   );
 
@@ -103,8 +104,14 @@ const server = createServer(async (request, response) => {
   }
 });
 
-// Start the checks with the server.
-await runtime.runPromise(Checks.pipe(Effect.asVoid));
+// Start the checks with the server. A failure is told without its cause: database
+// errors name internal hosts and addresses, and the logs are public.
+try {
+  await runtime.runPromise(Checks.pipe(Effect.asVoid));
+} catch {
+  console.error(JSON.stringify({ message: "Status couldn't start: the database didn't answer" }));
+  process.exit(1);
+}
 const port = Number(process.env.PORT ?? 3000);
 // "::" also takes IPv4.
 server.listen(port, process.env.HOST ?? "::", () => console.log(JSON.stringify({ message: `Status on port ${port}` })));

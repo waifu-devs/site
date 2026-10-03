@@ -148,7 +148,7 @@ export function renderMain(report: StatusReport | null): string {
     .join("");
   return `<header class="hero rise" data-checked="${checked ?? ""}" data-every="${report.everySeconds}">
   <span class="pulse t-${s.tone}">${icon(s.icon, "i48")}</span>
-  <div><h1>${escape(headline)}</h1><p class="soft small"><span class="sr">${s.word}. </span>Checked every minute from outside fuwa.chat<span class="ago"></span></p></div>
+  <div><h1>${escape(headline)}</h1><p class="soft small"><span class="sr">${s.word}. </span>Checked every minute from outside<span class="ago"></span></p></div>
 </header>
 ${sections}
 ${incidents(report.incidents, report.at)}`;
@@ -160,7 +160,7 @@ export function renderPage(report: StatusReport | null): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fuwa.chat status</title>
+<title>Waifu Devs status</title>
 <meta name="description" content="Whether fuwa.chat and waifu.dev are up, and how they did over the last 90 days.">
 <link rel="preload" href="/fonts/m-plus-rounded-1c-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%92%97%3C/text%3E%3C/svg%3E">
@@ -168,7 +168,7 @@ export function renderPage(report: StatusReport | null): string {
 <script src="/app.js" defer></script>
 </head>
 <body>
-<div class="top"><a href="https://fuwa.chat" class="brand"><span class="heart">♡</span> fuwa.chat <span class="soft">status</span></a><a class="soft small" href="https://www.waifu.dev">waifu.dev</a></div>
+<div class="top"><a href="https://www.waifu.dev" class="brand"><span class="heart">♡</span> waifu.dev <span class="soft">status</span></a><a class="soft small" href="https://fuwa.chat">fuwa.chat</a></div>
 <main id="main">${renderMain(report)}</main>
 <div class="tip" role="status" aria-live="polite" hidden></div>
 <footer class="soft small">Made with ♡ by the <a href="https://www.waifu.dev">Waifu Devs</a> community · <a href="/status.json">JSON</a></footer>

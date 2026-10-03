@@ -67,14 +67,39 @@ export const describe = (component: string) => {
 const reasonOf = (error: unknown) =>
   error instanceof DOMException && error.name === "TimeoutError" ? "timed out" : "couldn't connect";
 
+/** The most of an answer a check reads; /healthz/parts is a few hundred bytes. */
+const MAX_BODY_BYTES = 64 * 1024;
+
+/** Reads up to `max` bytes of a body, then stops reading it. */
+async function readCapped(response: Response, max: number): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (size < max) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.byteLength;
+  }
+  await reader.cancel().catch(() => {});
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const chunk of chunks) {
+    all.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return new TextDecoder().decode(all.subarray(0, max));
+}
+
 /** One GET, timed. Never follows a redirect. */
 const get = (url: string) =>
   Effect.promise(async () => {
     const started = performance.now();
     try {
-      const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "status.fuwa.chat" } });
-      const body = await response.text();
-      return { status: response.status, body: body.slice(0, 64 * 1024), latencyMs: Math.round(performance.now() - started), error: null };
+      const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "status.waifu.dev" } });
+      const body = await readCapped(response, MAX_BODY_BYTES);
+      return { status: response.status, body, latencyMs: Math.round(performance.now() - started), error: null };
     } catch (error) {
       return { status: 0, body: "", latencyMs: null, error: reasonOf(error) };
     }
@@ -201,7 +226,8 @@ export class Checks extends Effect.Service<Checks>()("Checks", {
 
     if (enabled) {
       yield* round.pipe(
-        Effect.catchAllCause((cause) => Effect.logWarning("Status checks failed to save", cause)),
+        // No cause: database errors name internal hosts and addresses, and the logs are public.
+        Effect.catchAllCause(() => Effect.logWarning("Status checks failed to save")),
         Effect.repeat(Schedule.spaced(Duration.seconds(EVERY_SECONDS))),
         Effect.forkScoped,
       );
