@@ -136,4 +136,22 @@ describe("limits", () => {
     expect(JSON.stringify(logged)).not.toContain("secret");
     expect(JSON.stringify(logged)).not.toContain("private value");
   });
+  it("turns scanners away with a 404 before routing, and doesn't log them", async () => {
+    logged.length = 0;
+    for (const path of ["/.env", "/wp-login.php", "/.git/config", "/actuator/env", "/v1/.env"]) {
+      const response = await fetch(`${base}${path}`);
+      expect(response.status, path).toBe(404);
+      expect(await response.text()).toBe("not found\n");
+      expect(response.headers.get("cache-control")).toBe("public, max-age=86400");
+    }
+    expect(logged.filter((entry) => "http.path" in entry.annotations)).toHaveLength(0);
+    // The real routes still answer.
+    expect((await fetch(`${base}/health`)).status).toBe(200);
+    expect((await post(JSON.stringify(signal()))).status).not.toBe(404);
+  });
+
+  it("tells shared caches to keep nothing that doesn't say otherwise", async () => {
+    const response = await post("{", "/v1/fuwa/signals");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
 });

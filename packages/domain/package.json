@@ -7,7 +7,8 @@
     "./themes": "./src/themes.ts",
     "./profile": "./src/profile.ts",
     "./api": "./src/Api.ts",
-    "./countries": "./src/countries.ts"
+    "./countries": "./src/countries.ts",
+    "./probes": "./src/probes.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

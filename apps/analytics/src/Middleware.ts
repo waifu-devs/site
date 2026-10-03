@@ -1,4 +1,5 @@
 import { HttpApp, HttpMiddleware, HttpServerError, HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { isProbe, PROBE_RESPONSE } from "@waifu-devs/domain/probes";
 import { Cause, Effect, Exit, Option } from "effect";
 import { limitBody } from "./App.ts";
 
@@ -16,7 +17,13 @@ const SECURITY_HEADERS = {
 };
 
 const withSecurityHeaders = (_request: HttpServerRequest.HttpServerRequest, response: HttpServerResponse.HttpServerResponse) =>
-  Effect.succeed(HttpServerResponse.setHeaders(response, SECURITY_HEADERS));
+  Effect.succeed(
+    HttpServerResponse.setHeaders(response, {
+      ...SECURITY_HEADERS,
+      // Answers are for whoever asked: Railway's CDN keeps only what says it may.
+      "cache-control": response.headers["cache-control"] ?? "no-store",
+    }),
+  );
 
 /**
  * Logs each request as method, path and status: never the query string, headers,
@@ -41,10 +48,25 @@ const requestLogger = HttpMiddleware.make((app) =>
 );
 
 /**
- * Everything every request goes through: the body limit, the security headers
- * (added just before any response is sent, errors included) and the request log.
+ * Scanners' guesses (`/.env`, `/wp-login.php`...) get a 404 before anything
+ * routes them, and aren't logged (see @waifu-devs/domain/probes).
  */
-export const harden = HttpMiddleware.make((app) => requestLogger(HttpApp.withPreResponseHandler(limitBody(app), withSecurityHeaders)));
+const turnAwayProbes = HttpMiddleware.make((app) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    if (!isProbe(request.url)) return yield* app;
+    return HttpServerResponse.text(PROBE_RESPONSE.body, { status: PROBE_RESPONSE.status, headers: PROBE_RESPONSE.headers });
+  }),
+);
+
+/**
+ * Everything every request goes through: scanners turned away first, then the
+ * body limit, the security headers (added just before any response is sent,
+ * errors included) and the request log.
+ */
+export const harden = HttpMiddleware.make((app) =>
+  turnAwayProbes(requestLogger(HttpApp.withPreResponseHandler(limitBody(app), withSecurityHeaders))),
+);
 
 /** A failure in a few words: its tag, or a defect's name and message with quoted values cut out. */
 function describe(cause: Cause.Cause<unknown>): string {
