@@ -24,7 +24,7 @@ jobs:
           railway-token: ${{ secrets.RAILWAY_TOKEN }}
       # The CDN and edge rules railway.ts can't declare yet (.railway/edge.mjs): what
       # merging would change. Changes nothing.
-      - run: node .railway/edge.mjs check web,api,analytics
+      - run: node .railway/edge.mjs check web,api,analytics,status
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
@@ -40,6 +40,6 @@ jobs:
           command: apply
           railway-token: ${{ secrets.RAILWAY_TOKEN }}
       # After the config apply, so it never moves the environment under a pinned plan.
-      - run: node .railway/edge.mjs apply web,api,analytics
+      - run: node .railway/edge.mjs apply web,api,analytics,status
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

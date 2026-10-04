@@ -15,8 +15,8 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
  * The DNS records for the domains live with the waifu.dev registrar.
  *
  * The CDN and edge rules aren't something Railway configuration can declare yet, so
- * .railway/edge.mjs sets them through Railway's API, from the same workflow: on api, web
- * and analytics, the CDN with Railway's defaults (HTML only when a page says so) and
+ * .railway/edge.mjs sets them through Railway's API, from the same workflow: on api, web,
+ * analytics and status, the CDN with Railway's defaults (HTML only when a page says so) and
  * .railway/edge-rules.json, which turns scanners' guesses away at the edge. The apps turn
  * the same paths away themselves (packages/domain/src/probes.ts).
  */
@@ -30,6 +30,8 @@ const API_DOMAIN = "api.waifu.dev";
 const WEB_DOMAIN = "www.waifu.dev";
 /** Where fuwa servers send their usage signals. */
 const ANALYTICS_DOMAIN = "analytics.waifu.dev";
+/** The status page for fuwa.chat and this site. */
+const STATUS_DOMAIN = "status.waifu.dev";
 const API_URL = `https://${API_DOMAIN}`;
 const WEB_URL = `https://${WEB_DOMAIN}`;
 
@@ -133,8 +135,7 @@ export default defineRailway((ctx) => {
 
   // status.waifu.dev: checks fuwa.chat and this site every minute over their public
   // addresses, keeps 90 days of history in Postgres (tables migrated by the api) and
-  // serves the page. Volume-less, so deploys overlap with no gap. Its custom domain is
-  // added in the dashboard after the apply that creates it, then declared here.
+  // serves the page. Volume-less, so deploys overlap with no gap.
   const status = service("status", {
     source: repo,
     build: {
@@ -145,6 +146,9 @@ export default defineRailway((ctx) => {
     start: "node apps/status/dist/main.js",
     healthcheck: "/health",
     regions: { [REGION]: 1 },
+    // Added in the dashboard first (Railway configuration can't register a new custom
+    // domain), declared here so later applies keep it.
+    domains: [{ domain: STATUS_DOMAIN, port: 4200 }],
     env: {
       NODE_ENV: "production",
       PORT: "4200",
