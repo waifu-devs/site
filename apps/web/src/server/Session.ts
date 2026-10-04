@@ -11,6 +11,8 @@ export const REFRESH_COOKIE = "wd_refresh";
 export const LOGIN_COOKIE = "wd_login";
 /** The theme a signed-out visitor wears; members wear theirs on their account. */
 export const THEME_COOKIE = "wd_theme";
+/** The language this browser picked; without it, the browser's own languages decide. */
+export const LANGUAGE_COOKIE = "wd_lang";
 /** Must match the API's OpenAuth client id. */
 export const CLIENT_ID = "waifu-devs-web";
 /** Matches OpenAuth's refresh token lifetime; the access token inside expires sooner. */
@@ -58,6 +60,22 @@ export class Session extends Effect.Service<Session>()("Session", {
     /** Remembers the theme a signed-out visitor picked, for a year. */
     const setVisitorTheme = (themeId: string) =>
       RequestContext.pipe(Effect.map((req) => req.setCookie(THEME_COOKIE, themeId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 365 })));
+
+    /** The language this browser picked (a shipped code, checked by the caller), if any. */
+    const pickedLanguage = RequestContext.pipe(Effect.map((req) => req.getCookie(LANGUAGE_COOKIE)));
+
+    /** The languages the browser asks for, read only to choose one; never logged or stored. */
+    const browserLanguages = RequestContext.pipe(Effect.map((req) => req.request.headers.get("accept-language")));
+
+    /** Remembers a language for a year, or forgets it (null) to follow the browser again. */
+    const pickLanguage = (code: string | null) =>
+      RequestContext.pipe(
+        Effect.map((req) =>
+          code === null
+            ? req.deleteCookie(LANGUAGE_COOKIE, cookieOptions)
+            : req.setCookie(LANGUAGE_COOKIE, code, { ...cookieOptions, maxAge: 60 * 60 * 24 * 365 }),
+        ),
+      );
 
     /**
      * Signing in hands the theme picked while signed out to the account, if the
@@ -159,7 +177,7 @@ export class Session extends Effect.Service<Session>()("Session", {
       yield* clearTokens;
     });
 
-    return { authorize, callback, accessToken, currentUser, visitorTheme, setVisitorTheme, signOut } as const;
+    return { authorize, callback, accessToken, currentUser, visitorTheme, setVisitorTheme, pickedLanguage, browserLanguages, pickLanguage, signOut } as const;
   }),
   dependencies: [Urls.Default, ApiClient.Default],
 }) {}

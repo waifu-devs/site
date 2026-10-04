@@ -1,0 +1,22 @@
+{
+  "nav.projects": "Projects",
+  "nav.members": "Members",
+  "nav.themes": "Themes",
+  "nav.news": "News",
+  "nav.signIn": "Sign in",
+  "footer.madeWith": "Made with {heart} by the Waifu Devs community",
+  "footer.github": "GitHub",
+  "footer.status": "Status",
+  "footer.stats": "Stats",
+  "notFound.title": "Nothing here",
+  "notFound.body": "That page wandered off. Maybe it went to get boba.",
+  "notFound.home": "Back home",
+  "language.button": "Language: {language}",
+  "language.title": "Language",
+  "language.description": "For this browser, and it takes effect at once: not part of your profile, so there's nothing to save.",
+  "language.matchBrowser": "Match my browser",
+  "language.matchBrowserNote": "Right now that's {language}",
+  "language.coverage": "{percent} translated",
+  "language.draft": "Machine draft, not yet checked by a speaker",
+  "language.failed": "Couldn't switch the language. Try again?"
+}

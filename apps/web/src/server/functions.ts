@@ -21,6 +21,8 @@ import {
 import { isCountryCode } from "@waifu-devs/domain/countries";
 import { BUILTIN_THEMES, DEFAULT_THEME, TOKENS } from "@waifu-devs/domain/themes";
 import { Effect, Option, Schema } from "effect";
+import { CODES, languageOf, shipped } from "../i18n/catalogs.ts";
+import { acceptLanguage, negotiate } from "../i18n/core.ts";
 import { ApiClient } from "./Api.ts";
 import { asUser, formData, orNotFound, text } from "./helpers.ts";
 import { run } from "./runtime.ts";
@@ -55,6 +57,19 @@ const featuredRepos = (username: string) =>
     Effect.orElseSucceed((): readonly Repo[] => []),
   );
 
+/**
+ * Which language to show: the one this browser picked, else the best match for
+ * the languages it asks for, else English. Only shipped codes come out, so the
+ * value is safe for <html lang> and the cookie.
+ */
+const viewerLanguage = Effect.gen(function* () {
+  const session = yield* Session;
+  const picked = yield* session.pickedLanguage;
+  const detected = negotiate(acceptLanguage(yield* session.browserLanguages), CODES);
+  const active = picked && CODES.includes(picked) ? picked : detected;
+  return { choice: picked && CODES.includes(picked) ? picked : "auto", detected, active, dir: languageOf(active).dir };
+});
+
 /** The signed-in user, or a redirect to /login that comes back to `next`. */
 const requireUser = (next: string) =>
   Session.pipe(
@@ -75,7 +90,7 @@ export const getViewer = createServerFn({ method: "GET" }).handler(() =>
       const theme = user
         ? yield* resolveTheme(user.themeId)
         : Option.getOrElse(yield* publicTheme(yield* session.visitorTheme), () => DEFAULT_THEME as Theme);
-      return { user, theme };
+      return { user, theme, language: yield* viewerLanguage };
     }),
   ),
 );
@@ -307,6 +322,17 @@ export const wearTheme = createServerFn({ method: "POST" })
         } else if (Option.isSome(yield* publicTheme(themeId))) {
           yield* session.setVisitorTheme(themeId);
         }
+      }),
+    ),
+  );
+
+/** Picks the site's language for this browser, or "auto" to follow the browser's own. */
+export const pickLanguage = createServerFn({ method: "POST" })
+  .validator((code: unknown) => (typeof code === "string" && (code === "auto" || CODES.includes(code)) ? code : "auto"))
+  .handler(({ data: code }) =>
+    run(
+      Effect.gen(function* () {
+        yield* (yield* Session).pickLanguage(code === "auto" ? null : shipped(code));
       }),
     ),
   );
