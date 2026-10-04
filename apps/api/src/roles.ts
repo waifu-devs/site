@@ -39,6 +39,8 @@ async function main() {
     END $$`);
     const { rows } = await client.query<{ db: string }>("SELECT current_database() AS db");
     await client.query(`GRANT CONNECT ON DATABASE ${client.escapeIdentifier(rows[0]!.db)} TO ${ROLE}`);
+    // Postgres before 15 lets every role create tables in public; nobody but the owner should.
+    await client.query("REVOKE CREATE ON SCHEMA public FROM PUBLIC");
     await client.query(`GRANT USAGE ON SCHEMA public TO ${ROLE}`);
     for (const table of TABLES) {
       await client.query(`REVOKE ALL ON ${table} FROM ${ROLE}`);
