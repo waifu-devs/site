@@ -2,23 +2,67 @@ name: CI
 
 on:
   pull_request:
+    # closed: merging or closing a pull request stops its run (below).
+    types: [opened, synchronize, reopened, closed]
   push:
     branches: [main]
+  # Actions > CI > Run workflow checks the whole workspace.
+  workflow_dispatch:
+
+# One run per pull request: a new push stops the run for the old one, and merging
+# stops it too, since main's own run then checks the merged code. Runs on main all
+# finish, so each commit there gets its result.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   check:
+    name: Type check, build and test
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      # Only the packages this change touches and the ones that depend on them
+      # (.github/scripts/changes.sh); the lock file, the shared config or a new folder
+      # checks them all, and a change to none of them (README, .railway/) checks nothing.
+      - id: changes
+        shell: bash
+        run: |
+          case "$EVENT" in
+            pull_request) .github/scripts/changes.sh pr "$PR" >> "$GITHUB_OUTPUT" ;;
+            push) .github/scripts/changes.sh since "$BEFORE" >> "$GITHUB_OUTPUT" ;;
+            *) .github/scripts/changes.sh all >> "$GITHUB_OUTPUT" ;;
+          esac
+          cat "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+      - if: steps.changes.outputs.run == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm build
-      - run: pnpm -r --if-present test
+      - if: steps.changes.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.changes.outputs.run == 'true'
+        run: pnpm -r --if-present $FILTER run typecheck
+        env:
+          FILTER: ${{ steps.changes.outputs.filter }}
+      - if: steps.changes.outputs.run == 'true'
+        run: pnpm -r --if-present $FILTER run build
+        env:
+          FILTER: ${{ steps.changes.outputs.filter }}
+      - if: steps.changes.outputs.run == 'true'
+        run: pnpm -r --if-present $FILTER run test
+        env:
+          FILTER: ${{ steps.changes.outputs.filter }}
