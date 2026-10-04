@@ -1,9 +1,10 @@
-// Bundles the API (and the workspace domain package) into dist/main.js.
+// Bundles the API (and the workspace domain package) into dist/main.js, and the
+// database roles step its deploys run after the migrations into dist/roles.js.
 import { build } from "esbuild";
 
 await build({
-  entryPoints: ["src/main.ts"],
-  outfile: "dist/main.js",
+  entryPoints: ["src/main.ts", "src/roles.ts"],
+  outdir: "dist",
   bundle: true,
   platform: "node",
   target: "node22",
