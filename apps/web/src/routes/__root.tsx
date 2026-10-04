@@ -1,12 +1,16 @@
 /// <reference types="vite/client" />
 import { createRootRoute, HeadContent, Link, Outlet, Scripts, useMatch, useRouter } from "@tanstack/react-router";
 import { DEFAULT_THEME, themeStyle } from "@waifu-devs/domain/themes";
+import { motion } from "motion/react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { UserAvatar } from "@/components/Avatar";
 import { BugReportsFooter } from "@/components/BugReports";
 import { Sparkles } from "@/components/motion";
 import { Petals } from "@/components/Petals";
+import { LanguageFooter, useSwitchingLanguage } from "@/components/LanguagePicker";
 import { Button } from "@/components/ui/button";
+import { loadCatalog } from "@/i18n/catalogs";
+import { I18nProvider, type Messages, T, useI18n } from "@/i18n/react";
 import { title } from "@/lib/head";
 import { pageChange, startReports } from "@/lib/reports";
 import { STATS_ADMINS, STATS_PUBLIC } from "@/lib/stats";
@@ -30,7 +34,12 @@ function UserMenuTrigger({ username, name, avatar }: { username: string; name: s
 
 export const Route = createRootRoute({
   // Every page is dressed in the viewer's theme, so the root always knows who's looking.
-  loader: () => getViewer(),
+  // It also brings the page's language: the strings for anything but English, which every bundle has.
+  loader: async () => {
+    const viewer = await getViewer();
+    const messages: Messages = viewer.language.active === "en" ? null : Object.fromEntries(await loadCatalog(viewer.language.active));
+    return { ...viewer, messages };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -67,13 +76,18 @@ function RootDocument({ children }: { children: ReactNode }) {
   // A profile dresses the whole page, header and all, in the theme its owner picked for it.
   const profileTheme = useMatch({ from: "/u/$username", shouldThrow: false })?.loaderData?.theme;
   const theme = profileTheme ?? viewerTheme;
+  const viewer = useMatch({ from: "__root__", shouldThrow: false })?.loaderData;
+  const locale = viewer?.language.active ?? "en";
+  const dir = viewer?.language.dir ?? "ltr";
   return (
-    <html lang="en" data-theme={theme.id} style={themeStyle(theme.variant)}>
+    <html lang={locale} dir={dir} data-theme={theme.id} style={themeStyle(theme.variant)}>
       <head>
         <HeadContent />
       </head>
       <body className="min-h-screen">
-        {children}
+        <I18nProvider locale={locale} dir={dir} messages={viewer?.messages ?? null}>
+          {children}
+        </I18nProvider>
         <LateFonts />
         <Scripts />
       </body>
@@ -102,7 +116,10 @@ function useBugReports() {
 }
 
 function RootLayout() {
-  const { user } = Route.useLoaderData();
+  const { user, language } = Route.useLoaderData();
+  const { t } = useI18n();
+  // While a new language's strings arrive, the page dims a little instead of jumping.
+  const switching = useSwitchingLanguage() !== null;
   useBugReports();
   return (
     <>
@@ -117,16 +134,16 @@ function RootLayout() {
             {/* On phones the links drop to their own row so Sign in never gets pushed off screen. */}
             <div className="order-last flex w-full gap-4 text-sm font-bold text-muted-foreground sm:order-none sm:w-auto">
               <Link to="/projects" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
-                Projects
+                {t("common.nav.projects")}
               </Link>
               <Link to="/members" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
-                Members
+                {t("common.nav.members")}
               </Link>
               <Link to="/themes" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
-                Themes
+                {t("common.nav.themes")}
               </Link>
               <Link to="/news" className="nav-link hover:text-primary" activeProps={{ className: "text-primary" }}>
-                News
+                {t("common.nav.news")}
               </Link>
             </div>
             <div className="ml-auto flex items-center gap-3 text-sm">
@@ -136,35 +153,36 @@ function RootLayout() {
                 </Suspense>
               ) : (
                 <Button asChild size="sm" className="btn rounded-full font-bold">
-                  <Link to="/login">Sign in</Link>
+                  <Link to="/login">{t("common.nav.signIn")}</Link>
                 </Button>
               )}
             </div>
           </nav>
         </header>
-        <div className="flex-1">
+        <motion.div className="flex-1" animate={{ opacity: switching ? 0.55 : 1 }} transition={{ duration: 0.12 }}>
           <Outlet />
-        </div>
+        </motion.div>
         <footer className="flex flex-col gap-2 border-t py-6 text-center text-xs text-muted-foreground">
           <p>
-            Made with ♡ by the Waifu Devs community ·{" "}
+            <T k="common.footer.madeWith" values={{ heart: "♡" }} /> ·{" "}
             <a className="underline hover:text-primary" href="https://github.com/waifu-devs">
-              GitHub
+              {t("common.footer.github")}
             </a>{" "}
             ·{" "}
             <a className="underline hover:text-primary" href="https://status.waifu.dev">
-              Status
+              {t("common.footer.status")}
             </a>
             {(STATS_PUBLIC || (user?.githubId != null && STATS_ADMINS.includes(user.githubId))) && (
               <>
                 {" "}
                 ·{" "}
                 <Link to="/stats" className="underline hover:text-primary">
-                  Stats
+                  {t("common.footer.stats")}
                 </Link>
               </>
             )}
           </p>
+          <LanguageFooter language={language} />
           <BugReportsFooter />
         </footer>
       </div>
@@ -173,13 +191,14 @@ function RootLayout() {
 }
 
 function NotFound() {
+  const { t } = useI18n();
   return (
     <main className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-24 text-center">
       <p className="float text-5xl">(╥﹏╥)</p>
-      <h1 className="text-2xl font-extrabold">Nothing here</h1>
-      <p className="text-muted-foreground">That page wandered off. Maybe it went to get boba.</p>
+      <h1 className="text-2xl font-extrabold">{t("common.notFound.title")}</h1>
+      <p className="text-muted-foreground">{t("common.notFound.body")}</p>
       <Button asChild className="btn rounded-full font-bold">
-        <Link to="/">Back home</Link>
+        <Link to="/">{t("common.notFound.home")}</Link>
       </Button>
     </main>
   );

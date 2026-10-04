@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import type { Repo, Theme, User } from "@waifu-devs/domain/api";
 import { BANNER_LABELS, BANNERS, type Banner, IMAGE_SIZES, MAX_FEATURED_REPOS, MAX_IMAGE_BYTES, MAX_SKILLS } from "@waifu-devs/domain/profile";
 import { type ThemeVariant, themeStyle } from "@waifu-devs/domain/themes";
@@ -7,6 +7,7 @@ import { useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
 import { UserAvatar } from "@/components/Avatar";
 import { BugReportsSetting } from "@/components/BugReports";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { ImageDrop, type ImageUpload, useImageUpload } from "@/components/ImageUpload";
 import { Markdown } from "@/components/Markdown";
 import { ProfileBanner } from "@/components/ProfileBanner";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useI18n } from "@/i18n/react";
 import { title } from "@/lib/head";
 import { getProfileEditor, updateProfile } from "@/server/functions";
 
@@ -75,6 +77,25 @@ const previewUrl = (value: string) => {
   const url = value.trim();
   return url ? (/^https?:\/\//i.test(url) ? url : `https://${url}`) : null;
 };
+
+const root = getRouteApi("__root__");
+
+/** The site's language, for this browser like bug reports: it applies at once, with nothing to save. */
+function LanguageCard() {
+  const { t } = useI18n();
+  const { language } = root.useLoaderData();
+  return (
+    <Card id="language">
+      <CardHeader>
+        <CardTitle>{t("common.language.title")}</CardTitle>
+        <CardDescription>{t("common.language.description")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <LanguagePicker language={language} />
+      </CardContent>
+    </Card>
+  );
+}
 
 function SettingsPage() {
   const data = Route.useLoaderData();
@@ -318,6 +339,8 @@ function ProfileEditor({
               <BugReportsSetting />
             </CardContent>
           </Card>
+
+          <LanguageCard />
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-20">

@@ -8,7 +8,8 @@
     "build": "vite build",
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
-    "doctor": "react-doctor"
+    "doctor": "react-doctor",
+    "test": "node --experimental-strip-types --no-warnings --test \"test/*.test.ts\""
   },
   "dependencies": {
     "@effect/platform": "^0.97.2",

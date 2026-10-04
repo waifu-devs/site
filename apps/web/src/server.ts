@@ -57,7 +57,11 @@ function withSecurityHeaders(response: Response): Response {
   // Some responses (redirects) have immutable headers.
   const secured = new Response(response.body, response);
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) secured.headers.set(name, value);
-  if (!secured.headers.has("cache-control")) secured.headers.set("cache-control", "private, no-cache");
+  if (!secured.headers.has("cache-control")) {
+    secured.headers.set("cache-control", "private, no-cache");
+    // Pages also come in the visitor's language (the wd_lang cookie, else Accept-Language).
+    secured.headers.append("vary", "Cookie, Accept-Language");
+  }
   const policy = csp();
   if (policy && !secured.headers.has("content-security-policy")) secured.headers.set("content-security-policy", policy);
   return secured;
