@@ -1,0 +1,22 @@
+{
+  "nav.projects": "Proyectos",
+  "nav.members": "Miembros",
+  "nav.themes": "Temas",
+  "nav.news": "Noticias",
+  "nav.signIn": "Iniciar sesión",
+  "footer.madeWith": "Hecho con {heart} por la comunidad de Waifu Devs",
+  "footer.github": "GitHub",
+  "footer.status": "Estado",
+  "footer.stats": "Estadísticas",
+  "notFound.title": "Aquí no hay nada",
+  "notFound.body": "Esa página se fue de paseo. Quizás fue por un boba.",
+  "notFound.home": "Volver al inicio",
+  "language.button": "Idioma: {language}",
+  "language.title": "Idioma",
+  "language.description": "Para este navegador, y se aplica al momento: no es parte de tu perfil, así que no hay nada que guardar.",
+  "language.matchBrowser": "Como mi navegador",
+  "language.matchBrowserNote": "Ahora mismo es {language}",
+  "language.coverage": "{percent} traducido",
+  "language.draft": "Borrador automático, aún sin revisar por un hablante",
+  "language.failed": "No se pudo cambiar el idioma. ¿Lo intentas de nuevo?"
+}
