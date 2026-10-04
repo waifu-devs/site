@@ -22,11 +22,26 @@ import { Checks } from "./Checks.ts";
 import { CSS, JS, renderMain, renderPage } from "./Page.ts";
 import type { StatusReport } from "./Report.ts";
 
-const PgLive = PgClient.layerConfig({
-  url: Config.redacted("DATABASE_URL"),
-  maxConnections: Config.integer("DATABASE_POOL_SIZE").pipe(Config.withDefault(4)),
-});
-const runtime = ManagedRuntime.make(Checks.Default.pipe(Layer.provide(PgLive), Layer.provide(Logger.json)));
+// In production the status service signs in as its own role, which can only read
+// and write the status tables (apps/api/src/roles.ts): PGHOST, PGPORT,
+// PGDATABASE, PGUSER and PGPASSWORD. Locally, DATABASE_URL does instead.
+const PgLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const maxConnections = yield* Config.integer("DATABASE_POOL_SIZE").pipe(Config.withDefault(4));
+    const url = yield* Config.option(Config.redacted("DATABASE_URL"));
+    if (url._tag === "Some") return PgClient.layer({ url: url.value, maxConnections });
+    return PgClient.layer({
+      host: yield* Config.string("PGHOST"),
+      port: yield* Config.integer("PGPORT").pipe(Config.withDefault(5432)),
+      database: yield* Config.string("PGDATABASE"),
+      username: yield* Config.string("PGUSER"),
+      password: yield* Config.redacted("PGPASSWORD"),
+      maxConnections,
+    });
+  }),
+);
+const makeRuntime = () => ManagedRuntime.make(Checks.Default.pipe(Layer.provide(PgLive), Layer.provide(Logger.json)));
+let runtime = makeRuntime();
 
 const POLICY = [
   "default-src 'none'",
@@ -110,13 +125,24 @@ const server = createServer(async (request, response) => {
   }
 });
 
-// Start the checks with the server. A failure is told without its cause: database
-// errors name internal hosts and addresses, and the logs are public.
-try {
-  await runtime.runPromise(Checks.pipe(Effect.asVoid));
-} catch {
-  console.error(JSON.stringify({ message: "Status couldn't start: the database didn't answer" }));
-  process.exit(1);
+// Start the checks with the server. On a deploy that also changes the database
+// role, the role can be a moment behind, so keep trying for two minutes. A failure
+// is told without its cause: database errors name internal hosts and addresses,
+// and the logs are public.
+for (let attempt = 1; ; attempt++) {
+  try {
+    await runtime.runPromise(Checks.pipe(Effect.asVoid));
+    break;
+  } catch {
+    await runtime.dispose().catch(() => {});
+    if (attempt === 12) {
+      console.error(JSON.stringify({ message: "Status couldn't start: the database didn't answer" }));
+      process.exit(1);
+    }
+    console.error(JSON.stringify({ message: "The database didn't answer; trying again in 10 s" }));
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    runtime = makeRuntime();
+  }
 }
 const port = Number(process.env.PORT ?? 3000);
 // "::" also takes IPv4.

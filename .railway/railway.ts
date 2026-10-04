@@ -11,7 +11,8 @@ import { bucket, defineRailway, github, postgres, project, ref, service } from "
  * GITHUB_CLIENT_SECRET (the GitHub OAuth app, whose callback is API_URL + /github/callback),
  * GITHUB_TOKEN (optional: a fine-grained GitHub token with no permissions, so the api reads
  * public repos at 5,000 calls an hour instead of 60) and ANALYTICS_READ_TOKEN (the bearer
- * token for reading analytics).
+ * token for reading analytics) and STATUS_DB_PASSWORD (at least 24 characters, such as
+ * `openssl rand -hex 32`: the status service's database password).
  * The DNS records for the domains live with the waifu.dev registrar.
  *
  * The CDN and edge rules aren't something Railway configuration can declare yet, so
@@ -49,7 +50,9 @@ export default defineRailway((ctx) => {
       buildCommand: "pnpm --filter @waifu-devs/api build",
       watchPatterns: ["apps/api/**", "packages/domain/**", "pnpm-lock.yaml"],
     },
-    preDeploy: "pnpm --filter @waifu-devs/api db:migrate",
+    // Migrations, then the database roles (apps/api/src/roles.ts), such as the status
+    // service's own role that can only reach the status tables.
+    preDeploy: "pnpm --filter @waifu-devs/api db:setup",
     start: "node apps/api/dist/main.js",
     healthcheck: "/health",
     regions: { [REGION]: 1 },
@@ -70,6 +73,8 @@ export default defineRailway((ctx) => {
       S3_BUCKET: ref(uploads, "BUCKET"),
       S3_ACCESS_KEY_ID: ref(uploads, "ACCESS_KEY_ID"),
       S3_SECRET_ACCESS_KEY: ref(uploads, "SECRET_ACCESS_KEY"),
+      // The status service's database password; roles.ts sets it on its role.
+      STATUS_DB_PASSWORD: ctx.shared.STATUS_DB_PASSWORD,
     },
   });
 
@@ -134,8 +139,9 @@ export default defineRailway((ctx) => {
   });
 
   // status.waifu.dev: checks fuwa.chat and this site every minute over their public
-  // addresses, keeps 90 days of history in Postgres (tables migrated by the api) and
-  // serves the page. Volume-less, so deploys overlap with no gap.
+  // addresses, keeps 90 days of history in Postgres (tables migrated by the api,
+  // reached through a role limited to them) and serves the page. Volume-less, so
+  // deploys overlap with no gap.
   const status = service("status", {
     source: repo,
     build: {
@@ -152,7 +158,13 @@ export default defineRailway((ctx) => {
     env: {
       NODE_ENV: "production",
       PORT: "4200",
-      DATABASE_URL: db.env.DATABASE_URL,
+      // Its own role, which can only read and write the status tables (set up by the
+      // api's deploys, apps/api/src/roles.ts), never the owner's login.
+      PGHOST: db.env.PGHOST,
+      PGPORT: db.env.PGPORT,
+      PGDATABASE: db.env.PGDATABASE,
+      PGUSER: "status_checks",
+      PGPASSWORD: ctx.shared.STATUS_DB_PASSWORD,
       DATABASE_POOL_SIZE: "4",
     },
   });
