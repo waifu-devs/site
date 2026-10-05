@@ -18,5 +18,10 @@
   "language.matchBrowserNote": "Ahora mismo es {language}",
   "language.coverage": "{percent} traducido",
   "language.draft": "Borrador automático, aún sin revisar por un hablante",
-  "language.failed": "No se pudo cambiar el idioma. ¿Lo intentas de nuevo?"
+  "language.failed": "No se pudo cambiar el idioma. ¿Lo intentas de nuevo?",
+  "notFound.pageTitle": "No encontrado",
+  "tryAgain": "Intentar de nuevo",
+  "cancel": "Cancelar",
+  "meta.description": "Una comunidad acogedora para devs que aman el anime, las waifus y sacar código a producción. (✿◕‿◕✿)",
+  "markdown.image": "imagen"
 }
