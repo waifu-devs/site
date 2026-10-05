@@ -2,12 +2,13 @@ import { useServerFn } from "@tanstack/react-start";
 import type { Repo } from "@waifu-devs/domain/api";
 import { MAX_FEATURED_REPOS } from "@waifu-devs/domain/profile";
 import { Check, GitFork, GripVertical, RotateCw, Search, X } from "lucide-react";
-import { AnimatePresence, MotionConfig, motion, Reorder, useDragControls } from "motion/react";
+import { AnimatePresence, MotionConfig, m as motion, Reorder, useDragControls } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Language, ownedByOther, Stars } from "@/components/RepoCard";
+import { Language, Stars } from "@/components/RepoCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n/react";
+import { ownedByOther } from "@/lib/repos";
 import { cn } from "@/lib/utils";
 import { getRepoChoices } from "@/server/functions";
 
@@ -274,7 +275,7 @@ function ChoiceList({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            className="pl-9 transition-all duration-200 focus-visible:-translate-y-0.5"
+            className="pl-9 transition-[color,border-color,box-shadow,translate] duration-200 focus-visible:-translate-y-0.5"
           />
         </div>
         <Segmented

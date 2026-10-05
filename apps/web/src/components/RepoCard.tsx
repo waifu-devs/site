@@ -1,17 +1,13 @@
 import type { Repo } from "@waifu-devs/domain/api";
 import { ArrowUpRight, BookMarked, GitFork, Star } from "lucide-react";
-import { MotionConfig, motion } from "motion/react";
+import { MotionConfig, m as motion } from "motion/react";
 import { GitHubMark } from "@/components/projects/ProjectCard";
 import { useI18n } from "@/i18n/react";
 import { languageColor } from "@/lib/languages";
+import { ownedByOther, repoUrl } from "@/lib/repos";
 import { cn } from "@/lib/utils";
 
 const COMPACT = { notation: "compact", maximumFractionDigits: 1 } as const;
-
-export const repoUrl = (repo: Pick<Repo, "owner" | "name">) => `https://github.com/${repo.owner}/${repo.name}`;
-
-/** Whether a repo belongs to someone other than `username` (an organization, usually). */
-export const ownedByOther = (repo: Pick<Repo, "owner">, username: string) => repo.owner.toLowerCase() !== username.toLowerCase();
 
 /** A language's GitHub color as a dot, and its name. */
 export function Language({ name, className }: { name: string; className?: string }) {

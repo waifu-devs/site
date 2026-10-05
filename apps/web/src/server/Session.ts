@@ -197,8 +197,10 @@ function parseLogin(value: string | undefined): { state?: string; verifier?: str
 
 /** True when a JWT's `exp` is under 30 seconds away (or unreadable). */
 function expiresSoon(token: string): boolean {
+  const body = token.split(".")[1];
+  if (!body) return true;
   try {
-    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    const payload = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
     return typeof payload.exp !== "number" || payload.exp * 1000 < Date.now() + 30_000;
   } catch {
     return true;

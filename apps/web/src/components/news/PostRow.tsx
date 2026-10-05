@@ -4,7 +4,8 @@ import { ArrowUpRight, Clock, MessageCircle } from "lucide-react";
 import { UserAvatar } from "@/components/Avatar";
 import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
-import { hostname, TimeAgo } from "./format";
+import { hostname } from "./format";
+import { TimeAgo } from "./TimeAgo";
 import { VoteButton } from "./VoteButton";
 
 const HOUR = 60 * 60 * 1000;

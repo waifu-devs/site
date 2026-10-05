@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { PostSort } from "@waifu-devs/domain/api";
 import { Flame, Sparkles } from "lucide-react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { type Key, useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 

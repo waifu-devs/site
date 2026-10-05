@@ -2,7 +2,7 @@ import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import type { Repo, Theme, User } from "@waifu-devs/domain/api";
 import { BANNERS, type Banner, IMAGE_SIZES, MAX_FEATURED_REPOS, MAX_IMAGE_BYTES, MAX_SKILLS } from "@waifu-devs/domain/profile";
 import { type ThemeVariant, themeStyle } from "@waifu-devs/domain/themes";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
 import { UserAvatar } from "@/components/Avatar";

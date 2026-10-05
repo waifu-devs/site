@@ -2,7 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { IMAGE_TYPES, type ImageKind, MAX_IMAGE_BYTES } from "@waifu-devs/domain/profile";
 import { ImageUp, LoaderCircle } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { type I18n, useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";

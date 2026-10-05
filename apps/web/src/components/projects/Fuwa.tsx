@@ -1,6 +1,6 @@
 import { CalendarClock, CircleCheck, CircleDashed, Cloud, Database, Hash, House, Laptop, LoaderCircle, Plus } from "lucide-react";
-import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, m as motion, useInView, useReducedMotion } from "motion/react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { type Key, T, useI18n } from "@/i18n/react";
 import type { Project, RoadmapItem, RoadmapState } from "@/lib/projects";
 import { cn } from "@/lib/utils";
@@ -91,6 +91,7 @@ function Client({ active, onSelect }: { active: number; onSelect: (i: number) =>
   const server = SERVERS[active];
   const total = server.messages.length;
   const shown = progress.server === active ? progress.shown : 0;
+  const hop = useEffectEvent(() => onSelect((active + 1) % SERVERS.length));
 
   useEffect(() => {
     // Reduced motion shows the whole conversation at once. It's set here rather than during
@@ -101,11 +102,11 @@ function Client({ active, onSelect }: { active: number; onSelect: (i: number) =>
     }
     if (!inView) return;
     const id = setTimeout(
-      () => (shown < total ? setProgress({ server: active, shown: shown + 1 }) : onSelect((active + 1) % SERVERS.length)),
+      () => (shown < total ? setProgress({ server: active, shown: shown + 1 }) : hop()),
       shown === 0 ? 500 : shown < total ? 1300 : 3200,
     );
     return () => clearTimeout(id);
-  }, [inView, reduce, active, shown, total, onSelect]);
+  }, [inView, reduce, active, shown, total]);
 
   const typing = !reduce && inView && shown < total ? server.messages[shown].author : null;
 

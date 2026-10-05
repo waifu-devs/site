@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Heart } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";

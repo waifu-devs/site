@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { PostSort } from "@waifu-devs/domain/api";
 import { ArrowLeft, ArrowRight, Plus } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
 import { PostRow } from "@/components/news/PostRow";
 import { SortTabs } from "@/components/news/SortTabs";

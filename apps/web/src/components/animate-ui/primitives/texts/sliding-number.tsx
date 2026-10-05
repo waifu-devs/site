@@ -3,7 +3,7 @@ import * as React from 'react';
 import {
   useSpring,
   useTransform,
-  motion,
+  m as motion,
   useMotionValue,
   type MotionValue,
   type SpringOptions,

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { createRootRoute, HeadContent, Link, Outlet, Scripts, useMatch, useRouter } from "@tanstack/react-router";
 import { DEFAULT_THEME, themeStyle } from "@waifu-devs/domain/themes";
-import { motion } from "motion/react";
+import { domMax, LazyMotion, m as motion } from "motion/react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { UserAvatar } from "@/components/Avatar";
 import { BugReportsFooter } from "@/components/BugReports";
@@ -86,7 +86,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body className="min-h-screen">
         <I18nProvider locale={locale} dir={dir} messages={viewer?.messages ?? null}>
-          {children}
+          <LazyMotion features={domMax}>{children}</LazyMotion>
         </I18nProvider>
         <LateFonts />
         <Scripts />

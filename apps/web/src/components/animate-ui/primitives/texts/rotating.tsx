@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { motion, AnimatePresence, type HTMLMotionProps } from 'motion/react';
+import { m as motion, AnimatePresence, type HTMLMotionProps } from 'motion/react';
 
 import {
   useIsInView,

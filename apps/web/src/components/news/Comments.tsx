@@ -2,7 +2,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { COMMENT_MAX } from "@waifu-devs/domain/api";
 import { Loader2, MessageCircleReply, Minus, Plus, Send } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { useState } from "react";
 import { UserAvatar } from "@/components/Avatar";
 import { Markdown } from "@/components/Markdown";
@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 import { addComment } from "@/server/news";
-import { type CommentNode, TimeAgo } from "./format";
+import type { CommentNode } from "./format";
+import { TimeAgo } from "./TimeAgo";
 
 /** Past this depth replies stop stepping right, so deep threads stay readable on a phone. */
 const MAX_INDENT = 5;
@@ -43,6 +44,8 @@ export function CommentComposer({
 
   return (
     <form
+      action={addComment.url}
+      method="post"
       aria-busy={pending || undefined}
       className="flex flex-col gap-2"
       onSubmit={async (event) => {

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { motion, useScroll, useTransform } from "motion/react";
+import { m as motion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
 import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";

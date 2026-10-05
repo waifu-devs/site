@@ -9,8 +9,13 @@ export function ThemeSwatch({ theme }: { theme: Theme }) {
   return (
     <div className="group/swatch overflow-hidden rounded-lg border bg-background p-3" style={themeStyle(theme.variant)}>
       <div className="rounded-md border bg-card p-3">
-        <div className="h-2 w-2/3 rounded-full bg-foreground transition-all duration-500 group-hover/swatch:w-5/6" />
-        <div className="mt-2 h-2 w-1/2 rounded-full bg-muted-foreground transition-all delay-75 duration-500 group-hover/swatch:w-1/3" />
+        {/* Each bar slides inside a clip as wide as its longest state, so hovering stretches it without relayout. */}
+        <div className="h-2 w-5/6 overflow-hidden rounded-full">
+          <div className="h-full -translate-x-1/5 rounded-full bg-foreground transition-transform duration-500 group-hover/swatch:translate-x-0" />
+        </div>
+        <div className="mt-2 h-2 w-1/2 overflow-hidden rounded-full">
+          <div className="h-full rounded-full bg-muted-foreground transition-transform delay-75 duration-500 group-hover/swatch:-translate-x-1/3" />
+        </div>
         <div className="mt-3 flex gap-2">
           <Badge className="transition-transform duration-300 group-hover/swatch:scale-110">♡ kawaii</Badge>
           <Badge variant="secondary">desu</Badge>

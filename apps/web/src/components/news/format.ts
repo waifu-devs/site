@@ -1,5 +1,5 @@
 import type { Comment } from "@waifu-devs/domain/api";
-import { type I18n, useI18n } from "@/i18n/react";
+import type { I18n } from "@/i18n/react";
 
 const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ["year", 365 * 24 * 60 * 60],
@@ -23,17 +23,6 @@ export function timeAgo(date: Date | string, { locale, t }: Pick<I18n, "locale" 
     if (seconds >= size) return relative(locale).format(-Math.floor(seconds / size), unit);
   }
   return t("news.justNow");
-}
-
-/** A relative time that shows the exact one on hover. Server and browser clocks differ, hence the warning opt-out. */
-export function TimeAgo({ date, className }: { date: Date | string; className?: string }) {
-  const i18n = useI18n();
-  const d = new Date(date);
-  return (
-    <time dateTime={d.toISOString()} title={i18n.date(d, { dateStyle: "medium", timeStyle: "short" })} className={className} suppressHydrationWarning>
-      {timeAgo(d, i18n)}
-    </time>
-  );
 }
 
 /** The site a link points to, without the "www.". */
