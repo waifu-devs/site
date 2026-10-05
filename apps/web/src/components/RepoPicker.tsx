@@ -236,32 +236,9 @@ function ChoiceList({
   onRetry: () => void;
 }) {
   const { t } = useI18n();
-  const [query, setQuery] = useState("");
-  const [owner, setOwner] = useState<string | null>(null);
-  const [sort, setSort] = useState<Sort>("recent");
   // One empty list, so the filters below don't rerun on every render while loading.
   const repos = choices.status === "ready" ? choices.repos : NO_REPOS;
-
-  // Organizations, busiest first, for the owner filter.
-  const orgs = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const repo of repos) if (ownedByOther(repo, username)) counts.set(repo.owner, (counts.get(repo.owner) ?? 0) + 1);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([org]) => org);
-  }, [repos, username]);
-
-  const matches = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const found = repos.filter(
-      (repo) =>
-        (owner === null || (owner === username ? !ownedByOther(repo, username) : repo.owner === owner)) &&
-        (!needle ||
-          `${repo.owner}/${repo.name}`.toLowerCase().includes(needle) ||
-          repo.description?.toLowerCase().includes(needle) ||
-          repo.language?.toLowerCase() === needle ||
-          repo.topics.some((topic) => topic.includes(needle))),
-    );
-    return sort === "stars" ? [...found].sort((a, b) => b.stars - a.stars) : found;
-  }, [repos, query, owner, sort, username]);
+  const { query, setQuery, owner, setOwner, sort, setSort, orgs, matches } = useRepoFilter(repos, username);
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -289,57 +266,15 @@ function ChoiceList({
         />
       </div>
 
-      {orgs.length ? (
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={t("profile.repos.showFrom")}>
-          {[null, username, ...orgs].map((who) => (
-            <button
-              key={who ?? "all"}
-              type="button"
-              aria-pressed={owner === who}
-              onClick={() => setOwner(who)}
-              className={cn(
-                "relative shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-bold transition-[color,border-color,translate] duration-200 hover:-translate-y-0.5 active:scale-95",
-                owner === who ? "border-primary text-primary-foreground" : "text-muted-foreground hover:border-primary hover:text-primary",
-              )}
-            >
-              {owner === who ? <motion.span layoutId="repo-owner" transition={pop} className="absolute inset-0 rounded-full bg-primary" /> : null}
-              <span className="relative">{who === null ? t("profile.repos.ownerAll") : who === username ? t("profile.repos.ownerYours") : who}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {orgs.length ? <OwnerFilter orgs={orgs} owner={owner} username={username} onChange={setOwner} /> : null}
 
       <div className="max-h-80 min-h-40 overflow-y-auto overscroll-contain rounded-xl border p-1">
         {choices.status === "loading" ? (
-          <ul aria-label={t("profile.repos.loading")} className="flex flex-col gap-1">
-            {Array.from({ length: 5 }, (_, i) => (
-              <li key={i} className="flex items-center gap-3 px-3 py-2.5">
-                <span className="shimmer size-5 shrink-0 rounded-full" />
-                <span className="flex flex-1 flex-col gap-1.5">
-                  <span className="shimmer h-3 rounded-full" style={{ width: `${45 + ((i * 17) % 35)}%` }} />
-                  <span className="shimmer h-2.5 w-3/4 rounded-full opacity-70" />
-                </span>
-              </li>
-            ))}
-          </ul>
+          <ChoicesLoading />
         ) : choices.status === "error" ? (
-          <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-sm text-muted-foreground">
-            <p>{choices.message}</p>
-            <Button type="button" variant="outline" size="sm" className="btn group/retry rounded-full font-bold" onClick={onRetry}>
-              <RotateCw className="transition-transform duration-500 group-hover/retry:rotate-180" /> {t("common.tryAgain")}
-            </Button>
-          </div>
+          <ChoicesError message={choices.message} onRetry={onRetry} />
         ) : matches.length ? (
-          <ul className="flex flex-col gap-0.5">
-            {matches.slice(0, SHOWN).map((repo, i) => (
-              <Choice key={repo.id} repo={repo} index={i} selected={picked.has(repo.id)} full={full} username={username} onToggle={onToggle} />
-            ))}
-            {matches.length > SHOWN ? (
-              <li className="px-3 py-2 text-center text-xs text-muted-foreground">
-                {t("profile.repos.showing", { shown: SHOWN, total: matches.length })}
-              </li>
-            ) : null}
-          </ul>
+          <MatchList matches={matches} picked={picked} full={full} username={username} onToggle={onToggle} />
         ) : (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
             {repos.length ? t("profile.repos.noMatch", { query: query.trim() }) : t("profile.repos.noneOnGitHub")}
@@ -348,6 +283,128 @@ function ChoiceList({
       </div>
       <p className="text-xs text-muted-foreground">{t("profile.repos.note")}</p>
     </div>
+  );
+}
+
+/** The search, owner and sort the list is narrowed by, and what's left after them. */
+function useRepoFilter(repos: readonly Repo[], username: string) {
+  const [query, setQuery] = useState("");
+  const [owner, setOwner] = useState<string | null>(null);
+  const [sort, setSort] = useState<Sort>("recent");
+
+  // Organizations, busiest first, for the owner filter.
+  const orgs = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const repo of repos) if (ownedByOther(repo, username)) counts.set(repo.owner, (counts.get(repo.owner) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([org]) => org);
+  }, [repos, username]);
+
+  const matches = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const found = repos.filter(
+      (repo) =>
+        (owner === null || (owner === username ? !ownedByOther(repo, username) : repo.owner === owner)) &&
+        (!needle ||
+          `${repo.owner}/${repo.name}`.toLowerCase().includes(needle) ||
+          repo.description?.toLowerCase().includes(needle) ||
+          repo.language?.toLowerCase() === needle ||
+          repo.topics.some((topic) => topic.includes(needle))),
+    );
+    return sort === "stars" ? [...found].sort((a, b) => b.stars - a.stars) : found;
+  }, [repos, query, owner, sort, username]);
+
+  return { query, setQuery, owner, setOwner, sort, setSort, orgs, matches };
+}
+
+/** Pills for All, the member's own repos, and each organization; the picked one has a sliding highlight. */
+function OwnerFilter({
+  orgs,
+  owner,
+  username,
+  onChange,
+}: {
+  orgs: string[];
+  owner: string | null;
+  username: string;
+  onChange: (owner: string | null) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={t("profile.repos.showFrom")}>
+      {[null, username, ...orgs].map((who) => (
+        <button
+          key={who ?? "all"}
+          type="button"
+          aria-pressed={owner === who}
+          onClick={() => onChange(who)}
+          className={cn(
+            "relative shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-bold transition-[color,border-color,translate] duration-200 hover:-translate-y-0.5 active:scale-95",
+            owner === who ? "border-primary text-primary-foreground" : "text-muted-foreground hover:border-primary hover:text-primary",
+          )}
+        >
+          {owner === who ? <motion.span layoutId="repo-owner" transition={pop} className="absolute inset-0 rounded-full bg-primary" /> : null}
+          <span className="relative">{who === null ? t("profile.repos.ownerAll") : who === username ? t("profile.repos.ownerYours") : who}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Shimmering placeholder rows while the repos load. */
+function ChoicesLoading() {
+  const { t } = useI18n();
+  return (
+    <ul aria-label={t("profile.repos.loading")} className="flex flex-col gap-1">
+      {Array.from({ length: 5 }, (_, i) => (
+        <li key={i} className="flex items-center gap-3 px-3 py-2.5">
+          <span className="shimmer size-5 shrink-0 rounded-full" />
+          <span className="flex flex-1 flex-col gap-1.5">
+            <span className="shimmer h-3 rounded-full" style={{ width: `${45 + ((i * 17) % 35)}%` }} />
+            <span className="shimmer h-2.5 w-3/4 rounded-full opacity-70" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Why the repos didn't load, and a button to try again. */
+function ChoicesError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-sm text-muted-foreground">
+      <p>{message}</p>
+      <Button type="button" variant="outline" size="sm" className="btn group/retry rounded-full font-bold" onClick={onRetry}>
+        <RotateCw className="transition-transform duration-500 group-hover/retry:rotate-180" /> {t("common.tryAgain")}
+      </Button>
+    </div>
+  );
+}
+
+/** The first SHOWN matches, and a note when there are more. */
+function MatchList({
+  matches,
+  picked,
+  full,
+  username,
+  onToggle,
+}: {
+  matches: readonly Repo[];
+  picked: ReadonlySet<number>;
+  full: boolean;
+  username: string;
+  onToggle: (repo: Repo) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <ul className="flex flex-col gap-0.5">
+      {matches.slice(0, SHOWN).map((repo, i) => (
+        <Choice key={repo.id} repo={repo} index={i} selected={picked.has(repo.id)} full={full} username={username} onToggle={onToggle} />
+      ))}
+      {matches.length > SHOWN ? (
+        <li className="px-3 py-2 text-center text-xs text-muted-foreground">{t("profile.repos.showing", { shown: SHOWN, total: matches.length })}</li>
+      ) : null}
+    </ul>
   );
 }
 

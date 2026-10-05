@@ -126,72 +126,12 @@ function ProfileEditor({
   repos: readonly Repo[];
 }) {
   const { t } = useI18n();
-  const [initial] = useState(() => draftOf(user, repos));
+  const { initial, draft, set, setCountry, dirty } = useProfileDraft(user, repos);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [draft, setDraft] = useState(initial);
-  const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
-  const dirty = fingerprint(draft) !== fingerprint(initial);
   const avatar = useImageUpload("avatar", { url: user.avatarUrl, custom: user.customAvatar });
   const bannerImage = useImageUpload("banner", { url: user.bannerUrl, custom: user.bannerUrl !== null });
 
   const theme = (draft.profileThemeId && [...mine, ...builtin, ...community].find((th) => th.id === draft.profileThemeId)) || worn;
-  const preview: ProfileView = {
-    username: user.username,
-    avatarUrl: avatar.url,
-    createdAt: user.createdAt,
-    displayName: orNull(draft.displayName),
-    pronouns: orNull(draft.pronouns),
-    location: orNull(draft.location),
-    country: draft.showCountry ? draft.country : null,
-    status: orNull(draft.status),
-    favoriteWaifu: orNull(draft.favoriteWaifu),
-    website: previewUrl(draft.website),
-    skills: draft.skills,
-    links: draft.links.flatMap((link) => previewUrl(link) ?? []),
-    banner: draft.banner,
-    bannerUrl: bannerImage.url,
-  };
-
-  const themeOption = (th: Theme, value = th.id, label = th.name, sub?: string) => (
-    <PickerOption key={value || "worn"} name="profile_theme_id" value={value} ring="profile-theme" selected={draft.profileThemeId === value} onSelect={() => set("profileThemeId")(value)}>
-      <ThemeChip variant={th.variant} />
-      <span className="truncate px-0.5 text-xs font-bold">{label}</span>
-      {sub ? <span className="-mt-1.5 truncate px-0.5 text-[11px] text-muted-foreground">{sub}</span> : null}
-    </PickerOption>
-  );
-  const themeGroups = [
-    { label: t("settings.look.yours"), themes: mine },
-    { label: t("settings.look.builtIn"), themes: builtin },
-    { label: t("settings.look.community"), themes: community },
-  ];
-
-  const saveButton = (
-    <Button type="submit" className="btn rounded-full font-bold">
-      <span className="group-aria-busy:hidden">{t("settings.save")}</span>
-      <span className="hidden group-aria-busy:inline">{t("settings.saving")}</span>
-    </Button>
-  );
-  const unsaved = (
-    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-      <span className="status-dot" /> {t("settings.unsaved")}
-    </span>
-  );
-  const failed = (
-    <AnimatePresence>
-      {saveError ? (
-        <motion.p
-          key={saveError}
-          role="alert"
-          initial={{ opacity: 0, y: 6, height: 0 }}
-          animate={{ opacity: 1, y: 0, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          className="nope overflow-hidden text-sm font-bold text-destructive lg:text-right"
-        >
-          {saveError}
-        </motion.p>
-      ) : null}
-    </AnimatePresence>
-  );
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-12">
@@ -201,147 +141,11 @@ function ProfileEditor({
         className="group grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]"
       >
         <div className="stagger flex min-w-0 flex-col gap-6">
-          <div>
-            <h1 className="text-3xl font-extrabold">
-              <T k="settings.heading" values={{ sparkle: <span className="float inline-block text-primary">✦</span> }} />
-            </h1>
-            <p className="text-muted-foreground">
-              <T
-                k="settings.intro"
-                values={{
-                  profile: (
-                    <Link className="text-primary hover:underline" to="/u/$username" params={{ username: user.username }}>
-                      u/{user.username}
-                    </Link>
-                  ),
-                }}
-              />
-            </p>
-          </div>
-
+          <EditorHeading username={user.username} />
           <PicturesCard avatar={avatar} banner={bannerImage} username={user.username} decoration={draft.banner} themeVariant={theme.variant} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.look.title")}</CardTitle>
-              <CardDescription>{t("settings.look.description")}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <fieldset className="flex min-w-0 flex-col gap-3">
-                <legend className="mb-3 text-sm font-bold">{t("settings.look.profileTheme")}</legend>
-                <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{themeOption(worn, "", t("settings.look.sameAsWorn"), worn.name)}</div>
-                <div className="flex max-h-96 flex-col gap-3 overflow-y-auto p-0.5">
-                  {themeGroups.map((group) =>
-                    group.themes.length ? (
-                      <div key={group.label} className="flex flex-col gap-1">
-                        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{group.label}</p>
-                        <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{group.themes.map((th) => themeOption(th))}</div>
-                      </div>
-                    ) : null,
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  <T
-                    k="settings.look.browsing"
-                    values={{
-                      theme: <b className="text-foreground">{worn.name}</b>,
-                      change: (
-                        <Link to="/themes" className="text-primary hover:underline">
-                          {t("settings.look.change")}
-                        </Link>
-                      ),
-                    }}
-                  />
-                </p>
-              </fieldset>
-
-              <fieldset className="flex min-w-0 flex-col gap-3">
-                <legend className="mb-3 text-sm font-bold">{t("settings.look.banner")}</legend>
-                {/* Drawn in the profile theme, the way visitors will see it. */}
-                <div className="themed grid grid-cols-2 gap-1 rounded-xl border p-2 sm:grid-cols-3" style={themeStyle(theme.variant)}>
-                  {BANNERS.map((b) => (
-                    <PickerOption key={b} name="banner" value={b} ring="profile-banner" selected={draft.banner === b} onSelect={() => set("banner")(b)}>
-                      <ProfileBanner banner={b} image={bannerImage.url} className="h-14 rounded-lg border" />
-                      <span className="px-0.5 text-xs font-bold">{b === "plain" && bannerImage.url ? t("settings.look.pictureOnly") : t(`settings.banner.${b}`)}</span>
-                    </PickerOption>
-                  ))}
-                </div>
-              </fieldset>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.about.title")}</CardTitle>
-              <CardDescription>
-                <T
-                  k="settings.about.description"
-                  values={{
-                    bold: <code className="text-foreground">**{t("news.markdown.boldText")}**</code>,
-                    italic: <code className="text-foreground">_{t("news.markdown.italicText")}_</code>,
-                    code: <code className="text-foreground">`{t("news.markdown.codeText")}`</code>,
-                    links: <code className="text-foreground">[{t("settings.about.linksText")}](https://...)</code>,
-                  }}
-                />
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-5">
-              <TextField id="display_name" label={t("settings.about.displayName")} max={60} value={draft.displayName} onChange={set("displayName")} placeholder={user.username} />
-              <TextField id="status" label={t("settings.about.status")} max={80} value={draft.status} onChange={set("status")} placeholder={t("settings.about.statusPlaceholder")} />
-              <div className="grid gap-5 sm:grid-cols-2">
-                <TextField id="pronouns" label={t("settings.about.pronouns")} max={30} value={draft.pronouns} onChange={set("pronouns")} />
-                <TextField id="location" label={t("settings.about.location")} max={60} value={draft.location} onChange={set("location")} placeholder={t("settings.about.locationPlaceholder")} />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
-                {/* Picking a country shows it; the switch is how you keep it private. */}
-                <CountryPicker
-                  value={draft.country}
-                  onChange={(country) => setDraft((d) => ({ ...d, country, showCountry: country ? (d.country ? d.showCountry : true) : false }))}
-                />
-                <label className="flex items-center justify-between gap-4 rounded-xl border p-3 sm:mt-8">
-                  <span className="grid gap-0.5">
-                    <Label htmlFor="show_country">{t("settings.about.showCountry")}</Label>
-                    <span className="text-xs text-muted-foreground">{t("settings.about.showCountryNote")}</span>
-                  </span>
-                  <Switch
-                    id="show_country"
-                    name="show_country"
-                    checked={draft.showCountry}
-                    disabled={!draft.country}
-                    onCheckedChange={set("showCountry")}
-                  />
-                </label>
-              </div>
-              <TextField
-                id="favorite_waifu"
-                label={t("settings.about.favoriteWaifu")}
-                max={80}
-                value={draft.favoriteWaifu}
-                onChange={set("favoriteWaifu")}
-                placeholder={t("settings.about.favoriteWaifuPlaceholder")}
-              />
-              <TextField id="bio" label={t("settings.about.bio")} max={500} rows={5} value={draft.bio} onChange={set("bio")} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.skills.title")}</CardTitle>
-              <CardDescription>{t("settings.skills.description", { count: MAX_SKILLS })}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-5">
-              <div className="grid gap-2">
-                <span className="text-sm font-medium">{t("settings.skills.skills")}</span>
-                <SkillsInput value={draft.skills} onChange={set("skills")} />
-              </div>
-              <TextField id="website" label={t("settings.skills.website")} max={200} value={draft.website} onChange={set("website")} placeholder="https://" />
-              <div className="grid gap-2">
-                <span className="text-sm font-medium">{t("settings.skills.moreLinks")}</span>
-                <LinksInput initial={initial.links} onChange={set("links")} />
-              </div>
-            </CardContent>
-          </Card>
-
+          <LookCard themes={{ worn, mine, builtin, community }} theme={theme} draft={draft} set={set} bannerImage={bannerImage.url} />
+          <AboutCard draft={draft} set={set} setCountry={setCountry} username={user.username} />
+          <SkillsCard draft={draft} set={set} initialLinks={initial.links} />
           <Card>
             <CardHeader>
               <CardTitle>{t("settings.repos.title")}</CardTitle>
@@ -366,47 +170,12 @@ function ProfileEditor({
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-20">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t("settings.preview.label")}</p>
-            <Link to="/u/$username" params={{ username: user.username }} className="nav-link text-sm font-bold text-primary">
-              {t("settings.preview.viewProfile")}
-            </Link>
-          </div>
-          {/* The preview wears the profile theme; picking another morphs it in place. */}
-          <div className="themed flex flex-col gap-3 rounded-2xl border p-3 shadow-sm" style={themeStyle(theme.variant)}>
-            <ProfileCard profile={preview} nameAs="p" />
-            {draft.bio.trim() ? (
-              <Card className="gap-0 p-4">
-                <Markdown className="max-h-40 overflow-hidden text-sm [mask-image:linear-gradient(to_bottom,black_75%,transparent)]">{draft.bio}</Markdown>
-              </Card>
-            ) : null}
-            {draft.repos.length ? (
-              <div className="@container">
-                <ul className="grid gap-2 @xs:grid-cols-2">
-                  <AnimatePresence initial={false} mode="popLayout">
-                    {draft.repos.map((repo) => (
-                      <motion.li
-                        key={repo.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                        className="min-w-0"
-                      >
-                        <RepoCard repo={repo} username={user.username} dense />
-                      </motion.li>
-                    ))}
-                  </AnimatePresence>
-                </ul>
-              </div>
-            ) : null}
-          </div>
+          <ProfilePreview user={user} draft={draft} theme={theme} avatarUrl={avatar.url} bannerUrl={bannerImage.url} />
           <div className="hidden flex-col items-end gap-2 lg:flex">
-            {failed}
+            <SaveError error={saveError} />
             <div className="flex items-center justify-end gap-4">
-              {dirty ? unsaved : null}
-              {saveButton}
+              {dirty ? <Unsaved /> : null}
+              <SaveButton />
             </div>
           </div>
         </aside>
@@ -421,17 +190,336 @@ function ProfileEditor({
               transition={{ type: "spring", stiffness: 420, damping: 34 }}
               className="fixed inset-x-0 bottom-0 z-50 flex flex-col gap-1 border-t bg-card/90 px-4 py-3 backdrop-blur-md lg:hidden"
             >
-              {failed}
+              <SaveError error={saveError} />
               <div className="flex items-center justify-between gap-4">
-                {unsaved}
-                {saveButton}
+                <Unsaved />
+                <SaveButton />
               </div>
             </motion.div>
           ) : null}
         </AnimatePresence>
-        {!dirty ? <div className="flex justify-end lg:hidden">{saveButton}</div> : null}
+        {!dirty ? (
+          <div className="flex justify-end lg:hidden">
+            <SaveButton />
+          </div>
+        ) : null}
       </ActionForm>
     </main>
+  );
+}
+
+type SetField = <K extends keyof Draft>(key: K) => (value: Draft[K]) => void;
+
+/** The draft being edited, a setter per field, and whether it differs from what's saved. */
+function useProfileDraft(user: User, repos: readonly Repo[]) {
+  const [initial] = useState(() => draftOf(user, repos));
+  const [draft, setDraft] = useState(initial);
+  const set: SetField = (key) => (value) => setDraft((d) => ({ ...d, [key]: value }));
+  // Picking a country shows it; clearing it hides it again.
+  const setCountry = (country: string | null) =>
+    setDraft((d) => ({ ...d, country, showCountry: country ? (d.country ? d.showCountry : true) : false }));
+  const dirty = fingerprint(draft) !== fingerprint(initial);
+  return { initial, draft, set, setCountry, dirty };
+}
+
+function EditorHeading({ username }: { username: string }) {
+  return (
+    <div>
+      <h1 className="text-3xl font-extrabold">
+        <T k="settings.heading" values={{ sparkle: <span className="float inline-block text-primary">✦</span> }} />
+      </h1>
+      <p className="text-muted-foreground">
+        <T
+          k="settings.intro"
+          values={{
+            profile: (
+              <Link className="text-primary hover:underline" to="/u/$username" params={{ username }}>
+                u/{username}
+              </Link>
+            ),
+          }}
+        />
+      </p>
+    </div>
+  );
+}
+type ThemeLists = { worn: Theme; mine: Themes; builtin: Themes; community: Themes };
+
+/** The profile theme (grouped: yours, built in, community) and the banner decoration. */
+function LookCard({
+  themes,
+  theme,
+  draft,
+  set,
+  bannerImage,
+}: {
+  themes: ThemeLists;
+  theme: Theme;
+  draft: Draft;
+  set: SetField;
+  bannerImage: string | null;
+}) {
+  const { t } = useI18n();
+  const { worn } = themes;
+  const themeOption = (th: Theme, value = th.id, label = th.name, sub?: string) => (
+    <PickerOption key={value || "worn"} name="profile_theme_id" value={value} ring="profile-theme" selected={draft.profileThemeId === value} onSelect={() => set("profileThemeId")(value)}>
+      <ThemeChip variant={th.variant} />
+      <span className="truncate px-0.5 text-xs font-bold">{label}</span>
+      {sub ? <span className="-mt-1.5 truncate px-0.5 text-[11px] text-muted-foreground">{sub}</span> : null}
+    </PickerOption>
+  );
+  const themeGroups = [
+    { label: t("settings.look.yours"), themes: themes.mine },
+    { label: t("settings.look.builtIn"), themes: themes.builtin },
+    { label: t("settings.look.community"), themes: themes.community },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("settings.look.title")}</CardTitle>
+        <CardDescription>{t("settings.look.description")}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-6">
+        <fieldset className="flex min-w-0 flex-col gap-3">
+          <legend className="mb-3 text-sm font-bold">{t("settings.look.profileTheme")}</legend>
+          <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{themeOption(worn, "", t("settings.look.sameAsWorn"), worn.name)}</div>
+          <div className="flex max-h-96 flex-col gap-3 overflow-y-auto p-0.5">
+            {themeGroups.map((group) =>
+              group.themes.length ? (
+                <div key={group.label} className="flex flex-col gap-1">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{group.label}</p>
+                  <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{group.themes.map((th) => themeOption(th))}</div>
+                </div>
+              ) : null,
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <T
+              k="settings.look.browsing"
+              values={{
+                theme: <b className="text-foreground">{worn.name}</b>,
+                change: (
+                  <Link to="/themes" className="text-primary hover:underline">
+                    {t("settings.look.change")}
+                  </Link>
+                ),
+              }}
+            />
+          </p>
+        </fieldset>
+
+        <fieldset className="flex min-w-0 flex-col gap-3">
+          <legend className="mb-3 text-sm font-bold">{t("settings.look.banner")}</legend>
+          {/* Drawn in the profile theme, the way visitors will see it. */}
+          <div className="themed grid grid-cols-2 gap-1 rounded-xl border p-2 sm:grid-cols-3" style={themeStyle(theme.variant)}>
+            {BANNERS.map((b) => (
+              <PickerOption key={b} name="banner" value={b} ring="profile-banner" selected={draft.banner === b} onSelect={() => set("banner")(b)}>
+                <ProfileBanner banner={b} image={bannerImage} className="h-14 rounded-lg border" />
+                <span className="px-0.5 text-xs font-bold">{b === "plain" && bannerImage ? t("settings.look.pictureOnly") : t(`settings.banner.${b}`)}</span>
+              </PickerOption>
+            ))}
+          </div>
+        </fieldset>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Name, status, pronouns, place, country, favorite waifu and bio. */
+function AboutCard({
+  draft,
+  set,
+  setCountry,
+  username,
+}: {
+  draft: Draft;
+  set: SetField;
+  setCountry: (country: string | null) => void;
+  username: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("settings.about.title")}</CardTitle>
+        <CardDescription>
+          <T
+            k="settings.about.description"
+            values={{
+              bold: <code className="text-foreground">**{t("news.markdown.boldText")}**</code>,
+              italic: <code className="text-foreground">_{t("news.markdown.italicText")}_</code>,
+              code: <code className="text-foreground">`{t("news.markdown.codeText")}`</code>,
+              links: <code className="text-foreground">[{t("settings.about.linksText")}](https://...)</code>,
+            }}
+          />
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <TextField id="display_name" label={t("settings.about.displayName")} max={60} value={draft.displayName} onChange={set("displayName")} placeholder={username} />
+        <TextField id="status" label={t("settings.about.status")} max={80} value={draft.status} onChange={set("status")} placeholder={t("settings.about.statusPlaceholder")} />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TextField id="pronouns" label={t("settings.about.pronouns")} max={30} value={draft.pronouns} onChange={set("pronouns")} />
+          <TextField id="location" label={t("settings.about.location")} max={60} value={draft.location} onChange={set("location")} placeholder={t("settings.about.locationPlaceholder")} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
+          {/* Picking a country shows it; the switch is how you keep it private. */}
+          <CountryPicker value={draft.country} onChange={setCountry} />
+          <label className="flex items-center justify-between gap-4 rounded-xl border p-3 sm:mt-8">
+            <span className="grid gap-0.5">
+              <Label htmlFor="show_country">{t("settings.about.showCountry")}</Label>
+              <span className="text-xs text-muted-foreground">{t("settings.about.showCountryNote")}</span>
+            </span>
+            <Switch id="show_country" name="show_country" checked={draft.showCountry} disabled={!draft.country} onCheckedChange={set("showCountry")} />
+          </label>
+        </div>
+        <TextField
+          id="favorite_waifu"
+          label={t("settings.about.favoriteWaifu")}
+          max={80}
+          value={draft.favoriteWaifu}
+          onChange={set("favoriteWaifu")}
+          placeholder={t("settings.about.favoriteWaifuPlaceholder")}
+        />
+        <TextField id="bio" label={t("settings.about.bio")} max={500} rows={5} value={draft.bio} onChange={set("bio")} />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Skills, website and any other links. */
+function SkillsCard({ draft, set, initialLinks }: { draft: Draft; set: SetField; initialLinks: string[] }) {
+  const { t } = useI18n();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("settings.skills.title")}</CardTitle>
+        <CardDescription>{t("settings.skills.description", { count: MAX_SKILLS })}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <div className="grid gap-2">
+          <span className="text-sm font-medium">{t("settings.skills.skills")}</span>
+          <SkillsInput value={draft.skills} onChange={set("skills")} />
+        </div>
+        <TextField id="website" label={t("settings.skills.website")} max={200} value={draft.website} onChange={set("website")} placeholder="https://" />
+        <div className="grid gap-2">
+          <span className="text-sm font-medium">{t("settings.skills.moreLinks")}</span>
+          <LinksInput initial={initialLinks} onChange={set("links")} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** The profile as visitors will see it, drawn from the unsaved draft. */
+function ProfilePreview({
+  user,
+  draft,
+  theme,
+  avatarUrl,
+  bannerUrl,
+}: {
+  user: User;
+  draft: Draft;
+  theme: Theme;
+  avatarUrl: ProfileView["avatarUrl"];
+  bannerUrl: ProfileView["bannerUrl"];
+}) {
+  const { t } = useI18n();
+  const preview: ProfileView = {
+    username: user.username,
+    avatarUrl,
+    createdAt: user.createdAt,
+    displayName: orNull(draft.displayName),
+    pronouns: orNull(draft.pronouns),
+    location: orNull(draft.location),
+    country: draft.showCountry ? draft.country : null,
+    status: orNull(draft.status),
+    favoriteWaifu: orNull(draft.favoriteWaifu),
+    website: previewUrl(draft.website),
+    skills: draft.skills,
+    links: draft.links.flatMap((link) => previewUrl(link) ?? []),
+    banner: draft.banner,
+    bannerUrl,
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t("settings.preview.label")}</p>
+        <Link to="/u/$username" params={{ username: user.username }} className="nav-link text-sm font-bold text-primary">
+          {t("settings.preview.viewProfile")}
+        </Link>
+      </div>
+      {/* The preview wears the profile theme; picking another morphs it in place. */}
+      <div className="themed flex flex-col gap-3 rounded-2xl border p-3 shadow-sm" style={themeStyle(theme.variant)}>
+        <ProfileCard profile={preview} nameAs="p" />
+        {draft.bio.trim() ? (
+          <Card className="gap-0 p-4">
+            <Markdown className="max-h-40 overflow-hidden text-sm [mask-image:linear-gradient(to_bottom,black_75%,transparent)]">{draft.bio}</Markdown>
+          </Card>
+        ) : null}
+        {/* Stays mounted (hidden once the last card has gone) so removed repos can animate out. */}
+        <div className="@container has-[>ul:empty]:hidden">
+          <ul className="grid gap-2 @xs:grid-cols-2">
+            <AnimatePresence initial={false} mode="popLayout">
+              {draft.repos.map((repo) => (
+                <motion.li
+                  key={repo.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                  className="min-w-0"
+                >
+                  <RepoCard repo={repo} username={user.username} dense />
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SaveButton() {
+  const { t } = useI18n();
+  return (
+    <Button type="submit" className="btn rounded-full font-bold">
+      <span className="group-aria-busy:hidden">{t("settings.save")}</span>
+      <span className="hidden group-aria-busy:inline">{t("settings.saving")}</span>
+    </Button>
+  );
+}
+
+function Unsaved() {
+  const { t } = useI18n();
+  return (
+    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+      <span className="status-dot" /> {t("settings.unsaved")}
+    </span>
+  );
+}
+
+/** Why the last save failed, sliding open above the save button. */
+function SaveError({ error }: { error: string | null }) {
+  return (
+    <AnimatePresence>
+      {error ? (
+        <motion.p
+          key={error}
+          role="alert"
+          initial={{ opacity: 0, y: 6, height: 0 }}
+          animate={{ opacity: 1, y: 0, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="nope overflow-hidden text-sm font-bold text-destructive lg:text-right"
+        >
+          {error}
+        </motion.p>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
