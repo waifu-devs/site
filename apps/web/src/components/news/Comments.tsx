@@ -46,6 +46,7 @@ export function CommentComposer({
     <form
       action={addComment.url}
       method="post"
+      encType="multipart/form-data"
       aria-busy={pending || undefined}
       className="flex flex-col gap-2"
       onSubmit={async (event) => {

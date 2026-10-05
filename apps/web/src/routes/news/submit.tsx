@@ -114,6 +114,7 @@ function SubmitPage() {
           <form
             action={submitPost.url}
             method="post"
+            encType="multipart/form-data"
             className="flex flex-col gap-5"
             aria-busy={pending || undefined}
             onSubmit={async (event) => {
