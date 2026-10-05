@@ -100,9 +100,8 @@ function AvatarGroup({
         }}
         {...props}
       >
-        {children?.map((child, index) => (
+        {React.Children.map(children, (child, index) => (
           <AvatarContainer
-            key={index}
             zIndex={
               invertOverlap ? React.Children.count(children) - index : index
             }
