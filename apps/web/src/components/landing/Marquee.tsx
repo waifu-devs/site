@@ -1,5 +1,5 @@
 import {
-  motion,
+  m as motion,
   useAnimationFrame,
   useMotionValue,
   useReducedMotion,

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, Database } from "lucide-react";
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
+import { m as motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
 import { useEffect, type ReactNode } from "react";
 import { useI18n } from "@/i18n/react";
 import { STATUS_LABELS, type Project } from "@/lib/projects";
@@ -14,7 +14,12 @@ export function ProjectsHero({ projects }: { projects: Project[] }) {
 
   // Arriving at /projects#fuwa, the browser scrolled to where the card was mid-swing; put it where it lands.
   useEffect(() => {
-    const slug = decodeURIComponent(window.location.hash.slice(1));
+    let slug: string;
+    try {
+      slug = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      return; // A malformed hash (a stray "%") names no project.
+    }
     if (projects.some((p) => p.slug === slug)) requestAnimationFrame(() => scrollToProject(slug, "instant"));
   }, [projects]);
 

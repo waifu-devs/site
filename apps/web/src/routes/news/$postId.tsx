@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
 import { CommentComposer, CommentThread } from "@/components/news/Comments";

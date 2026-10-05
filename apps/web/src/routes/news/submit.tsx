@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { POST_BODY_MAX, POST_TITLE_MAX, POST_URL_MAX, type Post } from "@waifu-devs/domain/api";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { useState } from "react";
 import { Markdown } from "@/components/Markdown";
 import { MarkdownField } from "@/components/MarkdownField";
@@ -112,6 +112,9 @@ function SubmitPage() {
       <div className="grid items-start gap-6 lg:grid-cols-[1.1fr_1fr]">
         <Card className="rise p-5 sm:p-6">
           <form
+            action={submitPost.url}
+            method="post"
+            encType="multipart/form-data"
             className="flex flex-col gap-5"
             aria-busy={pending || undefined}
             onSubmit={async (event) => {

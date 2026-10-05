@@ -1,5 +1,5 @@
 import { deriveTokens, themeStyle, type ThemeSeeds } from "@waifu-devs/domain/themes";
-import { AnimatePresence, motion, useInView, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
+import { AnimatePresence, m as motion, useInView, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";

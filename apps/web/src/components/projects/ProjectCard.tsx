@@ -1,5 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
-import { motion, useMotionValue, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { m as motion, useMotionValue, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
 import { Button } from "@/components/ui/button";

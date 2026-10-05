@@ -1,7 +1,7 @@
 import { countries } from "@waifu-devs/domain/countries";
 import { MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "@waifu-devs/domain/profile";
 import { Globe, Link2, Plus, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { type ReactNode, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 
 const pop = { type: "spring", stiffness: 520, damping: 30 } as const;
-const lift = "transition-all duration-200 focus-visible:-translate-y-0.5";
+const lift = "transition-[color,border-color,box-shadow,translate] duration-200 focus-visible:-translate-y-0.5";
 
 /** A labeled text input with a character count that shows up while typing. */
 export function TextField({

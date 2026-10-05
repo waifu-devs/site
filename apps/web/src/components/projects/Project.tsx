@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import type { Project as ProjectData } from "@/lib/projects";
 import { FuwaProject } from "./Fuwa";
 import { ProjectCard } from "./ProjectCard";

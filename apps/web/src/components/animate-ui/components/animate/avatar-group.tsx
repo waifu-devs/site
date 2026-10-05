@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as motion from 'motion/react-client';
+import { m as motion } from 'motion/react';
 
 import {
   AvatarGroup as AvatarGroupPrimitive,

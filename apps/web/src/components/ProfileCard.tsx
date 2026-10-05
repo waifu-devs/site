@@ -28,7 +28,7 @@ export type ProfileView = Pick<
   | "createdAt"
 >;
 
-const pill = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:text-primary [&>svg]:size-3.5";
+const pill = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-bold transition-[translate,color,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary hover:text-primary [&>svg]:size-3.5";
 
 /**
  * The top of a profile page: banner, avatar, name and the bits a member chose

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { mix, type ThemeTokens } from "@waifu-devs/domain/themes";
 import {
-  motion,
+  m as motion,
   useMotionValue,
   useReducedMotion,
   useSpring,
@@ -198,23 +198,22 @@ function Layer({ x, y, depth, className, children }: { x: MotionValue<number>; y
   );
 }
 
+/** The orbit's glyphs, spaced evenly around the circle; each one's angle names it. */
+const ORBIT = ["♡", "✦", "❀", "✧", "★", "♡", "✦", "❀"].map((glyph, i, all) => ({ glyph, angle: (i / all.length) * Math.PI * 2 }));
+
 /** Glyphs slowly circling behind the stage. */
 function Orbit() {
-  const glyphs = ["♡", "✦", "❀", "✧", "★", "♡", "✦", "❀"];
   return (
     <div className="spin-slow absolute inset-[-4%] rounded-full border border-dashed border-primary/25">
-      {glyphs.map((g, i) => {
-        const a = (i / glyphs.length) * Math.PI * 2;
-        return (
-          <span
-            key={i}
-            className="absolute text-xl text-primary/70"
-            style={{ left: `${50 + Math.cos(a) * 50}%`, top: `${50 + Math.sin(a) * 50}%`, translate: "-50% -50%" }}
-          >
-            {g}
-          </span>
-        );
-      })}
+      {ORBIT.map(({ glyph, angle }) => (
+        <span
+          key={angle}
+          className="absolute text-xl text-primary/70"
+          style={{ left: `${50 + Math.cos(angle) * 50}%`, top: `${50 + Math.sin(angle) * 50}%`, translate: "-50% -50%" }}
+        >
+          {glyph}
+        </span>
+      ))}
     </div>
   );
 }

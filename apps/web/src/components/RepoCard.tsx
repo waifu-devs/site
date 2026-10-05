@@ -1,17 +1,13 @@
 import type { Repo } from "@waifu-devs/domain/api";
 import { ArrowUpRight, BookMarked, GitFork, Star } from "lucide-react";
-import { MotionConfig, motion } from "motion/react";
+import { MotionConfig, m as motion } from "motion/react";
 import { GitHubMark } from "@/components/projects/ProjectCard";
 import { useI18n } from "@/i18n/react";
 import { languageColor } from "@/lib/languages";
+import { ownedByOther, repoUrl } from "@/lib/repos";
 import { cn } from "@/lib/utils";
 
 const COMPACT = { notation: "compact", maximumFractionDigits: 1 } as const;
-
-export const repoUrl = (repo: Pick<Repo, "owner" | "name">) => `https://github.com/${repo.owner}/${repo.name}`;
-
-/** Whether a repo belongs to someone other than `username` (an organization, usually). */
-export const ownedByOther = (repo: Pick<Repo, "owner">, username: string) => repo.owner.toLowerCase() !== username.toLowerCase();
 
 /** A language's GitHub color as a dot, and its name. */
 export function Language({ name, className }: { name: string; className?: string }) {
@@ -48,8 +44,6 @@ export function RepoCard({ repo, username, dense = false }: { repo: Repo; userna
     e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
   }
 
-  const { t, number } = useI18n();
-  const other = ownedByOther(repo, username);
   return (
     <a
       href={repoUrl(repo)}
@@ -61,49 +55,70 @@ export function RepoCard({ repo, username, dense = false }: { repo: Repo; userna
         dense ? "gap-2 p-3" : "gap-3 p-4",
       )}
     >
-      <span className="flex items-start gap-2.5">
-        <span
-          className={cn(
-            "grid shrink-0 place-items-center rounded-xl bg-primary/12 text-primary transition-colors duration-300 group-hover/repo:bg-primary group-hover/repo:text-primary-foreground",
-            dense ? "size-7" : "size-9",
-          )}
-        >
-          <BookMarked className={cn("group-hover/repo:animate-[wiggle_0.5s_ease-in-out]", dense ? "size-3.5" : "size-4")} />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          {other ? <span className="truncate text-xs text-muted-foreground">{repo.owner}</span> : null}
-          <span className={cn("truncate font-extrabold leading-snug", dense ? "text-sm" : "text-base", !other && !dense && "mt-1")}>{repo.name}</span>
-        </span>
-        <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-300 group-hover/repo:translate-x-0.5 group-hover/repo:-translate-y-0.5 group-hover/repo:text-primary" />
-      </span>
+      <RepoCardTitle repo={repo} username={username} dense={dense} />
 
       {repo.description ? (
         <span className={cn("break-words text-muted-foreground", dense ? "line-clamp-1 text-xs" : "line-clamp-2 text-sm")}>{repo.description}</span>
       ) : null}
 
-      {!dense && repo.topics.length ? (
-        <span className="flex flex-wrap gap-1.5">
-          {repo.topics.slice(0, 3).map((topic) => (
-            <span key={topic} className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
-              {topic}
-            </span>
-          ))}
+      {!dense && repo.topics.length ? <RepoTopics topics={repo.topics} /> : null}
+
+      <RepoCardStats repo={repo} dense={dense} />
+    </a>
+  );
+}
+
+/** The card's top row: book icon, owner (when it isn't the profile's) and name, and an outward arrow. */
+function RepoCardTitle({ repo, username, dense }: { repo: Repo; username: string; dense: boolean }) {
+  const other = ownedByOther(repo, username);
+  return (
+    <span className="flex items-start gap-2.5">
+      <span
+        className={cn(
+          "grid shrink-0 place-items-center rounded-xl bg-primary/12 text-primary transition-colors duration-300 group-hover/repo:bg-primary group-hover/repo:text-primary-foreground",
+          dense ? "size-7" : "size-9",
+        )}
+      >
+        <BookMarked className={cn("group-hover/repo:animate-[wiggle_0.5s_ease-in-out]", dense ? "size-3.5" : "size-4")} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        {other ? <span className="truncate text-xs text-muted-foreground">{repo.owner}</span> : null}
+        <span className={cn("truncate font-extrabold leading-snug", dense ? "text-sm" : "text-base", !other && !dense && "mt-1")}>{repo.name}</span>
+      </span>
+      <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-300 group-hover/repo:translate-x-0.5 group-hover/repo:-translate-y-0.5 group-hover/repo:text-primary" />
+    </span>
+  );
+}
+
+/** The first three topics as small pills. */
+function RepoTopics({ topics }: { topics: readonly string[] }) {
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {topics.slice(0, 3).map((topic) => (
+        <span key={topic} className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
+          {topic}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The card's bottom row: language, stars, forks, and fork/archived badges. */
+function RepoCardStats({ repo, dense }: { repo: Repo; dense: boolean }) {
+  const { t, number } = useI18n();
+  return (
+    <span className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-muted-foreground">
+      {repo.language ? <Language name={repo.language} /> : null}
+      <Stars count={repo.stars} />
+      {repo.forks && !dense ? (
+        <span className="inline-flex items-center gap-1" title={t("profile.repo.forks", { count: repo.forks })}>
+          <GitFork className="size-3.5" />
+          {number(repo.forks, COMPACT)}
         </span>
       ) : null}
-
-      <span className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-muted-foreground">
-        {repo.language ? <Language name={repo.language} /> : null}
-        <Stars count={repo.stars} />
-        {repo.forks && !dense ? (
-          <span className="inline-flex items-center gap-1" title={t("profile.repo.forks", { count: repo.forks })}>
-            <GitFork className="size-3.5" />
-            {number(repo.forks, COMPACT)}
-          </span>
-        ) : null}
-        {repo.fork ? <span className="rounded-full border px-2 py-px text-[11px]">{t("profile.repo.fork")}</span> : null}
-        {repo.archived ? <span className="rounded-full border px-2 py-px text-[11px]">{t("profile.repo.archived")}</span> : null}
-      </span>
-    </a>
+      {repo.fork ? <span className="rounded-full border px-2 py-px text-[11px]">{t("profile.repo.fork")}</span> : null}
+      {repo.archived ? <span className="rounded-full border px-2 py-px text-[11px]">{t("profile.repo.archived")}</span> : null}
+    </span>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { Check, Languages } from "lucide-react";
-import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { AnimatePresence, LayoutGroup, m as motion } from "motion/react";
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { coverage, LANGUAGES, languageOf, loadCatalog } from "@/i18n/catalogs";
 import { useI18n } from "@/i18n/react";

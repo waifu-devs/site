@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { type Key, T, useI18n } from "@/i18n/react";

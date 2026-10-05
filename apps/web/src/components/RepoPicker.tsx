@@ -2,12 +2,13 @@ import { useServerFn } from "@tanstack/react-start";
 import type { Repo } from "@waifu-devs/domain/api";
 import { MAX_FEATURED_REPOS } from "@waifu-devs/domain/profile";
 import { Check, GitFork, GripVertical, RotateCw, Search, X } from "lucide-react";
-import { AnimatePresence, MotionConfig, motion, Reorder, useDragControls } from "motion/react";
+import { AnimatePresence, MotionConfig, m as motion, Reorder, useDragControls } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Language, ownedByOther, Stars } from "@/components/RepoCard";
+import { Language, Stars } from "@/components/RepoCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n/react";
+import { ownedByOther } from "@/lib/repos";
 import { cn } from "@/lib/utils";
 import { getRepoChoices } from "@/server/functions";
 
@@ -235,11 +236,61 @@ function ChoiceList({
   onRetry: () => void;
 }) {
   const { t } = useI18n();
+  // One empty list, so the filters below don't rerun on every render while loading.
+  const repos = choices.status === "ready" ? choices.repos : NO_REPOS;
+  const { query, setQuery, owner, setOwner, sort, setSort, orgs, matches } = useRepoFilter(repos, username);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            aria-label={t("profile.repos.search")}
+            placeholder={t("profile.repos.search")}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+            className="pl-9 transition-[color,border-color,box-shadow,translate] duration-200 focus-visible:-translate-y-0.5"
+          />
+        </div>
+        <Segmented
+          name="repo-sort"
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: "recent", label: t("profile.repos.sortRecent") },
+            { value: "stars", label: t("profile.repos.sortStars") },
+          ]}
+        />
+      </div>
+
+      {orgs.length ? <OwnerFilter orgs={orgs} owner={owner} username={username} onChange={setOwner} /> : null}
+
+      <div className="max-h-80 min-h-40 overflow-y-auto overscroll-contain rounded-xl border p-1">
+        {choices.status === "loading" ? (
+          <ChoicesLoading />
+        ) : choices.status === "error" ? (
+          <ChoicesError message={choices.message} onRetry={onRetry} />
+        ) : matches.length ? (
+          <MatchList matches={matches} picked={picked} full={full} username={username} onToggle={onToggle} />
+        ) : (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            {repos.length ? t("profile.repos.noMatch", { query: query.trim() }) : t("profile.repos.noneOnGitHub")}
+          </p>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">{t("profile.repos.note")}</p>
+    </div>
+  );
+}
+
+/** The search, owner and sort the list is narrowed by, and what's left after them. */
+function useRepoFilter(repos: readonly Repo[], username: string) {
   const [query, setQuery] = useState("");
   const [owner, setOwner] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("recent");
-  // One empty list, so the filters below don't rerun on every render while loading.
-  const repos = choices.status === "ready" ? choices.repos : NO_REPOS;
 
   // Organizations, busiest first, for the owner filter.
   const orgs = useMemo(() => {
@@ -262,91 +313,98 @@ function ChoiceList({
     return sort === "stars" ? [...found].sort((a, b) => b.stars - a.stars) : found;
   }, [repos, query, owner, sort, username]);
 
+  return { query, setQuery, owner, setOwner, sort, setSort, orgs, matches };
+}
+
+/** Pills for All, the member's own repos, and each organization; the picked one has a sliding highlight. */
+function OwnerFilter({
+  orgs,
+  owner,
+  username,
+  onChange,
+}: {
+  orgs: string[];
+  owner: string | null;
+  username: string;
+  onChange: (owner: string | null) => void;
+}) {
+  const { t } = useI18n();
   return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label={t("profile.repos.search")}
-            placeholder={t("profile.repos.search")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            className="pl-9 transition-all duration-200 focus-visible:-translate-y-0.5"
-          />
-        </div>
-        <Segmented
-          name="repo-sort"
-          value={sort}
-          onChange={setSort}
-          options={[
-            { value: "recent", label: t("profile.repos.sortRecent") },
-            { value: "stars", label: t("profile.repos.sortStars") },
-          ]}
-        />
-      </div>
-
-      {orgs.length ? (
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={t("profile.repos.showFrom")}>
-          {[null, username, ...orgs].map((who) => (
-            <button
-              key={who ?? "all"}
-              type="button"
-              aria-pressed={owner === who}
-              onClick={() => setOwner(who)}
-              className={cn(
-                "relative shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-bold transition-[color,border-color,translate] duration-200 hover:-translate-y-0.5 active:scale-95",
-                owner === who ? "border-primary text-primary-foreground" : "text-muted-foreground hover:border-primary hover:text-primary",
-              )}
-            >
-              {owner === who ? <motion.span layoutId="repo-owner" transition={pop} className="absolute inset-0 rounded-full bg-primary" /> : null}
-              <span className="relative">{who === null ? t("profile.repos.ownerAll") : who === username ? t("profile.repos.ownerYours") : who}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="max-h-80 min-h-40 overflow-y-auto overscroll-contain rounded-xl border p-1">
-        {choices.status === "loading" ? (
-          <ul aria-label={t("profile.repos.loading")} className="flex flex-col gap-1">
-            {Array.from({ length: 5 }, (_, i) => (
-              <li key={i} className="flex items-center gap-3 px-3 py-2.5">
-                <span className="shimmer size-5 shrink-0 rounded-full" />
-                <span className="flex flex-1 flex-col gap-1.5">
-                  <span className="shimmer h-3 rounded-full" style={{ width: `${45 + ((i * 17) % 35)}%` }} />
-                  <span className="shimmer h-2.5 w-3/4 rounded-full opacity-70" />
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : choices.status === "error" ? (
-          <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-sm text-muted-foreground">
-            <p>{choices.message}</p>
-            <Button type="button" variant="outline" size="sm" className="btn group/retry rounded-full font-bold" onClick={onRetry}>
-              <RotateCw className="transition-transform duration-500 group-hover/retry:rotate-180" /> {t("common.tryAgain")}
-            </Button>
-          </div>
-        ) : matches.length ? (
-          <ul className="flex flex-col gap-0.5">
-            {matches.slice(0, SHOWN).map((repo, i) => (
-              <Choice key={repo.id} repo={repo} index={i} selected={picked.has(repo.id)} full={full} username={username} onToggle={onToggle} />
-            ))}
-            {matches.length > SHOWN ? (
-              <li className="px-3 py-2 text-center text-xs text-muted-foreground">
-                {t("profile.repos.showing", { shown: SHOWN, total: matches.length })}
-              </li>
-            ) : null}
-          </ul>
-        ) : (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {repos.length ? t("profile.repos.noMatch", { query: query.trim() }) : t("profile.repos.noneOnGitHub")}
-          </p>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">{t("profile.repos.note")}</p>
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={t("profile.repos.showFrom")}>
+      {[null, username, ...orgs].map((who) => (
+        <button
+          key={who ?? "all"}
+          type="button"
+          aria-pressed={owner === who}
+          onClick={() => onChange(who)}
+          className={cn(
+            "relative shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-bold transition-[color,border-color,translate] duration-200 hover:-translate-y-0.5 active:scale-95",
+            owner === who ? "border-primary text-primary-foreground" : "text-muted-foreground hover:border-primary hover:text-primary",
+          )}
+        >
+          {owner === who ? <motion.span layoutId="repo-owner" transition={pop} className="absolute inset-0 rounded-full bg-primary" /> : null}
+          <span className="relative">{who === null ? t("profile.repos.ownerAll") : who === username ? t("profile.repos.ownerYours") : who}</span>
+        </button>
+      ))}
     </div>
+  );
+}
+
+/** Shimmering placeholder rows while the repos load. */
+function ChoicesLoading() {
+  const { t } = useI18n();
+  return (
+    <ul aria-label={t("profile.repos.loading")} className="flex flex-col gap-1">
+      {Array.from({ length: 5 }, (_, i) => (
+        <li key={i} className="flex items-center gap-3 px-3 py-2.5">
+          <span className="shimmer size-5 shrink-0 rounded-full" />
+          <span className="flex flex-1 flex-col gap-1.5">
+            <span className="shimmer h-3 rounded-full" style={{ width: `${45 + ((i * 17) % 35)}%` }} />
+            <span className="shimmer h-2.5 w-3/4 rounded-full opacity-70" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Why the repos didn't load, and a button to try again. */
+function ChoicesError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-sm text-muted-foreground">
+      <p>{message}</p>
+      <Button type="button" variant="outline" size="sm" className="btn group/retry rounded-full font-bold" onClick={onRetry}>
+        <RotateCw className="transition-transform duration-500 group-hover/retry:rotate-180" /> {t("common.tryAgain")}
+      </Button>
+    </div>
+  );
+}
+
+/** The first SHOWN matches, and a note when there are more. */
+function MatchList({
+  matches,
+  picked,
+  full,
+  username,
+  onToggle,
+}: {
+  matches: readonly Repo[];
+  picked: ReadonlySet<number>;
+  full: boolean;
+  username: string;
+  onToggle: (repo: Repo) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <ul className="flex flex-col gap-0.5">
+      {matches.slice(0, SHOWN).map((repo, i) => (
+        <Choice key={repo.id} repo={repo} index={i} selected={picked.has(repo.id)} full={full} username={username} onToggle={onToggle} />
+      ))}
+      {matches.length > SHOWN ? (
+        <li className="px-3 py-2 text-center text-xs text-muted-foreground">{t("profile.repos.showing", { shown: SHOWN, total: matches.length })}</li>
+      ) : null}
+    </ul>
   );
 }
 

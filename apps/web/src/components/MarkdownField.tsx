@@ -1,5 +1,5 @@
 import { Bold, Code, Eye, Italic, Link2, List, type LucideIcon, PenLine, Quote } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { type ComponentProps, useId, useRef, useState } from "react";
 import { Markdown } from "@/components/Markdown";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
