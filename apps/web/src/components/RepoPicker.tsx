@@ -8,6 +8,7 @@ import { Language, Stars } from "@/components/RepoCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n/react";
+import { SLIDE_IN } from "@/lib/motion";
 import { ownedByOther } from "@/lib/repos";
 import { cn } from "@/lib/utils";
 import { getRepoChoices } from "@/server/functions";
@@ -97,22 +98,18 @@ export function RepoPicker({ value, onChange, username }: { value: readonly Repo
               {t("profile.repos.none", { count: MAX_FEATURED_REPOS })}
             </motion.p>
           )}
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {nope > 0 && full ? (
-              <motion.p
-                key="full"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden text-xs font-bold text-primary"
-              >
+              <motion.p key="full" {...SLIDE_IN} className="text-xs font-bold text-primary">
                 {t("profile.repos.full", { count: MAX_FEATURED_REPOS })}
               </motion.p>
             ) : null}
           </AnimatePresence>
         </div>
 
-        <ChoiceList choices={choices} picked={picked} full={full} username={username} onToggle={toggle} onRetry={() => void fetchChoices()} />
+        <motion.div layout="position" className="min-w-0">
+          <ChoiceList choices={choices} picked={picked} full={full} username={username} onToggle={toggle} onRetry={() => void fetchChoices()} />
+        </motion.div>
       </div>
     </MotionConfig>
   );

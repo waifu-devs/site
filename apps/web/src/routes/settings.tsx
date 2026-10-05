@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { T, useI18n } from "@/i18n/react";
 import { headT, title } from "@/lib/head";
+import { SLIDE_IN } from "@/lib/motion";
 import { getProfileEditor, updateProfile } from "@/server/functions";
 
 export const Route = createFileRoute("/settings")({
@@ -173,10 +174,10 @@ function ProfileEditor({
           <ProfilePreview user={user} draft={draft} theme={theme} avatarUrl={avatar.url} bannerUrl={bannerImage.url} />
           <div className="hidden flex-col items-end gap-2 lg:flex">
             <SaveError error={saveError} />
-            <div className="flex items-center justify-end gap-4">
+            <motion.div layout="position" className="flex items-center justify-end gap-4">
               {dirty ? <Unsaved /> : null}
               <SaveButton />
-            </div>
+            </motion.div>
           </div>
         </aside>
 
@@ -191,10 +192,10 @@ function ProfileEditor({
               className="fixed inset-x-0 bottom-0 z-50 flex flex-col gap-1 border-t bg-card/90 px-4 py-3 backdrop-blur-md lg:hidden"
             >
               <SaveError error={saveError} />
-              <div className="flex items-center justify-between gap-4">
+              <motion.div layout="position" className="flex items-center justify-between gap-4">
                 <Unsaved />
                 <SaveButton />
-              </div>
+              </motion.div>
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -506,16 +507,9 @@ function Unsaved() {
 /** Why the last save failed, sliding open above the save button. */
 function SaveError({ error }: { error: string | null }) {
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="popLayout">
       {error ? (
-        <motion.p
-          key={error}
-          role="alert"
-          initial={{ opacity: 0, y: 6, height: 0 }}
-          animate={{ opacity: 1, y: 0, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          className="nope overflow-hidden text-sm font-bold text-destructive lg:text-right"
-        >
+        <motion.p key={error} role="alert" {...SLIDE_IN} className="nope text-sm font-bold text-destructive lg:text-right">
           {error}
         </motion.p>
       ) : null}
