@@ -4,13 +4,16 @@ import { Globe, Link2, Plus, X } from "lucide-react";
 import { AnimatePresence, m as motion } from "motion/react";
 import { type ReactNode, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { MotionButton } from "@/components/motion-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n/react";
+import { SLIDE_IN } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
+const ROW = { duration: 0.22, ease: [0.2, 0.8, 0.2, 1] } as const;
 const pop = { type: "spring", stiffness: 520, damping: 30 } as const;
 const lift = "transition-[color,border-color,box-shadow,translate] duration-200 focus-visible:-translate-y-0.5";
 
@@ -127,16 +130,9 @@ export function LinksInput({ initial, onChange }: { initial: readonly string[]; 
 
   return (
     <div className="flex flex-col gap-2">
-      <AnimatePresence initial={false}>
+      <AnimatePresence mode="popLayout" initial={false}>
         {rows.map((row, i) => (
-          <motion.div
-            key={row.id}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
-            className="overflow-hidden"
-          >
+          <motion.div key={row.id} {...SLIDE_IN} layout="position" transition={ROW}>
             <div className="flex items-center gap-2 p-0.5">
               <Link2 className="size-4 shrink-0 text-muted-foreground" />
               <Input
@@ -164,7 +160,9 @@ export function LinksInput({ initial, onChange }: { initial: readonly string[]; 
         ))}
       </AnimatePresence>
       {rows.length < MAX_LINKS ? (
-        <Button
+        <MotionButton
+          layout="position"
+          transition={ROW}
           type="button"
           variant="outline"
           size="sm"
@@ -172,7 +170,7 @@ export function LinksInput({ initial, onChange }: { initial: readonly string[]; 
           onClick={() => update([...rows, { id: nextId.current++, url: "" }])}
         >
           <Plus /> {t("profile.fields.addLink")}
-        </Button>
+        </MotionButton>
       ) : null}
     </div>
   );

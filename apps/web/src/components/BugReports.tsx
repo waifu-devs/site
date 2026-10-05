@@ -1,4 +1,5 @@
 import { AnimatePresence, m as motion } from "motion/react";
+import { SLIDE_IN } from "@/lib/motion";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { type Key, T, useI18n } from "@/i18n/react";
@@ -95,15 +96,9 @@ export function BugReportsFooter() {
           ▾
         </motion.span>
       </button>
-      <AnimatePresence initial={false}>
+      <AnimatePresence mode="popLayout" initial={false}>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={SPRING}
-            className="w-full overflow-hidden"
-          >
+          <motion.div {...SLIDE_IN} transition={SPRING} className="w-full">
             <div className="pb-1">
               <BugReportsSetting />
             </div>
