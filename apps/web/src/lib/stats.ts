@@ -1,3 +1,5 @@
+import type { I18n, Key } from "@/i18n/i18n";
+
 /**
  * The stats page's data, as the analytics service sends it (apps/analytics,
  * GET /v1/insights). Every number is a sum over many installs or reports.
@@ -60,11 +62,15 @@ export type Insights = {
 
 /** The apps reports come from, in the order (and so the colors) the page always uses. */
 export const APPS = [
-  { key: "fuwa:server", label: "fuwa server" },
-  { key: "fuwa:web", label: "fuwa web" },
-  { key: "fuwa:desktop", label: "fuwa desktop" },
-  { key: "site:web", label: "waifu.dev" },
-] as const;
+  { key: "fuwa:server", label: "stats.app.fuwaServer" },
+  { key: "fuwa:web", label: "stats.app.fuwaWeb" },
+  { key: "fuwa:desktop", label: "stats.app.fuwaDesktop" },
+  { key: "site:web", label: "stats.app.site" },
+] as const satisfies ReadonlyArray<{ key: string; label: Key }>;
 export type AppKey = (typeof APPS)[number]["key"];
 export const appKey = (row: { source: string; app: string }) => `${row.source}:${row.app}`;
-export const appLabel = (key: string) => APPS.find((a) => a.key === key)?.label ?? key.replace(":", " ");
+/** An app's name in the page's language; one the page doesn't know shows as its key. */
+export const appLabel = (key: string, t: I18n["t"]) => {
+  const app = APPS.find((a) => a.key === key);
+  return app ? t(app.label) : key.replace(":", " ");
+};

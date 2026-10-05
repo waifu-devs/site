@@ -11,7 +11,7 @@ import { LanguageFooter, useSwitchingLanguage } from "@/components/LanguagePicke
 import { Button } from "@/components/ui/button";
 import { loadCatalog } from "@/i18n/catalogs";
 import { I18nProvider, type Messages, T, useI18n } from "@/i18n/react";
-import { title } from "@/lib/head";
+import { headT, title } from "@/lib/head";
 import { pageChange, startReports } from "@/lib/reports";
 import { STATS_ADMINS, STATS_PUBLIC } from "@/lib/stats";
 import { getViewer } from "@/server/functions";
@@ -40,12 +40,12 @@ export const Route = createRootRoute({
     const messages: Messages = viewer.language.active === "en" ? null : Object.fromEntries(await loadCatalog(viewer.language.active));
     return { ...viewer, messages };
   },
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       title(),
-      { name: "description", content: "A cozy community for developers who love anime, waifus, and shipping code. (✿◕‿◕✿)" },
+      { name: "description", content: headT(matches)("common.meta.description") },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),

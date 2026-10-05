@@ -1,6 +1,6 @@
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import type { Repo, Theme, User } from "@waifu-devs/domain/api";
-import { BANNER_LABELS, BANNERS, type Banner, IMAGE_SIZES, MAX_FEATURED_REPOS, MAX_IMAGE_BYTES, MAX_SKILLS } from "@waifu-devs/domain/profile";
+import { BANNERS, type Banner, IMAGE_SIZES, MAX_FEATURED_REPOS, MAX_IMAGE_BYTES, MAX_SKILLS } from "@waifu-devs/domain/profile";
 import { type ThemeVariant, themeStyle } from "@waifu-devs/domain/themes";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -19,13 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useI18n } from "@/i18n/react";
-import { title } from "@/lib/head";
+import { T, useI18n } from "@/i18n/react";
+import { headT, title } from "@/lib/head";
 import { getProfileEditor, updateProfile } from "@/server/functions";
 
 export const Route = createFileRoute("/settings")({
   loader: () => getProfileEditor(),
-  head: () => ({ meta: [title("Customize your profile")] }),
+  head: ({ matches }) => ({ meta: [title(headT(matches)("settings.title"))] }),
   component: SettingsPage,
 });
 
@@ -125,6 +125,7 @@ function ProfileEditor({
   community: Themes;
   repos: readonly Repo[];
 }) {
+  const { t } = useI18n();
   const [initial] = useState(() => draftOf(user, repos));
   const [saveError, setSaveError] = useState<string | null>(null);
   const [draft, setDraft] = useState(initial);
@@ -133,7 +134,7 @@ function ProfileEditor({
   const avatar = useImageUpload("avatar", { url: user.avatarUrl, custom: user.customAvatar });
   const bannerImage = useImageUpload("banner", { url: user.bannerUrl, custom: user.bannerUrl !== null });
 
-  const theme = (draft.profileThemeId && [...mine, ...builtin, ...community].find((t) => t.id === draft.profileThemeId)) || worn;
+  const theme = (draft.profileThemeId && [...mine, ...builtin, ...community].find((th) => th.id === draft.profileThemeId)) || worn;
   const preview: ProfileView = {
     username: user.username,
     avatarUrl: avatar.url,
@@ -151,28 +152,28 @@ function ProfileEditor({
     bannerUrl: bannerImage.url,
   };
 
-  const themeOption = (t: Theme, value = t.id, label = t.name, sub?: string) => (
+  const themeOption = (th: Theme, value = th.id, label = th.name, sub?: string) => (
     <PickerOption key={value || "worn"} name="profile_theme_id" value={value} ring="profile-theme" selected={draft.profileThemeId === value} onSelect={() => set("profileThemeId")(value)}>
-      <ThemeChip variant={t.variant} />
+      <ThemeChip variant={th.variant} />
       <span className="truncate px-0.5 text-xs font-bold">{label}</span>
       {sub ? <span className="-mt-1.5 truncate px-0.5 text-[11px] text-muted-foreground">{sub}</span> : null}
     </PickerOption>
   );
   const themeGroups = [
-    { label: "Yours", themes: mine },
-    { label: "Built-in", themes: builtin },
-    { label: "From the community", themes: community },
+    { label: t("settings.look.yours"), themes: mine },
+    { label: t("settings.look.builtIn"), themes: builtin },
+    { label: t("settings.look.community"), themes: community },
   ];
 
   const saveButton = (
     <Button type="submit" className="btn rounded-full font-bold">
-      <span className="group-aria-busy:hidden">Save profile</span>
-      <span className="hidden group-aria-busy:inline">Saving...</span>
+      <span className="group-aria-busy:hidden">{t("settings.save")}</span>
+      <span className="hidden group-aria-busy:inline">{t("settings.saving")}</span>
     </Button>
   );
   const unsaved = (
     <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-      <span className="status-dot" /> Unsaved changes
+      <span className="status-dot" /> {t("settings.unsaved")}
     </span>
   );
   const failed = (
@@ -202,14 +203,19 @@ function ProfileEditor({
         <div className="stagger flex min-w-0 flex-col gap-6">
           <div>
             <h1 className="text-3xl font-extrabold">
-              Customize your profile <span className="float inline-block text-primary">✦</span>
+              <T k="settings.heading" values={{ sparkle: <span className="float inline-block text-primary">✦</span> }} />
             </h1>
             <p className="text-muted-foreground">
-              Everyone who visits{" "}
-              <Link className="text-primary hover:underline" to="/u/$username" params={{ username: user.username }}>
-                u/{user.username}
-              </Link>{" "}
-              sees it just like the preview. Your username comes from GitHub, and so does your picture until you upload one.
+              <T
+                k="settings.intro"
+                values={{
+                  profile: (
+                    <Link className="text-primary hover:underline" to="/u/$username" params={{ username: user.username }}>
+                      u/{user.username}
+                    </Link>
+                  ),
+                }}
+              />
             </p>
           </div>
 
@@ -217,40 +223,46 @@ function ProfileEditor({
 
           <Card>
             <CardHeader>
-              <CardTitle>Look</CardTitle>
-              <CardDescription>Pick the theme and banner visitors see your profile in, whatever theme they wear themselves.</CardDescription>
+              <CardTitle>{t("settings.look.title")}</CardTitle>
+              <CardDescription>{t("settings.look.description")}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               <fieldset className="flex min-w-0 flex-col gap-3">
-                <legend className="mb-3 text-sm font-bold">Profile theme</legend>
-                <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{themeOption(worn, "", "Same as I wear", worn.name)}</div>
+                <legend className="mb-3 text-sm font-bold">{t("settings.look.profileTheme")}</legend>
+                <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{themeOption(worn, "", t("settings.look.sameAsWorn"), worn.name)}</div>
                 <div className="flex max-h-96 flex-col gap-3 overflow-y-auto p-0.5">
                   {themeGroups.map((group) =>
                     group.themes.length ? (
                       <div key={group.label} className="flex flex-col gap-1">
                         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{group.label}</p>
-                        <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{group.themes.map((t) => themeOption(t))}</div>
+                        <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">{group.themes.map((th) => themeOption(th))}</div>
                       </div>
                     ) : null,
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  You browse the site in <b className="text-foreground">{worn.name}</b>.{" "}
-                  <Link to="/themes" className="text-primary hover:underline">
-                    Change that on Themes
-                  </Link>{" "}
-                  or make your own.
+                  <T
+                    k="settings.look.browsing"
+                    values={{
+                      theme: <b className="text-foreground">{worn.name}</b>,
+                      change: (
+                        <Link to="/themes" className="text-primary hover:underline">
+                          {t("settings.look.change")}
+                        </Link>
+                      ),
+                    }}
+                  />
                 </p>
               </fieldset>
 
               <fieldset className="flex min-w-0 flex-col gap-3">
-                <legend className="mb-3 text-sm font-bold">Banner decoration</legend>
+                <legend className="mb-3 text-sm font-bold">{t("settings.look.banner")}</legend>
                 {/* Drawn in the profile theme, the way visitors will see it. */}
                 <div className="themed grid grid-cols-2 gap-1 rounded-xl border p-2 sm:grid-cols-3" style={themeStyle(theme.variant)}>
                   {BANNERS.map((b) => (
                     <PickerOption key={b} name="banner" value={b} ring="profile-banner" selected={draft.banner === b} onSelect={() => set("banner")(b)}>
                       <ProfileBanner banner={b} image={bannerImage.url} className="h-14 rounded-lg border" />
-                      <span className="px-0.5 text-xs font-bold">{b === "plain" && bannerImage.url ? "Picture only" : BANNER_LABELS[b]}</span>
+                      <span className="px-0.5 text-xs font-bold">{b === "plain" && bannerImage.url ? t("settings.look.pictureOnly") : t(`settings.banner.${b}`)}</span>
                     </PickerOption>
                   ))}
                 </div>
@@ -260,19 +272,25 @@ function ProfileEditor({
 
           <Card>
             <CardHeader>
-              <CardTitle>About you</CardTitle>
+              <CardTitle>{t("settings.about.title")}</CardTitle>
               <CardDescription>
-                Status, favorite waifu and bio understand Markdown: <code className="text-foreground">**bold**</code>,{" "}
-                <code className="text-foreground">_italic_</code>, <code className="text-foreground">`code`</code> and{" "}
-                <code className="text-foreground">[links](https://...)</code>. The bio also takes lists, quotes and code blocks.
+                <T
+                  k="settings.about.description"
+                  values={{
+                    bold: <code className="text-foreground">**{t("news.markdown.boldText")}**</code>,
+                    italic: <code className="text-foreground">_{t("news.markdown.italicText")}_</code>,
+                    code: <code className="text-foreground">`{t("news.markdown.codeText")}`</code>,
+                    links: <code className="text-foreground">[{t("settings.about.linksText")}](https://...)</code>,
+                  }}
+                />
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
-              <TextField id="display_name" label="Display name" max={60} value={draft.displayName} onChange={set("displayName")} placeholder={user.username} />
-              <TextField id="status" label="Status" max={80} value={draft.status} onChange={set("status")} placeholder="Shipping a tiny compiler, send snacks" />
+              <TextField id="display_name" label={t("settings.about.displayName")} max={60} value={draft.displayName} onChange={set("displayName")} placeholder={user.username} />
+              <TextField id="status" label={t("settings.about.status")} max={80} value={draft.status} onChange={set("status")} placeholder={t("settings.about.statusPlaceholder")} />
               <div className="grid gap-5 sm:grid-cols-2">
-                <TextField id="pronouns" label="Pronouns" max={30} value={draft.pronouns} onChange={set("pronouns")} />
-                <TextField id="location" label="Location" max={60} value={draft.location} onChange={set("location")} placeholder="Tokyo, or the cloud" />
+                <TextField id="pronouns" label={t("settings.about.pronouns")} max={30} value={draft.pronouns} onChange={set("pronouns")} />
+                <TextField id="location" label={t("settings.about.location")} max={60} value={draft.location} onChange={set("location")} placeholder={t("settings.about.locationPlaceholder")} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
                 {/* Picking a country shows it; the switch is how you keep it private. */}
@@ -282,8 +300,8 @@ function ProfileEditor({
                 />
                 <label className="flex items-center justify-between gap-4 rounded-xl border p-3 sm:mt-8">
                   <span className="grid gap-0.5">
-                    <Label htmlFor="show_country">Show my country</Label>
-                    <span className="text-xs text-muted-foreground">Off keeps it to yourself.</span>
+                    <Label htmlFor="show_country">{t("settings.about.showCountry")}</Label>
+                    <span className="text-xs text-muted-foreground">{t("settings.about.showCountryNote")}</span>
                   </span>
                   <Switch
                     id="show_country"
@@ -294,24 +312,31 @@ function ProfileEditor({
                   />
                 </label>
               </div>
-              <TextField id="favorite_waifu" label="Favorite waifu" max={80} value={draft.favoriteWaifu} onChange={set("favoriteWaifu")} placeholder="Best girl goes here" />
-              <TextField id="bio" label="Bio" max={500} rows={5} value={draft.bio} onChange={set("bio")} />
+              <TextField
+                id="favorite_waifu"
+                label={t("settings.about.favoriteWaifu")}
+                max={80}
+                value={draft.favoriteWaifu}
+                onChange={set("favoriteWaifu")}
+                placeholder={t("settings.about.favoriteWaifuPlaceholder")}
+              />
+              <TextField id="bio" label={t("settings.about.bio")} max={500} rows={5} value={draft.bio} onChange={set("bio")} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Skills and links</CardTitle>
-              <CardDescription>Up to {MAX_SKILLS} skills, your website, and a few more links.</CardDescription>
+              <CardTitle>{t("settings.skills.title")}</CardTitle>
+              <CardDescription>{t("settings.skills.description", { count: MAX_SKILLS })}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               <div className="grid gap-2">
-                <span className="text-sm font-medium">Skills</span>
+                <span className="text-sm font-medium">{t("settings.skills.skills")}</span>
                 <SkillsInput value={draft.skills} onChange={set("skills")} />
               </div>
-              <TextField id="website" label="Website" max={200} value={draft.website} onChange={set("website")} placeholder="https://" />
+              <TextField id="website" label={t("settings.skills.website")} max={200} value={draft.website} onChange={set("website")} placeholder="https://" />
               <div className="grid gap-2">
-                <span className="text-sm font-medium">More links</span>
+                <span className="text-sm font-medium">{t("settings.skills.moreLinks")}</span>
                 <LinksInput initial={initial.links} onChange={set("links")} />
               </div>
             </CardContent>
@@ -319,11 +344,8 @@ function ProfileEditor({
 
           <Card>
             <CardHeader>
-              <CardTitle>Featured repos</CardTitle>
-              <CardDescription>
-                Show off up to {MAX_FEATURED_REPOS} of your public GitHub repos. They show as cards on your profile, in the order you put them, and
-                their stars and descriptions stay in sync with GitHub.
-              </CardDescription>
+              <CardTitle>{t("settings.repos.title")}</CardTitle>
+              <CardDescription>{t("settings.repos.description", { count: MAX_FEATURED_REPOS })}</CardDescription>
             </CardHeader>
             <CardContent>
               <RepoPicker value={draft.repos} onChange={set("repos")} username={user.username} />
@@ -332,8 +354,8 @@ function ProfileEditor({
 
           <Card>
             <CardHeader>
-              <CardTitle>Bug reports</CardTitle>
-              <CardDescription>For this browser, and it takes effect at once: not part of your profile, so there's nothing to save.</CardDescription>
+              <CardTitle>{t("settings.bugs.title")}</CardTitle>
+              <CardDescription>{t("settings.bugs.description")}</CardDescription>
             </CardHeader>
             <CardContent>
               <BugReportsSetting />
@@ -345,9 +367,9 @@ function ProfileEditor({
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-20">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Live preview</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t("settings.preview.label")}</p>
             <Link to="/u/$username" params={{ username: user.username }} className="nav-link text-sm font-bold text-primary">
-              View profile
+              {t("settings.preview.viewProfile")}
             </Link>
           </div>
           {/* The preview wears the profile theme; picking another morphs it in place. */}
@@ -434,24 +456,23 @@ function PicturesCard({
   themeVariant: ThemeVariant;
 }) {
   const { width, height } = IMAGE_SIZES.banner;
+  const { t } = useI18n();
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Pictures</CardTitle>
-        <CardDescription>
-          Click or drop a JPEG, PNG, WebP or GIF (up to {MB} MB). GIFs stay animated. These save right away.
-        </CardDescription>
+        <CardTitle>{t("settings.pictures.title")}</CardTitle>
+        <CardDescription>{t("settings.pictures.description", { size: MB })}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 sm:grid-cols-[auto_minmax(0,1fr)]">
         <ImageDrop
           upload={avatar}
-          label="Profile picture"
-          hint={avatar.custom ? "Your own picture, cropped to a square." : "Synced from GitHub."}
+          label={t("settings.pictures.avatar")}
+          hint={avatar.custom ? t("settings.pictures.avatarCustom") : t("settings.pictures.avatarGitHub")}
           className="w-fit rounded-full"
           actions={
             avatar.custom ? (
               <Button type="button" variant="outline" size="sm" className={quiet} disabled={avatar.pending} onClick={() => void avatar.remove()}>
-                Use GitHub's
+                {t("settings.pictures.useGitHub")}
               </Button>
             ) : null
           }
@@ -463,17 +484,13 @@ function PicturesCard({
 
         <ImageDrop
           upload={banner}
-          label="Banner picture"
-          hint={
-            banner.custom
-              ? "Your banner decoration plays on top. Pick Picture only below to show just the picture."
-              : `Cropped to ${width}×${height}. Your banner decoration keeps playing on top of it.`
-          }
+          label={t("settings.pictures.banner")}
+          hint={banner.custom ? t("settings.pictures.bannerCustom") : t("settings.pictures.bannerDefault", { width: String(width), height: String(height) })}
           className="w-full rounded-xl"
           actions={
             banner.custom ? (
               <Button type="button" variant="outline" size="sm" className={quiet} disabled={banner.pending} onClick={() => void banner.remove()}>
-                Remove picture
+                {t("settings.pictures.removeBanner")}
               </Button>
             ) : null
           }

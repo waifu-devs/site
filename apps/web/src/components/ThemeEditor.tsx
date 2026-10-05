@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsContents, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useI18n } from "@/i18n/react";
 import { createTheme } from "@/server/functions";
 import { ActionForm } from "./ActionForm";
 import {
@@ -18,13 +19,13 @@ import {
   SEEDS,
   seedsOf,
   themeStyle,
-  TOKEN_LABELS,
   TOKENS,
   type ThemeVariant,
   type Token,
 } from "@waifu-devs/domain/themes";
 
 export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
+  const { t } = useI18n();
   const [variant, setVariant] = useState<ThemeVariant>(initial);
   const [name, setName] = useState("");
   // Bumped on every change so the matching hex label replays its "pop" animation.
@@ -49,10 +50,10 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
           value={variant.tokens[key]}
           onChange={(e) => onChange(e.target.value)}
           className="h-8 w-10 shrink-0 cursor-pointer rounded border-0 bg-transparent"
-          aria-label={TOKEN_LABELS[key]}
+          aria-label={t(`themes.token.${key}`)}
         />
         <span className="flex min-w-0 flex-col text-sm">
-          <span className="truncate font-bold">{TOKEN_LABELS[key]}</span>
+          <span className="truncate font-bold">{t(`themes.token.${key}`)}</span>
           <span key={popKey} className="pop inline-block origin-left font-mono text-xs text-muted-foreground">
             {variant.tokens[key]}
           </span>
@@ -71,34 +72,34 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
 
           <CardContent className="flex flex-col gap-5">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="Kawaii Dark" />
+              <Label htmlFor="name">{t("themes.editor.name")}</Label>
+              <Input id="name" name="name" required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("themes.editor.namePlaceholder")} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" maxLength={140} placeholder="Optional, Markdown works" />
+              <Label htmlFor="description">{t("themes.editor.description")}</Label>
+              <Input id="description" name="description" maxLength={140} placeholder={t("themes.editor.descriptionPlaceholder")} />
             </div>
 
             <div className="grid gap-2">
-              <Label>Start from</Label>
+              <Label>{t("themes.editor.startFrom")}</Label>
               <div className="flex flex-wrap gap-2">
-                {BUILTIN_THEMES.map((t) => (
+                {BUILTIN_THEMES.map((th) => (
                   <button
-                    key={t.id}
+                    key={th.id}
                     type="button"
                     onClick={() => {
-                      setVariant(t.variant);
+                      setVariant(th.variant);
                       setChanged((c) => ({ keys: "all", n: c.n + 1 }));
                     }}
                     className="btn cursor-pointer border px-3 py-1 text-xs font-bold"
                     style={{
-                      background: t.variant.tokens.background,
-                      color: t.variant.tokens.foreground,
-                      borderColor: t.variant.tokens.primary,
-                      borderRadius: `${t.variant.radius}rem`,
+                      background: th.variant.tokens.background,
+                      color: th.variant.tokens.foreground,
+                      borderColor: th.variant.tokens.primary,
+                      borderRadius: `${th.variant.radius}rem`,
                     }}
                   >
-                    {t.name}
+                    {th.name}
                   </button>
                 ))}
               </div>
@@ -106,8 +107,8 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
 
             <Tabs defaultValue="quick">
               <TabsList>
-                <TabsTrigger value="quick">Quick</TabsTrigger>
-                <TabsTrigger value="all">All tokens</TabsTrigger>
+                <TabsTrigger value="quick">{t("themes.editor.quick")}</TabsTrigger>
+                <TabsTrigger value="all">{t("themes.editor.allTokens")}</TabsTrigger>
               </TabsList>
               <TabsContents>
                 <TabsContent value="quick" className="grid grid-cols-2 gap-3 p-1 pt-2">
@@ -121,7 +122,7 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
 
             <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <Label>Corner radius</Label>
+                <Label>{t("themes.editor.radius")}</Label>
                 <span className="font-mono text-xs text-muted-foreground">{variant.radius}rem</span>
               </div>
               <Slider
@@ -135,28 +136,29 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
 
             <div className="flex items-center gap-3">
               <Switch id="is_public" name="is_public" defaultChecked />
-              <Label htmlFor="is_public">Share with the community</Label>
+              <Label htmlFor="is_public">{t("themes.editor.share")}</Label>
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="btn rounded-full font-bold">Save and wear it</Button>
+            <Button type="submit" className="btn rounded-full font-bold">{t("themes.editor.save")}</Button>
           </CardFooter>
         </ActionForm>
       </Card>
 
-      <Preview variant={variant} name={name || "Your theme"} />
+      <Preview variant={variant} name={name || t("themes.editor.defaultName")} />
     </div>
   );
 }
 
 /** Real shadcn components rendered inside the draft variant. */
 function Preview({ variant, name }: { variant: ThemeVariant; name: string }) {
+  const { t } = useI18n();
   return (
     <div
       className="themed flex flex-col gap-4 rounded-xl border p-5 lg:sticky lg:top-20 lg:self-start"
       style={themeStyle(variant)}
     >
-      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Live preview</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("themes.preview.label")}</p>
       <Card>
         <CardHeader className="flex flex-row items-center gap-4">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-primary text-2xl text-primary-foreground">
@@ -164,27 +166,35 @@ function Preview({ variant, name }: { variant: ThemeVariant; name: string }) {
           </span>
           <div>
             <CardTitle className="text-xl font-extrabold">{name}</CardTitle>
-            <CardDescription>u/you · she/her · joined today</CardDescription>
+            <CardDescription>{t("themes.preview.byline")}</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <p>Full-stack dev by day, visual novel enjoyer by night. (◕‿◕)♡</p>
+          <p>{t("themes.preview.bio")}</p>
           <div className="flex flex-wrap gap-2">
             <Badge>♡ Rem</Badge>
             <Badge variant="secondary">Rust</Badge>
             <Badge variant="outline">TypeScript</Badge>
           </div>
-          <Input placeholder="Say something nice…" />
+          <Input placeholder={t("themes.preview.inputPlaceholder")} />
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2">
-          <Button data-burst type="button" className="btn">Primary</Button>
-          <Button type="button" variant="secondary" className="btn">Secondary</Button>
-          <Button type="button" variant="outline" className="btn">Outline</Button>
-          <Button type="button" variant="ghost">Ghost</Button>
+          <Button data-burst type="button" className="btn">
+            {t("themes.preview.primary")}
+          </Button>
+          <Button type="button" variant="secondary" className="btn">
+            {t("themes.preview.secondary")}
+          </Button>
+          <Button type="button" variant="outline" className="btn">
+            {t("themes.preview.outline")}
+          </Button>
+          <Button type="button" variant="ghost">
+            {t("themes.preview.ghost")}
+          </Button>
         </CardFooter>
       </Card>
       <div className="flex items-center gap-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">
-        <Switch defaultChecked aria-label="Example switch" /> Muted panel with a switch
+        <Switch defaultChecked aria-label={t("themes.preview.switch")} /> {t("themes.preview.panel")}
       </div>
     </div>
   );

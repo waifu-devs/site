@@ -7,7 +7,8 @@ import { PostRow } from "@/components/news/PostRow";
 import { SortTabs } from "@/components/news/SortTabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { title } from "@/lib/head";
+import { useI18n } from "@/i18n/react";
+import { headT, title } from "@/lib/head";
 import { useViewer } from "@/lib/viewer";
 import { getNews } from "@/server/news";
 
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/news/")({
   },
   loaderDeps: ({ search }) => ({ sort: (search.sort ?? "top") as PostSort, page: search.page ?? 1 }),
   loader: ({ deps }) => getNews({ data: deps }),
-  head: ({ match }) => ({ meta: [title(match.search.sort === "new" ? "New · News" : "News")] }),
+  head: ({ match, matches }) => ({ meta: [title(headT(matches)(match.search.sort === "new" ? "news.titleNew" : "news.title"))] }),
   component: NewsPage,
 });
 
@@ -37,8 +38,17 @@ function NewsPage() {
   const { posts, hasMore } = Route.useLoaderData();
   const { sort = "top", page = 1 } = Route.useSearch();
   const { user } = useViewer();
+  const { t } = useI18n();
   const offset = (page - 1) * PAGE_SIZE;
-  const submit = user ? <Link to="/news/submit"><Plus /> Submit</Link> : <Link to="/login" search={{ next: "/news/submit" }}><Plus /> Submit</Link>;
+  const submit = user ? (
+    <Link to="/news/submit">
+      <Plus /> {t("news.index.submit")}
+    </Link>
+  ) : (
+    <Link to="/login" search={{ next: "/news/submit" }}>
+      <Plus /> {t("news.index.submit")}
+    </Link>
+  );
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-12">
@@ -54,10 +64,10 @@ function NewsPage() {
         <div className="stagger flex flex-col gap-2">
           <p className="float w-fit text-2xl text-primary">(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧</p>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-            <span className="gradient-text">Waifu News</span>
+            <span className="gradient-text">{t("news.index.heading")}</span>
           </h1>
           <p className="max-w-xl text-muted-foreground">
-            What the community is reading, building and arguing about. Give a heart to whatever deserves more eyes.
+            {t("news.index.lede")}
           </p>
         </div>
       </header>
@@ -93,9 +103,9 @@ function NewsPage() {
       ) : (
         <Card className="rise items-center gap-3 px-6 py-14 text-center">
           <p className="float text-5xl">(・_・;)</p>
-          <h2 className="text-xl font-extrabold">{page > 1 ? "You reached the end" : "Nothing here yet"}</h2>
+          <h2 className="text-xl font-extrabold">{page > 1 ? t("news.index.endTitle") : t("news.index.emptyTitle")}</h2>
           <p className="max-w-sm text-muted-foreground">
-            {page > 1 ? "That's everything. Go touch some grass, or post something new." : "Be the first to share a link, a project, or a question."}
+            {page > 1 ? t("news.index.endBody") : t("news.index.emptyBody")}
           </p>
           <Button asChild className="btn mt-2 rounded-full font-bold">
             {submit}
@@ -104,11 +114,11 @@ function NewsPage() {
       )}
 
       {page > 1 || hasMore ? (
-        <nav aria-label="Pages" className="flex items-center justify-between gap-3">
+        <nav aria-label={t("news.index.pages")} className="flex items-center justify-between gap-3">
           {page > 1 ? (
             <Button asChild variant="outline" className="btn group rounded-full font-bold">
               <Link to="/news" search={{ ...(sort === "new" ? { sort } : {}), ...(page > 2 ? { page: page - 1 } : {}) }}>
-                <ArrowLeft className="transition-transform group-hover:-translate-x-1" /> Back
+                <ArrowLeft className="transition-transform group-hover:-translate-x-1" /> {t("news.index.back")}
               </Link>
             </Button>
           ) : (
@@ -117,7 +127,7 @@ function NewsPage() {
           {hasMore ? (
             <Button asChild variant="outline" className="btn group rounded-full font-bold">
               <Link to="/news" search={{ ...(sort === "new" ? { sort } : {}), page: page + 1 }}>
-                More <ArrowRight className="transition-transform group-hover:translate-x-1" />
+                {t("news.index.more")} <ArrowRight className="transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
           ) : null}

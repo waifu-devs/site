@@ -5,15 +5,17 @@ import { Project } from "@/components/projects/Project";
 import { GitHubMark } from "@/components/projects/ProjectCard";
 import { ProjectsHero } from "@/components/projects/ProjectsHero";
 import { Button } from "@/components/ui/button";
-import { title } from "@/lib/head";
+import { useI18n } from "@/i18n/react";
+import { headT, title } from "@/lib/head";
 import { PROJECTS } from "@/lib/projects";
 
 export const Route = createFileRoute("/projects")({
-  head: () => ({ meta: [title("Projects")] }),
+  head: ({ matches }) => ({ meta: [title(headT(matches)("common.nav.projects"))] }),
   component: ProjectsPage,
 });
 
 function ProjectsPage() {
+  const { t } = useI18n();
   return (
     // With reduced motion on, Motion skips transforms and keeps fades; the pieces that loop check it themselves.
     <MotionConfig reducedMotion="user">
@@ -28,10 +30,10 @@ function ProjectsPage() {
           <div aria-hidden className="grid-floor absolute inset-0 -z-10 rotate-180" />
           <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 text-center">
             <h2 className="text-balance text-[clamp(2.2rem,6vw,4rem)] font-extrabold leading-[1.05] tracking-tight">
-              Got an idea? <span className="text-primary">Build it with us.</span>
+              {t("projects.cta.title")} <span className="text-primary">{t("projects.cta.titleAccent")}</span>
             </h2>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Every project here is open source. Open an issue, pick one up, or show up with a project of your own.
+              {t("projects.cta.body")}
             </p>
             <Magnetic strength={0.4}>
               <Button asChild size="lg" className="btn h-12 rounded-full px-7 text-base font-bold">

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Language, ownedByOther, Stars } from "@/components/RepoCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 import { getRepoChoices } from "@/server/functions";
 
@@ -27,6 +28,7 @@ const NO_REPOS: readonly Repo[] = [];
  * so they save with the rest of the profile.
  */
 export function RepoPicker({ value, onChange, username }: { value: readonly Repo[]; onChange: (repos: Repo[]) => void; username: string }) {
+  const { t } = useI18n();
   const load = useServerFn(getRepoChoices);
   const [choices, setChoices] = useState<Choices>({ status: "loading" });
   const fetchChoices = useCallback(async () => {
@@ -35,9 +37,9 @@ export function RepoPicker({ value, onChange, username }: { value: readonly Repo
       const result = await load();
       setChoices(result.error ? { status: "error", message: result.error } : { status: "ready", repos: result.repos });
     } catch {
-      setChoices({ status: "error", message: "Your repos didn't load. Try again." });
+      setChoices({ status: "error", message: t("profile.repos.loadFailed") });
     }
-  }, [load]);
+  }, [load, t]);
   useEffect(() => void fetchChoices(), [fetchChoices]);
 
   const full = value.length >= MAX_FEATURED_REPOS;
@@ -65,7 +67,7 @@ export function RepoPicker({ value, onChange, username }: { value: readonly Repo
 
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-bold">On your profile</span>
+            <span className="text-sm font-bold">{t("profile.repos.onProfile")}</span>
             <Slots count={value.length} nope={nope} />
           </div>
           {value.length ? (
@@ -91,7 +93,7 @@ export function RepoPicker({ value, onChange, username }: { value: readonly Repo
               className="flex items-center gap-3 rounded-xl border-2 border-dashed p-4 text-sm text-muted-foreground"
             >
               <span className="float inline-block text-lg text-primary">✦</span>
-              Nothing featured yet. Pick up to {MAX_FEATURED_REPOS} repos below and they show on your profile as cards.
+              {t("profile.repos.none", { count: MAX_FEATURED_REPOS })}
             </motion.p>
           )}
           <AnimatePresence>
@@ -103,7 +105,7 @@ export function RepoPicker({ value, onChange, username }: { value: readonly Repo
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden text-xs font-bold text-primary"
               >
-                That's {MAX_FEATURED_REPOS}! Take one off to make room for another.
+                {t("profile.repos.full", { count: MAX_FEATURED_REPOS })}
               </motion.p>
             ) : null}
           </AnimatePresence>
@@ -117,8 +119,9 @@ export function RepoPicker({ value, onChange, username }: { value: readonly Repo
 
 /** One bar per slot; picked ones fill in, and the row shakes when it's full and someone wants more. */
 function Slots({ count, nope }: { count: number; nope: number }) {
+  const { t } = useI18n();
   return (
-    <span key={nope} className={cn("inline-flex items-center gap-1.5", nope > 0 && "nope")} aria-label={`${count} of ${MAX_FEATURED_REPOS} picked`}>
+    <span key={nope} className={cn("inline-flex items-center gap-1.5", nope > 0 && "nope")} aria-label={t("profile.repos.slots", { count, max: MAX_FEATURED_REPOS })}>
       {Array.from({ length: MAX_FEATURED_REPOS }, (_, i) => (
         <span key={i} aria-hidden className="relative h-1.5 w-4 overflow-hidden rounded-full bg-muted sm:w-5">
           <motion.span
@@ -152,6 +155,7 @@ function PickedRepo({
   onMove: (by: number) => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   const drag = useDragControls();
   const other = ownedByOther(repo, username);
   return (
@@ -168,7 +172,7 @@ function PickedRepo({
     >
       <button
         type="button"
-        aria-label={`Move ${repo.name}: drag, or use the up and down arrow keys`}
+        aria-label={t("profile.repos.move", { name: repo.name })}
         onPointerDown={(e) => drag.start(e)}
         onKeyDown={(e) => {
           if (e.key === "ArrowUp" && index > 0) onMove(-1);
@@ -203,7 +207,7 @@ function PickedRepo({
         type="button"
         size="icon"
         variant="ghost"
-        aria-label={`Take ${repo.name} off your profile`}
+        aria-label={t("profile.repos.remove", { name: repo.name })}
         className="size-8 shrink-0 text-muted-foreground hover:rotate-90 hover:text-destructive"
         onClick={onRemove}
       >
@@ -230,6 +234,7 @@ function ChoiceList({
   onToggle: (repo: Repo) => void;
   onRetry: () => void;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [owner, setOwner] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("recent");
@@ -264,8 +269,8 @@ function ChoiceList({
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            aria-label="Search your repos"
-            placeholder="Search your repos"
+            aria-label={t("profile.repos.search")}
+            placeholder={t("profile.repos.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
@@ -277,14 +282,14 @@ function ChoiceList({
           value={sort}
           onChange={setSort}
           options={[
-            { value: "recent", label: "Recent" },
-            { value: "stars", label: "Most stars" },
+            { value: "recent", label: t("profile.repos.sortRecent") },
+            { value: "stars", label: t("profile.repos.sortStars") },
           ]}
         />
       </div>
 
       {orgs.length ? (
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Show repos from">
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={t("profile.repos.showFrom")}>
           {[null, username, ...orgs].map((who) => (
             <button
               key={who ?? "all"}
@@ -297,7 +302,7 @@ function ChoiceList({
               )}
             >
               {owner === who ? <motion.span layoutId="repo-owner" transition={pop} className="absolute inset-0 rounded-full bg-primary" /> : null}
-              <span className="relative">{who === null ? "All" : who === username ? "Yours" : who}</span>
+              <span className="relative">{who === null ? t("profile.repos.ownerAll") : who === username ? t("profile.repos.ownerYours") : who}</span>
             </button>
           ))}
         </div>
@@ -305,7 +310,7 @@ function ChoiceList({
 
       <div className="max-h-80 min-h-40 overflow-y-auto overscroll-contain rounded-xl border p-1">
         {choices.status === "loading" ? (
-          <ul aria-label="Loading your repos" className="flex flex-col gap-1">
+          <ul aria-label={t("profile.repos.loading")} className="flex flex-col gap-1">
             {Array.from({ length: 5 }, (_, i) => (
               <li key={i} className="flex items-center gap-3 px-3 py-2.5">
                 <span className="shimmer size-5 shrink-0 rounded-full" />
@@ -320,7 +325,7 @@ function ChoiceList({
           <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-sm text-muted-foreground">
             <p>{choices.message}</p>
             <Button type="button" variant="outline" size="sm" className="btn group/retry rounded-full font-bold" onClick={onRetry}>
-              <RotateCw className="transition-transform duration-500 group-hover/retry:rotate-180" /> Try again
+              <RotateCw className="transition-transform duration-500 group-hover/retry:rotate-180" /> {t("common.tryAgain")}
             </Button>
           </div>
         ) : matches.length ? (
@@ -330,17 +335,17 @@ function ChoiceList({
             ))}
             {matches.length > SHOWN ? (
               <li className="px-3 py-2 text-center text-xs text-muted-foreground">
-                Showing {SHOWN} of {matches.length}. Search to find the rest.
+                {t("profile.repos.showing", { shown: SHOWN, total: matches.length })}
               </li>
             ) : null}
           </ul>
         ) : (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {repos.length ? <>No repo matches “{query.trim()}”.</> : "GitHub doesn't list any public repos for you yet. (´・ω・`)"}
+            {repos.length ? t("profile.repos.noMatch", { query: query.trim() }) : t("profile.repos.noneOnGitHub")}
           </p>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">Public repos you own, and those of organizations you're a public member of on GitHub.</p>
+      <p className="text-xs text-muted-foreground">{t("profile.repos.note")}</p>
     </div>
   );
 }
@@ -360,6 +365,7 @@ function Choice({
   username: string;
   onToggle: (repo: Repo) => void;
 }) {
+  const { t } = useI18n();
   const other = ownedByOther(repo, username);
   return (
     <motion.li
@@ -397,8 +403,8 @@ function Choice({
               {other ? <span className="font-normal text-muted-foreground">{repo.owner}/</span> : null}
               {repo.name}
             </span>
-            {repo.fork ? <GitFork aria-label="Fork" className="size-3 shrink-0 text-muted-foreground" /> : null}
-            {repo.archived ? <span className="shrink-0 rounded-full border px-1.5 text-[10px] font-bold text-muted-foreground">Archived</span> : null}
+            {repo.fork ? <GitFork aria-label={t("profile.repo.fork")} className="size-3 shrink-0 text-muted-foreground" /> : null}
+            {repo.archived ? <span className="shrink-0 rounded-full border px-1.5 text-[10px] font-bold text-muted-foreground">{t("profile.repo.archived")}</span> : null}
           </span>
           {repo.description ? <span className="truncate text-xs text-muted-foreground">{repo.description}</span> : null}
         </span>
@@ -423,8 +429,9 @@ function Segmented<T extends string>({
   onChange: (value: T) => void;
   options: { value: T; label: string }[];
 }) {
+  const { t } = useI18n();
   return (
-    <div role="radiogroup" aria-label="Sort by" className="flex shrink-0 self-start rounded-full border bg-muted/60 p-0.5 sm:self-auto">
+    <div role="radiogroup" aria-label={t("profile.repos.sortBy")} className="flex shrink-0 self-start rounded-full border bg-muted/60 p-0.5 sm:self-auto">
       {options.map((option) => (
         <button
           key={option.value}

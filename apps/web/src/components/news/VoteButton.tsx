@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 import { votePost } from "@/server/news";
 
@@ -26,6 +27,7 @@ const pill =
  * if the server says no, it rolls back.
  */
 export function VoteButton({ postId, score, voted, mine, signedIn, className }: Props) {
+  const { t } = useI18n();
   const [state, setState] = useState({ score, voted });
   const [pending, setPending] = useState(false);
   // Each upvote floats a "+1" off the heart; keys let several overlap.
@@ -45,14 +47,14 @@ export function VoteButton({ postId, score, voted, mine, signedIn, className }: 
           <Link
             to="/login"
             search={{ next: location.pathname }}
-            aria-label={`${state.score} hearts. Sign in to upvote`}
+            aria-label={t("news.vote.signedOutLabel", { count: state.score })}
             className={cn(pill, "bg-card text-muted-foreground hover:border-primary hover:text-primary", className)}
           >
             <Heart className="size-4" />
             {count}
           </Link>
         </TooltipTrigger>
-        <TooltipContent>Sign in to upvote</TooltipContent>
+        <TooltipContent>{t("news.vote.signIn")}</TooltipContent>
       </Tooltip>
     );
   }
@@ -81,7 +83,10 @@ export function VoteButton({ postId, score, voted, mine, signedIn, className }: 
           onClick={toggle}
           aria-pressed={state.voted}
           aria-disabled={mine || undefined}
-          aria-label={`${state.score} hearts. ${mine ? "Your post" : state.voted ? "Take back your upvote" : "Upvote"}`}
+          aria-label={t("news.vote.label", {
+            count: state.score,
+            action: mine ? t("news.vote.yourPost") : state.voted ? t("news.vote.takeBack") : t("news.vote.upvote"),
+          })}
           // Sparkle burst (see <Sparkles>) only when giving a heart, not taking it back.
           data-burst={!state.voted && !mine ? "" : undefined}
           whileHover={mine ? undefined : { y: -2 }}
@@ -123,7 +128,7 @@ export function VoteButton({ postId, score, voted, mine, signedIn, className }: 
           </AnimatePresence>
         </motion.button>
       </TooltipTrigger>
-      <TooltipContent>{mine ? "Your post (your heart is already on it)" : state.voted ? "Take back your heart" : "Give it a heart"}</TooltipContent>
+      <TooltipContent>{mine ? t("news.vote.tipYours") : state.voted ? t("news.vote.tipTakeBack") : t("news.vote.tipGive")}</TooltipContent>
     </Tooltip>
   );
 }

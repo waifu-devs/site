@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 
 const pop = { type: "spring", stiffness: 520, damping: 30 } as const;
@@ -57,6 +58,7 @@ export function TextField({
 
 /** Skills as tags: Enter or a comma adds one, Backspace on an empty field removes the last. */
 export function SkillsInput({ value, onChange }: { value: string[]; onChange: (skills: string[]) => void }) {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const full = value.length >= MAX_SKILLS;
 
@@ -79,7 +81,7 @@ export function SkillsInput({ value, onChange }: { value: string[]; onChange: (s
               {skill}
               <button
                 type="button"
-                aria-label={`Remove ${skill}`}
+                aria-label={t("profile.fields.removeSkill", { skill })}
                 onClick={() => onChange(value.filter((s) => s !== skill))}
                 className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-primary hover:text-primary-foreground"
               >
@@ -91,11 +93,11 @@ export function SkillsInput({ value, onChange }: { value: string[]; onChange: (s
         ))}
       </AnimatePresence>
       <input
-        aria-label="Add a skill"
+        aria-label={t("profile.fields.addSkill")}
         value={text}
         disabled={full}
         maxLength={MAX_SKILL_LENGTH * 4}
-        placeholder={full ? `That's ${MAX_SKILLS}, nice!` : value.length ? "Add another" : "TypeScript, Rust, shaders..."}
+        placeholder={full ? t("profile.fields.skillsFull", { count: MAX_SKILLS }) : value.length ? t("profile.fields.addAnotherSkill") : t("profile.fields.skillsPlaceholder")}
         className="h-7 min-w-32 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
         onChange={(e) => (e.target.value.includes(",") ? add(e.target.value.split(",")) : setText(e.target.value))}
         onBlur={() => add([text])}
@@ -114,6 +116,7 @@ export function SkillsInput({ value, onChange }: { value: string[]; onChange: (s
 
 /** Up to MAX_LINKS link fields that slide in and out as they're added and removed. */
 export function LinksInput({ initial, onChange }: { initial: readonly string[]; onChange: (links: string[]) => void }) {
+  const { t } = useI18n();
   const nextId = useRef(initial.length);
   const [rows, setRows] = useState(() => initial.map((url, id) => ({ id, url })));
 
@@ -138,7 +141,7 @@ export function LinksInput({ initial, onChange }: { initial: readonly string[]; 
               <Link2 className="size-4 shrink-0 text-muted-foreground" />
               <Input
                 name="link"
-                aria-label={`Link ${i + 1}`}
+                aria-label={t("profile.fields.link", { number: i + 1 })}
                 value={row.url}
                 maxLength={MAX_LINK_LENGTH}
                 placeholder="https://bsky.app/profile/you"
@@ -150,7 +153,7 @@ export function LinksInput({ initial, onChange }: { initial: readonly string[]; 
                 type="button"
                 size="icon"
                 variant="ghost"
-                aria-label="Remove link"
+                aria-label={t("profile.fields.removeLink")}
                 className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => update(rows.filter((r) => r.id !== row.id))}
               >
@@ -168,7 +171,7 @@ export function LinksInput({ initial, onChange }: { initial: readonly string[]; 
           className="btn w-fit rounded-full font-bold"
           onClick={() => update([...rows, { id: nextId.current++, url: "" }])}
         >
-          <Plus /> Add link
+          <Plus /> {t("profile.fields.addLink")}
         </Button>
       ) : null}
     </div>
@@ -211,6 +214,7 @@ export function PickerOption({
  * the rest of the form.
  */
 export function CountryPicker({ value, onChange }: { value: string | null; onChange: (code: string | null) => void }) {
+  const { t } = useI18n();
   const all = countries();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -235,7 +239,7 @@ export function CountryPicker({ value, onChange }: { value: string | null; onCha
 
   return (
     <div ref={box} className="relative grid gap-2" onBlur={(e) => !box.current?.contains(e.relatedTarget) && setOpen(false)}>
-      <Label htmlFor="country-search">Country</Label>
+      <Label htmlFor="country-search">{t("profile.fields.country")}</Label>
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           {/* The flag doubles as the input's icon once a country is picked. */}
@@ -250,7 +254,7 @@ export function CountryPicker({ value, onChange }: { value: string | null; onCha
             aria-autocomplete="list"
             autoComplete="country-name"
             className={cn(lift, "pl-10")}
-            placeholder={chosen ? chosen.name : "Search for a country"}
+            placeholder={chosen ? chosen.name : t("profile.fields.countrySearch")}
             value={open ? query : (chosen?.name ?? "")}
             onFocus={() => {
               setOpen(true);
@@ -277,7 +281,7 @@ export function CountryPicker({ value, onChange }: { value: string | null; onCha
           />
         </div>
         {chosen ? (
-          <Button type="button" size="icon" variant="ghost" aria-label="Clear country" className="size-9 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => pick(null)}>
+          <Button type="button" size="icon" variant="ghost" aria-label={t("profile.fields.clearCountry")} className="size-9 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => pick(null)}>
             <X />
           </Button>
         ) : null}
@@ -320,7 +324,7 @@ export function CountryPicker({ value, onChange }: { value: string | null; onCha
                 </li>
               ))
             ) : (
-              <li className="px-2.5 py-2 text-sm text-muted-foreground">No country matches “{query.trim()}”.</li>
+              <li className="px-2.5 py-2 text-sm text-muted-foreground">{t("profile.fields.noCountry", { query: query.trim() })}</li>
             )}
           </motion.ul>
         ) : null}

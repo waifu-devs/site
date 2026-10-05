@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { type ComponentProps, useId, useRef, useState } from "react";
 import { Markdown } from "@/components/Markdown";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { type Key, T, useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 
 type Props = Omit<ComponentProps<"textarea">, "value" | "defaultValue" | "onChange"> & {
@@ -10,7 +11,8 @@ type Props = Omit<ComponentProps<"textarea">, "value" | "defaultValue" | "onChan
   onValueChange?: (value: string) => void;
 };
 
-type Tool = { label: string; keys?: string; Icon: LucideIcon; apply: (el: HTMLTextAreaElement) => void };
+/** `word` is what a wrapping tool puts in when nothing is selected (`text`, translated). */
+type Tool = { label: Key; text?: Key; keys?: string; Icon: LucideIcon; apply: (el: HTMLTextAreaElement, word: string) => void };
 
 const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -31,12 +33,18 @@ function prefixLines(el: HTMLTextAreaElement, prefix: string) {
 }
 
 const TOOLS: Tool[] = [
-  { label: "Bold", keys: "B", Icon: Bold, apply: (el) => wrap(el, "**", "**", "bold") },
-  { label: "Italic", keys: "I", Icon: Italic, apply: (el) => wrap(el, "_", "_", "italic") },
-  { label: "Code", keys: "E", Icon: Code, apply: (el) => (el.value.slice(el.selectionStart, el.selectionEnd).includes("\n") ? wrap(el, "```\n", "\n```", "code") : wrap(el, "`", "`", "code")) },
-  { label: "Link", keys: "K", Icon: Link2, apply: (el) => wrap(el, "[", "](https://)", "text") },
-  { label: "Quote", Icon: Quote, apply: (el) => prefixLines(el, "> ") },
-  { label: "List", Icon: List, apply: (el) => prefixLines(el, "- ") },
+  { label: "news.markdown.bold", text: "news.markdown.boldText", keys: "B", Icon: Bold, apply: (el, word) => wrap(el, "**", "**", word) },
+  { label: "news.markdown.italic", text: "news.markdown.italicText", keys: "I", Icon: Italic, apply: (el, word) => wrap(el, "_", "_", word) },
+  {
+    label: "news.markdown.code",
+    text: "news.markdown.codeText",
+    keys: "E",
+    Icon: Code,
+    apply: (el, word) => (el.value.slice(el.selectionStart, el.selectionEnd).includes("\n") ? wrap(el, "```\n", "\n```", word) : wrap(el, "`", "`", word)),
+  },
+  { label: "news.markdown.link", text: "news.markdown.linkText", keys: "K", Icon: Link2, apply: (el, word) => wrap(el, "[", "](https://)", word) },
+  { label: "news.markdown.quote", Icon: Quote, apply: (el) => prefixLines(el, "> ") },
+  { label: "news.markdown.list", Icon: List, apply: (el) => prefixLines(el, "- ") },
 ];
 
 /**
@@ -45,6 +53,7 @@ const TOOLS: Tool[] = [
  * It stays a plain form field, so FormData picks up whatever was written.
  */
 export function MarkdownField({ defaultValue = "", onValueChange, className, maxLength, rows = 3, ...props }: Props) {
+  const { t } = useI18n();
   const ref = useRef<HTMLTextAreaElement>(null);
   const id = useId();
   const [value, setValue] = useState(defaultValue);
@@ -58,7 +67,7 @@ export function MarkdownField({ defaultValue = "", onValueChange, className, max
     if (!el) return;
     setPreview(false);
     el.focus();
-    tool.apply(el);
+    tool.apply(el, tool.text ? t(tool.text) : "");
     update(el.value);
   };
   const near = maxLength !== undefined && value.length > maxLength * 0.8;
@@ -74,8 +83,8 @@ export function MarkdownField({ defaultValue = "", onValueChange, className, max
       <div className="flex flex-wrap items-center gap-1 border-b px-1.5 py-1">
         <div className="flex rounded-full bg-muted/60 p-0.5 text-xs font-bold">
           {[
-            { on: false, label: "Write", Icon: PenLine },
-            { on: true, label: "Preview", Icon: Eye },
+            { on: false, label: t("news.markdown.write"), Icon: PenLine },
+            { on: true, label: t("news.markdown.preview"), Icon: Eye },
           ].map(({ on, label, Icon }) => (
             <button
               key={label}
@@ -101,7 +110,7 @@ export function MarkdownField({ defaultValue = "", onValueChange, className, max
               <TooltipTrigger asChild>
                 <motion.button
                   type="button"
-                  aria-label={tool.label}
+                  aria-label={t(tool.label)}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => run(tool)}
                   whileHover={{ y: -2 }}
@@ -112,8 +121,7 @@ export function MarkdownField({ defaultValue = "", onValueChange, className, max
                 </motion.button>
               </TooltipTrigger>
               <TooltipContent>
-                {tool.label}
-                {tool.keys ? ` (${mod}${tool.keys})` : ""}
+                {tool.keys ? t("news.markdown.shortcut", { tool: t(tool.label), keys: `${mod}${tool.keys}` }) : t(tool.label)}
               </TooltipContent>
             </Tooltip>
           ))}
@@ -136,7 +144,7 @@ export function MarkdownField({ defaultValue = "", onValueChange, className, max
             e.currentTarget.form?.requestSubmit();
             return;
           }
-          const tool = TOOLS.find((t) => t.keys?.toLowerCase() === e.key.toLowerCase());
+          const tool = TOOLS.find((candidate) => candidate.keys?.toLowerCase() === e.key.toLowerCase());
           if (tool) {
             e.preventDefault();
             run(tool);
@@ -147,14 +155,22 @@ export function MarkdownField({ defaultValue = "", onValueChange, className, max
       <AnimatePresence initial={false}>
         {preview ? (
           <motion.div key="preview" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="min-h-20 px-3 py-2.5 text-base md:text-sm">
-            {value.trim() ? <Markdown>{value}</Markdown> : <p className="text-muted-foreground">Nothing to preview yet.</p>}
+            {value.trim() ? <Markdown>{value}</Markdown> : <p className="text-muted-foreground">{t("news.markdown.nothingToPreview")}</p>}
           </motion.div>
         ) : null}
       </AnimatePresence>
 
       <div className="flex items-center justify-between gap-3 px-3 pb-2 text-xs text-muted-foreground">
         <span>
-          <span className="font-bold">Markdown</span> works here: **bold**, _italic_, `code`, lists and links.
+          <T
+            k="news.markdown.hint"
+            values={{
+              markdown: <span className="font-bold">Markdown</span>,
+              bold: `**${t("news.markdown.boldText")}**`,
+              italic: `_${t("news.markdown.italicText")}_`,
+              code: `\`${t("news.markdown.codeText")}\``,
+            }}
+          />
         </span>
         <AnimatePresence>
           {near ? (
@@ -164,7 +180,7 @@ export function MarkdownField({ defaultValue = "", onValueChange, className, max
               exit={{ opacity: 0 }}
               className={cn("shrink-0 tabular-nums", value.length >= maxLength! ? "font-bold text-destructive" : "")}
             >
-              {maxLength! - value.length} left
+              {t("news.markdown.left", { count: maxLength! - value.length })}
             </motion.span>
           ) : null}
         </AnimatePresence>

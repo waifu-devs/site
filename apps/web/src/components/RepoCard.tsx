@@ -2,13 +2,11 @@ import type { Repo } from "@waifu-devs/domain/api";
 import { ArrowUpRight, BookMarked, GitFork, Star } from "lucide-react";
 import { MotionConfig, motion } from "motion/react";
 import { GitHubMark } from "@/components/projects/ProjectCard";
+import { useI18n } from "@/i18n/react";
 import { languageColor } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 
-const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-
-/** 1234 reads as 1.2K. */
-export const formatCount = (n: number) => compact.format(n);
+const COMPACT = { notation: "compact", maximumFractionDigits: 1 } as const;
 
 export const repoUrl = (repo: Pick<Repo, "owner" | "name">) => `https://github.com/${repo.owner}/${repo.name}`;
 
@@ -27,10 +25,12 @@ export function Language({ name, className }: { name: string; className?: string
 
 /** The star count, with a star that spins and fills in when its card (a `group/repo`) is hovered. */
 export function Stars({ count }: { count: number }) {
+  const { t, number } = useI18n();
   return (
-    <span className="inline-flex items-center gap-1" title={`${count.toLocaleString("en")} stars`}>
+    <span className="inline-flex items-center gap-1" title={t("profile.repo.stars", { count })}>
       <Star className="size-3.5 transition-[rotate,scale,color,fill] duration-500 ease-[cubic-bezier(0.3,1.6,0.5,1)] group-hover/repo:rotate-[144deg] group-hover/repo:scale-125 group-hover/repo:fill-primary group-hover/repo:text-primary" />
-      {formatCount(count)}
+      {/* 1234 reads as 1.2K. */}
+      {number(count, COMPACT)}
     </span>
   );
 }
@@ -48,6 +48,7 @@ export function RepoCard({ repo, username, dense = false }: { repo: Repo; userna
     e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
   }
 
+  const { t, number } = useI18n();
   const other = ownedByOther(repo, username);
   return (
     <a
@@ -94,13 +95,13 @@ export function RepoCard({ repo, username, dense = false }: { repo: Repo; userna
         {repo.language ? <Language name={repo.language} /> : null}
         <Stars count={repo.stars} />
         {repo.forks && !dense ? (
-          <span className="inline-flex items-center gap-1" title={`${repo.forks.toLocaleString("en")} forks`}>
+          <span className="inline-flex items-center gap-1" title={t("profile.repo.forks", { count: repo.forks })}>
             <GitFork className="size-3.5" />
-            {formatCount(repo.forks)}
+            {number(repo.forks, COMPACT)}
           </span>
         ) : null}
-        {repo.fork ? <span className="rounded-full border px-2 py-px text-[11px]">Fork</span> : null}
-        {repo.archived ? <span className="rounded-full border px-2 py-px text-[11px]">Archived</span> : null}
+        {repo.fork ? <span className="rounded-full border px-2 py-px text-[11px]">{t("profile.repo.fork")}</span> : null}
+        {repo.archived ? <span className="rounded-full border px-2 py-px text-[11px]">{t("profile.repo.archived")}</span> : null}
       </span>
     </a>
   );
@@ -108,11 +109,12 @@ export function RepoCard({ repo, username, dense = false }: { repo: Repo; userna
 
 /** A profile's featured repos: cards that spring up one after another as they scroll in (or just fade in, for reduced motion). */
 export function FeaturedRepos({ repos, username }: { repos: readonly Repo[]; username: string }) {
+  const { t } = useI18n();
   return (
     <MotionConfig reducedMotion="user">
       <section aria-labelledby="featured-repos" className="flex flex-col gap-3">
         <h2 id="featured-repos" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-          <GitHubMark className="size-4" /> Featured repos
+          <GitHubMark className="size-4" /> {t("profile.repo.featured")}
         </h2>
         <ul className="grid gap-4 sm:grid-cols-2">
           {repos.map((repo, i) => (

@@ -6,8 +6,9 @@
  */
 import { useId, useMemo, useState, type PointerEvent } from "react";
 import useMeasure from "react-use-measure";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
-import { niceTicks, shortDay } from "@/lib/viz";
+import { niceTicks, useFormats } from "@/lib/viz";
 
 export type Series = {
   key: string;
@@ -50,6 +51,7 @@ function xTicks(labels: readonly string[], width: number) {
 }
 
 function Axes({ ticks, x, y, labels, width, format }: { ticks: number[]; x: (i: number) => number; y: (v: number) => number; labels: readonly string[]; width: number; format: (n: number) => string }) {
+  const { shortDay } = useFormats();
   return (
     <g aria-hidden className="text-[10px]" fill="var(--muted-foreground)">
       {ticks.map((t) => (
@@ -107,10 +109,16 @@ function usePointer(labels: readonly string[], x: (i: number) => number) {
   return { index, onPointer, clear: () => setIndex(null) };
 }
 
-const tipTitle = (label: string, weekly?: boolean) => (weekly ? `Week of ${shortDay(label)}` : shortDay(label));
+/** A point's day, or "Week of" it when points are weeks. */
+function useTipTitle() {
+  const { t } = useI18n();
+  const { shortDay } = useFormats();
+  return (label: string, weekly?: boolean) => (weekly ? t("stats.chart.weekOf", { date: shortDay(label) }) : shortDay(label));
+}
 
 export function LineChart({ labels, series, format, height = 200, weekly, label }: ChartProps) {
   const id = useId();
+  const tipTitle = useTipTitle();
   const max = Math.max(0, ...series.flatMap((s) => s.values.filter((v): v is number => v !== null)));
   const [ref, { width }] = useMeasure();
   const { ticks, x, y } = useScales(width, height, labels, max);
@@ -172,6 +180,8 @@ export function LineChart({ labels, series, format, height = 200, weekly, label 
 
 /** Bars, stacked when there's more than one series. */
 export function BarChart({ labels, series, format, height = 200, weekly, label }: ChartProps) {
+  const { t } = useI18n();
+  const tipTitle = useTipTitle();
   const totals = labels.map((_, i) => series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0));
   const max = Math.max(0, ...totals);
   const [ref, { width }] = useMeasure();
@@ -223,7 +233,7 @@ export function BarChart({ labels, series, format, height = 200, weekly, label }
             ? []
             : [
                 ...series.map((s) => ({ label: s.label, color: s.color, value: format(s.values[index] ?? 0) })),
-                ...(series.length > 1 ? [{ label: "Total", color: "transparent", value: format(totals[index]!) }] : []),
+                ...(series.length > 1 ? [{ label: t("stats.chart.total"), color: "transparent", value: format(totals[index]!) }] : []),
               ]
         }
       />

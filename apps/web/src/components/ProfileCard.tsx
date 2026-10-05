@@ -8,6 +8,7 @@ import { InlineMarkdown } from "@/components/Markdown";
 import { ProfileBanner } from "@/components/ProfileBanner";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { useI18n } from "@/i18n/react";
 
 export type ProfileView = Pick<
   User,
@@ -35,7 +36,8 @@ const pill = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 tex
  * settings preview renders it exactly as visitors will see it.
  */
 export function ProfileCard({ profile, actions, nameAs: Name = "h1" }: { profile: ProfileView; actions?: ReactNode; nameAs?: "h1" | "p" }) {
-  const joined = new Date(profile.createdAt).toLocaleDateString("en", { month: "long", year: "numeric", timeZone: "UTC" });
+  const { t, date } = useI18n();
+  const joined = date(new Date(profile.createdAt), { month: "long", year: "numeric", timeZone: "UTC" });
   const links = [
     ...(profile.website ? [{ href: profile.website, icon: <Globe /> }] : []),
     ...profile.links.map((href) => ({ href, icon: <Link2 /> })),
@@ -75,7 +77,7 @@ export function ProfileCard({ profile, actions, nameAs: Name = "h1" }: { profile
                 {countryName(profile.country)}
               </span>
             ) : null}
-            <span>· joined {joined}</span>
+            <span>· {t("profile.card.joined", { date: joined })}</span>
           </p>
         </div>
 

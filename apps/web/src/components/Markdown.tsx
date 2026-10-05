@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 
 /*
@@ -30,9 +31,15 @@ function Anchor({ node: _node, href, ...props }: AnchorProps) {
   return <a href={href} {...(external ? { rel: "nofollow ugc noopener noreferrer", target: "_blank" } : {})} {...props} />;
 }
 
+/** An image as a link to it, named by its alt text (or just "image"). */
+function ImageLink({ src, alt }: { src?: unknown; alt?: string }) {
+  const { t } = useI18n();
+  return <Anchor href={typeof src === "string" ? src : undefined}>{alt || t("common.markdown.image")}</Anchor>;
+}
+
 const blockComponents: Components = {
   a: Anchor,
-  img: ({ src, alt }) => <Anchor href={typeof src === "string" ? src : undefined}>{alt || "image"}</Anchor>,
+  img: ({ src, alt }) => <ImageLink src={src} alt={alt} />,
   // Headings in member text shouldn't outrank the page's own.
   h1: ({ node: _node, ...props }) => <h3 {...props} />,
   h2: ({ node: _node, ...props }) => <h3 {...props} />,

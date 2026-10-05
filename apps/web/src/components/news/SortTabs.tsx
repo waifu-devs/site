@@ -2,17 +2,19 @@ import { Link } from "@tanstack/react-router";
 import type { PostSort } from "@waifu-devs/domain/api";
 import { Flame, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
+import { type Key, useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 
-const TABS: Array<{ sort: PostSort; label: string; Icon: typeof Flame }> = [
-  { sort: "top", label: "Top", Icon: Flame },
-  { sort: "new", label: "New", Icon: Sparkles },
+const TABS: Array<{ sort: PostSort; label: Key; Icon: typeof Flame }> = [
+  { sort: "top", label: "news.sort.top", Icon: Flame },
+  { sort: "new", label: "news.sort.new", Icon: Sparkles },
 ];
 
 /** Top / New, with a pill that slides to whichever is picked. */
 export function SortTabs({ sort }: { sort: PostSort }) {
+  const { t } = useI18n();
   return (
-    <nav aria-label="Sort posts" className="inline-flex rounded-full border bg-card/80 p-1 shadow-sm backdrop-blur">
+    <nav aria-label={t("news.sort.label")} className="inline-flex rounded-full border bg-card/80 p-1 shadow-sm backdrop-blur">
       {TABS.map(({ sort: value, label, Icon }) => {
         const active = value === sort;
         return (
@@ -34,7 +36,7 @@ export function SortTabs({ sort }: { sort: PostSort }) {
               />
             ) : null}
             <Icon className="relative size-4 transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110" />
-            <span className="relative">{label}</span>
+            <span className="relative">{t(label)}</span>
           </Link>
         );
       })}
