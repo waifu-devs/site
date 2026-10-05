@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { Post } from "@waifu-devs/domain/api";
 import { ArrowUpRight, Clock, MessageCircle } from "lucide-react";
 import { UserAvatar } from "@/components/Avatar";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 import { hostname, TimeAgo } from "./format";
 import { VoteButton } from "./VoteButton";
@@ -31,6 +32,7 @@ export function PostRow({
   /** A stand-in on the submit page: nothing is clickable. */
   preview?: boolean;
 }) {
+  const { t } = useI18n();
   const host = post.url ? hostname(post.url) : null;
   const mine = viewerUsername !== null && viewerUsername.toLowerCase() === post.author.username.toLowerCase();
   const fresh = Date.now() - new Date(post.createdAt).getTime() < HOUR;
@@ -73,7 +75,7 @@ export function PostRow({
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
               </span>
-              new
+              {t("news.row.new")}
             </span>
           ) : null}
           <Link
@@ -94,7 +96,7 @@ export function PostRow({
             className="group/comments inline-flex items-center gap-1 font-bold hover:text-primary"
           >
             <MessageCircle className="size-3.5 transition-transform duration-300 group-hover/comments:-rotate-12 group-hover/comments:scale-125" />
-            {post.commentCount === 0 ? "discuss" : `${post.commentCount} ${post.commentCount === 1 ? "comment" : "comments"}`}
+            {post.commentCount === 0 ? t("news.row.discuss") : t("news.post.commentCount", { count: post.commentCount })}
           </Link>
         </div>
       </div>

@@ -8,20 +8,22 @@ import {
   useTransform,
   type MotionValue,
 } from "motion/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BubbleBackground } from "@/components/animate-ui/components/backgrounds/bubble";
 import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
 import { RotatingText, RotatingTextContainer } from "@/components/animate-ui/primitives/texts/rotating";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
 import { Button } from "@/components/ui/button";
+import { type Key, T, useI18n } from "@/i18n/react";
 import { useViewer } from "@/lib/viewer";
 
-const LINES = ["Devs who", "love their waifus"];
-const PHRASES = ["ship together.", "debug at 3am.", "defend best girl.", "rewrite in Rust.", "deploy Fridays."];
+const LINES: Key[] = ["landing.hero.line1", "landing.hero.line2"];
+const PHRASES: Key[] = ["landing.hero.phrase1", "landing.hero.phrase2", "landing.hero.phrase3", "landing.hero.phrase4", "landing.hero.phrase5"];
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 export function Hero({ memberCount }: { memberCount: number }) {
   const { user, theme } = useViewer();
+  const { t } = useI18n();
   return (
     <section data-sparkle-zone className="relative isolate overflow-hidden border-b">
       <BubbleBackground
@@ -40,7 +42,7 @@ export function Hero({ memberCount }: { memberCount: number }) {
             className="inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1 text-sm font-bold text-primary backdrop-blur"
           >
             <span className="heartbeat">♡</span>
-            <SlidingNumber number={memberCount} /> {memberCount === 1 ? "dev" : "devs"} and counting
+            <T k="landing.hero.memberCount" values={{ count: memberCount, number: <SlidingNumber number={memberCount} /> }} />
           </motion.p>
 
           <KineticHeadline />
@@ -51,8 +53,7 @@ export function Hero({ memberCount }: { memberCount: number }) {
             transition={{ duration: 0.8, delay: 0.9, ease: EASE }}
             className="max-w-xl text-lg text-muted-foreground sm:text-xl"
           >
-            A home on the internet for developers who love anime. Make a profile, show off your best girl, and dress the
-            whole site in colors you designed yourself.
+            {t("landing.hero.lede")}
           </motion.p>
 
           <motion.div
@@ -65,16 +66,16 @@ export function Hero({ memberCount }: { memberCount: number }) {
               <Button asChild size="lg" className="btn h-12 rounded-full px-7 text-base font-bold">
                 {user ? (
                   <Link to="/u/$username" params={{ username: user.username }}>
-                    View my profile
+                    {t("landing.hero.viewProfile")}
                   </Link>
                 ) : (
-                  <Link to="/login">Join with GitHub ♡</Link>
+                  <Link to="/login">{t("landing.hero.join")}</Link>
                 )}
               </Button>
             </Magnetic>
             <Magnetic strength={0.35}>
               <Button asChild size="lg" variant="outline" className="btn h-12 rounded-full bg-card/80 px-7 text-base font-bold backdrop-blur">
-                <Link to="/themes/new">Paint your theme</Link>
+                <Link to="/themes/new">{t("landing.hero.paintTheme")}</Link>
               </Button>
             </Magnetic>
           </motion.div>
@@ -91,13 +92,17 @@ export function Hero({ memberCount }: { memberCount: number }) {
 /** Each letter rises out of a mask on a spring, one after another, then the last line starts rotating. */
 function KineticHeadline() {
   const reduce = useReducedMotion();
+  const { t } = useI18n();
+  const lines = LINES.map((key) => t(key));
+  // One array per language: the rotation restarts whenever its text changes.
+  const phrases = useMemo(() => PHRASES.map((key) => t(key)), [t]);
   let n = 0;
   return (
     <h1
-      aria-label={`${LINES.join(" ")} ${PHRASES[0]}`}
+      aria-label={`${lines.join(" ")} ${phrases[0]}`}
       className="text-[clamp(2.6rem,5.4vw,4.9rem)] font-extrabold leading-[0.95] tracking-tight"
     >
-      {LINES.map((line) => (
+      {lines.map((line) => (
         <span key={line} aria-hidden className="block">
           {line.split(" ").map((word, w) => (
             <span key={word}>
@@ -127,7 +132,7 @@ function KineticHeadline() {
         transition={{ duration: 0.8, delay: 0.75, ease: EASE }}
       >
         {/* A single string doesn't rotate, so reduced motion holds the first phrase. Same markup either way, so hydration matches. */}
-        <RotatingTextContainer text={reduce ? PHRASES[0] : PHRASES} duration={2600} delay={1400} className="min-h-[1.2em] leading-[1.2]">
+        <RotatingTextContainer text={reduce ? phrases[0] : phrases} duration={2600} delay={1400} className="min-h-[1.2em] leading-[1.2]">
           <RotatingText className="gradient-text whitespace-nowrap" />
         </RotatingTextContainer>
       </motion.span>
@@ -280,6 +285,7 @@ function CodeWindow() {
 }
 
 function ProfileCard() {
+  const { t } = useI18n();
   return (
     <div className="float rounded-2xl border bg-card p-4 shadow-2xl shadow-primary/25" style={{ animationDuration: "6s" }}>
       <div className="flex items-center gap-3">
@@ -287,8 +293,8 @@ function ProfileCard() {
           <span className="grid size-full place-items-center rounded-full bg-primary text-2xl text-primary-foreground">✿</span>
         </span>
         <div className="min-w-0">
-          <p className="truncate font-extrabold">you, but cuter</p>
-          <p className="truncate text-xs text-muted-foreground">u/you · joined today</p>
+          <p className="truncate font-extrabold">{t("landing.mock.name")}</p>
+          <p className="truncate text-xs text-muted-foreground">{t("landing.mock.joined")}</p>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -313,6 +319,7 @@ function ProfileCard() {
 }
 
 function ThemeChip() {
+  const { t } = useI18n();
   return (
     <motion.div
       initial={{ opacity: 0, x: 24, rotate: 8 }}
@@ -325,12 +332,13 @@ function ThemeChip() {
         <span className="size-4 rounded-full border-2 border-card bg-accent" />
         <span className="size-4 rounded-full border-2 border-card bg-foreground" />
       </span>
-      theme: yours
+      {t("landing.mock.theme")}
     </motion.div>
   );
 }
 
 function ScrollCue() {
+  const { t } = useI18n();
   return (
     <motion.div
       aria-hidden
@@ -339,7 +347,7 @@ function ScrollCue() {
       transition={{ delay: 2.2, duration: 0.8 }}
       className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 text-[0.65rem] font-bold uppercase tracking-[0.3em] text-muted-foreground sm:flex"
     >
-      scroll
+      {t("landing.hero.scroll")}
       <span className="scroll-line h-10 w-px overflow-hidden bg-border" />
     </motion.div>
   );

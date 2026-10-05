@@ -4,10 +4,11 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/radix/tabs";
 import { BarChart, Legend, LineChart, type Series, Sparkline } from "@/components/stats/Charts";
 import { Card } from "@/components/ui/card";
-import { title } from "@/lib/head";
+import { T, useI18n } from "@/i18n/react";
+import { headT, title } from "@/lib/head";
 import { APPS, appKey, appLabel, type Insights, RANGES, type Range, STATS_PUBLIC } from "@/lib/stats";
 import { cn } from "@/lib/utils";
-import { addDays, bytes, compact, ms, shortDay, useDarkTheme } from "@/lib/viz";
+import { addDays, useDarkTheme, useFormats } from "@/lib/viz";
 import { getStats } from "@/server/insights";
 
 export const Route = createFileRoute("/stats")({
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/stats")({
   },
   loaderDeps: ({ search }) => ({ days: search.days ?? 90 }),
   loader: ({ deps }) => getStats({ data: deps.days }),
-  head: () => ({ meta: [title("Stats"), { name: "robots", content: "noindex" }] }),
+  head: ({ matches }) => ({ meta: [title(headT(matches)("stats.title")), { name: "robots", content: "noindex" }] }),
   component: StatsPage,
 });
 
@@ -61,6 +62,7 @@ function fold(points: string[][], value: (day: string) => number | null, kind: K
 function StatsPage() {
   const { days, today, insights } = Route.useLoaderData();
   const dark = useDarkTheme();
+  const { t } = useI18n();
   const navigate = useNavigate({ from: "/stats" });
   const [grain, setGrain] = useState<Grain>("day");
   const [app, setApp] = useState<string>("all");
@@ -69,16 +71,15 @@ function StatsPage() {
     <main className={cn("viz mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12", dark && "viz-dark")}>
       <header className="rise flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-extrabold sm:text-4xl">Stats</h1>
+          <h1 className="text-3xl font-extrabold sm:text-4xl">{t("stats.title")}</h1>
           {!STATS_PUBLIC && (
             <span className="flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
-              <Lock className="size-3" /> Only admins can see this
+              <Lock className="size-3" /> {t("stats.adminsOnly")}
             </span>
           )}
         </div>
         <p className="max-w-2xl text-muted-foreground">
-          How fuwa and waifu.dev are doing over time, from the anonymous usage signals and bug reports our apps send. Every number is a
-          total across installs; nothing here is about a person. Days are UTC.
+          {t("stats.intro")}
         </p>
       </header>
 
@@ -88,7 +89,7 @@ function StatsPage() {
           <TabsList>
             {RANGES.map((r) => (
               <TabsTrigger key={r} value={String(r)} className="px-3">
-                {r === 365 ? "1 year" : `${r} days`}
+                {r === 365 ? t("stats.range.year") : t("stats.range.days", { count: r })}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -96,24 +97,24 @@ function StatsPage() {
         <Tabs value={grain} onValueChange={(value) => setGrain(value as Grain)}>
           <TabsList>
             <TabsTrigger value="day" className="px-3">
-              Daily
+              {t("stats.grain.day")}
             </TabsTrigger>
             <TabsTrigger value="week" className="px-3">
-              Weekly
+              {t("stats.grain.week")}
             </TabsTrigger>
           </TabsList>
         </Tabs>
         <label className="flex items-center gap-2 text-sm text-muted-foreground sm:ml-auto">
-          App
+          {t("stats.app.label")}
           <select
             value={app}
             onChange={(event) => setApp(event.target.value)}
             className="h-9 rounded-lg border bg-card px-2 text-sm font-bold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <option value="all">All apps</option>
+            <option value="all">{t("stats.app.all")}</option>
             {APPS.map((a) => (
               <option key={a.key} value={a.key}>
-                {a.label}
+                {t(a.label)}
               </option>
             ))}
           </select>
@@ -125,8 +126,8 @@ function StatsPage() {
       ) : (
         <Card className="items-center gap-3 px-6 py-12 text-center">
           <p className="float text-4xl">(・・;)</p>
-          <h2 className="text-xl font-extrabold">The stats can't be read right now</h2>
-          <p className="max-w-md text-muted-foreground">The analytics service isn't answering. Try again in a minute.</p>
+          <h2 className="text-xl font-extrabold">{t("stats.unavailable.title")}</h2>
+          <p className="max-w-md text-muted-foreground">{t("stats.unavailable.body")}</p>
         </Card>
       )}
     </main>
@@ -134,6 +135,8 @@ function StatsPage() {
 }
 
 function Dashboard({ insights, today, days, grain, app }: { insights: Insights; today: string; days: number; grain: Grain; app: string }) {
+  const { t } = useI18n();
+  const { compact, bytes, ms, shortDay } = useFormats();
   const range = useMemo(() => daysOf(today, days), [today, days]);
   const { labels, points } = useMemo(() => regrain(range, grain), [range, grain]);
   const weekly = grain === "week";
@@ -153,24 +156,24 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
     const shows = (row: { source: string; app: string }) => app === "all" || appKey(row) === app;
     const { total } = usage;
     const installs: Series[] = [
-      { key: "self", label: "Self-hosted", color: "var(--series-1)", values: fold(points, total("installs", "self_hosted"), "last") },
-      { key: "hosted", label: "fuwa.chat", color: "var(--series-2)", values: fold(points, total("installs", "hosted"), "last") },
+      { key: "self", label: t("stats.series.selfHosted"), color: "var(--series-1)", values: fold(points, total("installs", "self_hosted"), "last") },
+      { key: "hosted", label: t("stats.series.hosted"), color: "var(--series-2)", values: fold(points, total("installs", "hosted"), "last") },
     ];
     const accounts: Series[] = [
-      { key: "all", label: "Accounts", color: "var(--series-1)", values: fold(points, total("accounts"), "last") },
-      { key: "month", label: "Active this month", color: "var(--series-2)", values: fold(points, total("accounts_active_30d"), "last") },
-      { key: "day", label: "Active that day", color: "var(--series-3)", values: fold(points, total("accounts_active_1d"), "last") },
+      { key: "all", label: t("stats.series.accounts"), color: "var(--series-1)", values: fold(points, total("accounts"), "last") },
+      { key: "month", label: t("stats.series.activeMonth"), color: "var(--series-2)", values: fold(points, total("accounts_active_30d"), "last") },
+      { key: "day", label: t("stats.series.activeDay"), color: "var(--series-3)", values: fold(points, total("accounts_active_1d"), "last") },
     ];
-    const servers: Series[] = [{ key: "servers", label: "Servers", color: "var(--series-1)", values: fold(points, total("servers"), "last") }];
-    const messages: Series[] = [{ key: "sent", label: "Messages sent", color: "var(--series-1)", values: fold(points, total("messages_sent"), "sum") }];
-    const storage: Series[] = [{ key: "storage", label: "Storage used", color: "var(--series-1)", values: fold(points, total("storage_bytes"), "last") }];
+    const servers: Series[] = [{ key: "servers", label: t("stats.series.servers"), color: "var(--series-1)", values: fold(points, total("servers"), "last") }];
+    const messages: Series[] = [{ key: "sent", label: t("stats.series.messagesSent"), color: "var(--series-1)", values: fold(points, total("messages_sent"), "sum") }];
+    const storage: Series[] = [{ key: "storage", label: t("stats.series.storage"), color: "var(--series-1)", values: fold(points, total("storage_bytes"), "last") }];
 
     // Failures per app, each app in its own color.
     const errorRows = insights.errors.filter(shows);
     const errorApps = APPS.filter((a) => errorRows.some((r) => appKey(r) === a.key));
     const errors: Series[] = errorApps.map((a) => ({
       key: a.key,
-      label: a.label,
+      label: t(a.label),
       color: APP_COLOR[a.key]!,
       values: fold(points, (day) => errorRows.filter((r) => r.day === day && appKey(r) === a.key).reduce((n, r) => n + r.count, 0), "sum"),
     }));
@@ -185,7 +188,7 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
       const [which, metric] = key.split("|") as [string, string];
       return {
         key,
-        label: app === "all" ? `${metric} (${appLabel(which)})` : metric,
+        label: app === "all" ? t("stats.series.slowLabel", { metric, app: appLabel(which, t) }) : metric,
         color: SERIES[i]!,
         values: fold(points, (day) => timingRows.find((r) => r.day === day && `${appKey(r)}|${r.metric}` === key)?.p95_ms ?? null, "mean"),
       };
@@ -201,7 +204,7 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
       .sort((a, b) => b.total - a.total);
 
     return { installs, accounts, servers, messages, storage, errors, slow, features };
-  }, [insights, points, usage, app]);
+  }, [insights, points, usage, app, t]);
 
   const sum = (values: ReadonlyArray<number | null>) => values.reduce<number>((a, b) => a + (b ?? 0), 0);
   const last = (values: ReadonlyArray<number | null>) => [...values].reverse().find((v) => v !== null) ?? null;
@@ -212,8 +215,9 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
     const b = last(values);
     if (a === null || b === null) return null;
     const d = b - a;
-    return `${d >= 0 ? "+" : "−"}${compact(Math.abs(d))} since ${shortDay(labels[values.findIndex((v) => v !== null)]!)}`;
+    return t("stats.change", { change: `${d >= 0 ? "+" : "−"}${compact(Math.abs(d))}`, date: shortDay(labels[values.findIndex((v) => v !== null)]!) });
   };
+  const lastRange = days === 365 ? t("stats.tile.lastYear") : t("stats.tile.lastDays", { count: days });
   const errorTotal = charts.errors.reduce((n, s) => n + sum(s.values), 0);
   const errorDaily = labels.map((_, i) => charts.errors.reduce((n, s) => n + (s.values[i] ?? 0), 0));
 
@@ -222,71 +226,71 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
   return (
     <div className="flex flex-col gap-10">
       <section className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="fuwa installs" value={last(installsTotal)} note={change(installsTotal)} values={installsTotal} />
-        <Tile label="Active accounts this month" value={last(charts.accounts[1]!.values)} note={change(charts.accounts[1]!.values)} values={charts.accounts[1]!.values} />
-        <Tile label="Messages sent" value={sum(charts.messages[0]!.values)} note={`in the last ${days === 365 ? "year" : `${days} days`}`} values={charts.messages[0]!.values} />
+        <Tile label={t("stats.tile.installs")} value={last(installsTotal)} note={change(installsTotal)} values={installsTotal} />
+        <Tile label={t("stats.tile.activeAccounts")} value={last(charts.accounts[1]!.values)} note={change(charts.accounts[1]!.values)} values={charts.accounts[1]!.values} />
+        <Tile label={t("stats.tile.messages")} value={sum(charts.messages[0]!.values)} note={lastRange} values={charts.messages[0]!.values} />
         <Tile
-          label={app === "all" ? "Problems reported" : `Problems in ${appLabel(app)}`}
+          label={app === "all" ? t("stats.tile.problems") : t("stats.tile.problemsIn", { app: appLabel(app, t) })}
           value={errorTotal}
-          note={`in the last ${days === 365 ? "year" : `${days} days`}`}
+          note={lastRange}
           values={errorDaily}
           color="var(--series-2)"
         />
       </section>
 
-      <Section title="fuwa" blurb="From the usage signal every fuwa server sends once a day (its operator can turn it off).">
+      <Section title={t("stats.fuwa.title")} blurb={t("stats.fuwa.blurb")}>
         {usage.any ? (
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Installs" note="fuwa servers that sent a signal" legend={charts.installs}>
-              <BarChart labels={labels} series={charts.installs} format={compact} weekly={weekly} label="fuwa installs over time" />
+            <ChartCard title={t("stats.fuwa.installs")} note={t("stats.fuwa.installsNote")} legend={charts.installs}>
+              <BarChart labels={labels} series={charts.installs} format={compact} weekly={weekly} label={t("stats.fuwa.installsChart")} />
             </ChartCard>
-            <ChartCard title="Accounts" note="Across every install" legend={charts.accounts}>
-              <LineChart labels={labels} series={charts.accounts} format={compact} weekly={weekly} label="Accounts over time" />
+            <ChartCard title={t("stats.fuwa.accounts")} note={t("stats.fuwa.accountsNote")} legend={charts.accounts}>
+              <LineChart labels={labels} series={charts.accounts} format={compact} weekly={weekly} label={t("stats.fuwa.accountsChart")} />
             </ChartCard>
-            <ChartCard title={weekly ? "Messages sent per week" : "Messages sent per day"}>
-              <BarChart labels={labels} series={charts.messages} format={compact} weekly={weekly} label="Messages sent over time" />
+            <ChartCard title={weekly ? t("stats.fuwa.messagesWeek") : t("stats.fuwa.messagesDay")}>
+              <BarChart labels={labels} series={charts.messages} format={compact} weekly={weekly} label={t("stats.fuwa.messagesChart")} />
             </ChartCard>
-            <ChartCard title="Servers" note="Communities across every install">
-              <LineChart labels={labels} series={charts.servers} format={compact} weekly={weekly} label="Servers over time" />
+            <ChartCard title={t("stats.fuwa.servers")} note={t("stats.fuwa.serversNote")}>
+              <LineChart labels={labels} series={charts.servers} format={compact} weekly={weekly} label={t("stats.fuwa.serversChart")} />
             </ChartCard>
-            <ChartCard title="Storage used" note="Databases and attachments">
-              <LineChart labels={labels} series={charts.storage} format={bytes} weekly={weekly} label="Storage over time" />
+            <ChartCard title={t("stats.fuwa.storage")} note={t("stats.fuwa.storageNote")}>
+              <LineChart labels={labels} series={charts.storage} format={bytes} weekly={weekly} label={t("stats.fuwa.storageChart")} />
             </ChartCard>
             <Versions versions={insights.usage.versions} />
           </div>
         ) : (
-          <Empty>No fuwa server has sent a signal in this range.</Empty>
+          <Empty>{t("stats.fuwa.empty")}</Empty>
         )}
       </Section>
 
-      <Section title="Health" blurb="From the anonymous bug reports: failures by kind and place in the code, and how long things take.">
+      <Section title={t("stats.health.title")} blurb={t("stats.health.blurb")}>
         <div className="grid gap-4 lg:grid-cols-2">
-          <ChartCard title={weekly ? "Problems per week" : "Problems per day"} note="Failures counted in the reports" legend={charts.errors}>
+          <ChartCard title={weekly ? t("stats.health.problemsWeek") : t("stats.health.problemsDay")} note={t("stats.health.problemsNote")} legend={charts.errors}>
             {charts.errors.length ? (
-              <BarChart labels={labels} series={charts.errors} format={compact} weekly={weekly} label="Problems reported over time" />
+              <BarChart labels={labels} series={charts.errors} format={compact} weekly={weekly} label={t("stats.health.problemsChart")} />
             ) : (
-              <Empty>Nothing went wrong in this range.</Empty>
+              <Empty>{t("stats.health.noProblems")}</Empty>
             )}
           </ChartCard>
-          <ChartCard title="Slowest of the busiest" note={`How long the 95th slowest in 100 took${weekly ? ", averaged over the week" : ""}`} legend={charts.slow}>
+          <ChartCard title={t("stats.health.slow")} note={weekly ? t("stats.health.slowNoteWeekly") : t("stats.health.slowNote")} legend={charts.slow}>
             {charts.slow.length ? (
-              <LineChart labels={labels} series={charts.slow} format={ms} weekly={weekly} label="Response times over time" />
+              <LineChart labels={labels} series={charts.slow} format={ms} weekly={weekly} label={t("stats.health.slowChart")} />
             ) : (
-              <Empty>No timings in this range.</Empty>
+              <Empty>{t("stats.health.noTimings")}</Empty>
             )}
           </ChartCard>
         </div>
         <Problems problems={problems} />
       </Section>
 
-      <Section title="Feature use" blurb="How often each of the most used features was used.">
+      <Section title={t("stats.features.title")} blurb={t("stats.features.blurb")}>
         {charts.features.length ? (
           <Card className="gap-0 divide-y py-0">
             {charts.features.map((f) => (
               <div key={f.key} className="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-4 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_12rem_6rem] sm:px-6">
                 <div className="min-w-0">
                   <p className="truncate font-mono text-sm font-bold">{f.feature}</p>
-                  <p className="text-xs text-muted-foreground">{appLabel(f.app)}</p>
+                  <p className="text-xs text-muted-foreground">{appLabel(f.app, t)}</p>
                 </div>
                 <Sparkline values={f.values} color={APP_COLOR[f.app]} className="max-sm:hidden" />
                 <p className="text-right font-bold tabular-nums">{compact(f.total)}</p>
@@ -294,7 +298,7 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
             ))}
           </Card>
         ) : (
-          <Empty>No feature use reported in this range.</Empty>
+          <Empty>{t("stats.features.empty")}</Empty>
         )}
       </Section>
     </div>
@@ -329,23 +333,27 @@ function ChartCard({ title, note, legend, children }: { title: string; note?: st
 }
 
 function Tile({ label, value, note, values, color }: { label: string; value: number | null; note: string | null; values: ReadonlyArray<number | null>; color?: string }) {
+  const { t } = useI18n();
+  const { compact } = useFormats();
   return (
     <Card className="card-pop min-w-0 gap-2 px-4 py-4">
       <p className="truncate text-xs font-bold text-muted-foreground">{label}</p>
       <p className="text-3xl font-extrabold tabular-nums">{value === null ? "–" : compact(value)}</p>
       <Sparkline values={values} color={color} />
-      <p className="truncate text-xs text-muted-foreground">{note ?? "Nothing yet"}</p>
+      <p className="truncate text-xs text-muted-foreground">{note ?? t("stats.tile.nothingYet")}</p>
     </Card>
   );
 }
 
 function Versions({ versions }: { versions: Insights["usage"]["versions"] }) {
+  const { t } = useI18n();
+  const { compact } = useFormats();
   const byVersion = new Map<string, number>();
   for (const v of versions) byVersion.set(v.version, (byVersion.get(v.version) ?? 0) + v.installs);
   const rows = [...byVersion].sort((a, b) => b[1] - a[1]).slice(0, 6);
   const max = Math.max(1, ...rows.map(([, n]) => n));
   return (
-    <ChartCard title="Versions in use" note="Installs seen in the last 7 days, by the version they run">
+    <ChartCard title={t("stats.versions.title")} note={t("stats.versions.note")}>
       {rows.length ? (
         <ul className="flex flex-col gap-2">
           {rows.map(([version, n], i) => (
@@ -362,18 +370,20 @@ function Versions({ versions }: { versions: Insights["usage"]["versions"] }) {
           ))}
         </ul>
       ) : (
-        <Empty>No installs this week.</Empty>
+        <Empty>{t("stats.versions.empty")}</Empty>
       )}
     </ChartCard>
   );
 }
 
 function Problems({ problems }: { problems: Insights["problems"]["errors"] }) {
+  const { t } = useI18n();
+  const { compact, shortDay } = useFormats();
   return (
     <Card className="gap-0 py-0">
       <div className="flex items-baseline justify-between gap-4 border-b px-4 py-4 sm:px-6">
-        <h3 className="font-bold">Most reported problems</h3>
-        <p className="text-xs text-muted-foreground">Over the whole range</p>
+        <h3 className="font-bold">{t("stats.problems.title")}</h3>
+        <p className="text-xs text-muted-foreground">{t("stats.problems.note")}</p>
       </div>
       {problems.length ? (
         <div className="divide-y">
@@ -381,7 +391,8 @@ function Problems({ problems }: { problems: Insights["problems"]["errors"] }) {
             <div key={`${p.source}|${p.app}|${p.version}|${p.kind}|${p.place}`} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold">
-                  {p.kind} <span className="font-normal text-muted-foreground">in {appLabel(`${p.source}:${p.app}`)} {p.version}</span>
+                  {p.kind}{" "}
+                  <span className="font-normal text-muted-foreground">{t("stats.problems.where", { app: appLabel(`${p.source}:${p.app}`, t), version: p.version })}</span>
                 </p>
                 <p className="truncate font-mono text-xs text-muted-foreground" title={p.place}>
                   {p.place}
@@ -389,18 +400,18 @@ function Problems({ problems }: { problems: Insights["problems"]["errors"] }) {
               </div>
               <p className="flex shrink-0 gap-4 text-xs text-muted-foreground sm:text-right">
                 <span>
-                  <b className="text-sm text-foreground tabular-nums">{compact(p.count)}</b> times
+                  <T k="stats.problems.times" values={{ count: p.count, number: <b className="text-sm text-foreground tabular-nums">{compact(p.count)}</b> }} />
                 </span>
                 <span>
-                  <b className="text-sm text-foreground tabular-nums">{compact(p.installs)}</b> {p.installs === 1 ? "install" : "installs"}
+                  <T k="stats.problems.installs" values={{ count: p.installs, number: <b className="text-sm text-foreground tabular-nums">{compact(p.installs)}</b> }} />
                 </span>
-                <span>last {shortDay(p.last_seen.slice(0, 10))}</span>
+                <span>{t("stats.problems.last", { date: shortDay(p.last_seen.slice(0, 10)) })}</span>
               </p>
             </div>
           ))}
         </div>
       ) : (
-        <Empty>No problems reported in this range. (˶ᵔ ᵕ ᵔ˶)</Empty>
+        <Empty>{t("stats.problems.empty")}</Empty>
       )}
     </Card>
   );

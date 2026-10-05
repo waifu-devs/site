@@ -8,6 +8,7 @@ import { UserAvatar } from "@/components/Avatar";
 import { Markdown } from "@/components/Markdown";
 import { MarkdownField } from "@/components/MarkdownField";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 import { addComment } from "@/server/news";
 import { type CommentNode, TimeAgo } from "./format";
@@ -32,6 +33,7 @@ export function CommentComposer({
   autoFocus?: boolean;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const send = useServerFn(addComment);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export function CommentComposer({
           await router.invalidate();
           onDone?.();
         } catch {
-          setError("That didn't go through. Try again in a moment?");
+          setError(t("news.comment.failed"));
         } finally {
           setPending(false);
         }
@@ -70,17 +72,17 @@ export function CommentComposer({
         maxLength={COMMENT_MAX}
         autoFocus={autoFocus}
         rows={parentId ? 2 : 3}
-        placeholder={parentId ? "Write a reply..." : "Say something nice (or at least interesting)..."}
+        placeholder={parentId ? t("news.comment.replyPlaceholder") : t("news.comment.placeholder")}
         onValueChange={(value) => setEmpty(value.trim().length === 0)}
       />
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" disabled={pending || empty} className="btn rounded-full font-bold">
           {pending ? <Loader2 className="animate-spin" /> : <Send />}
-          {parentId ? "Reply" : "Comment"}
+          {parentId ? t("news.comment.reply") : t("news.comment.submit")}
         </Button>
         {onDone ? (
           <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={onDone}>
-            Cancel
+            {t("common.cancel")}
           </Button>
         ) : null}
       </div>
@@ -109,6 +111,7 @@ export function CommentThread({ nodes, depth = 0, ...props }: ThreadProps & { no
 }
 
 function CommentItem({ node, depth, postId, postAuthor, signedIn }: ThreadProps & { node: CommentNode; depth: number }) {
+  const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
   const [replying, setReplying] = useState(false);
   const isOp = node.author.username.toLowerCase() === postAuthor.toLowerCase();
@@ -126,7 +129,7 @@ function CommentItem({ node, depth, postId, postAuthor, signedIn }: ThreadProps 
           {!collapsed ? (
             <button
               type="button"
-              aria-label="Collapse thread"
+              aria-label={t("news.comment.collapse")}
               onClick={() => setCollapsed(true)}
               className="group/line mt-1.5 flex w-5 flex-1 cursor-pointer justify-center"
             >
@@ -140,7 +143,7 @@ function CommentItem({ node, depth, postId, postAuthor, signedIn }: ThreadProps 
               u/{node.author.username}
             </Link>
             {isOp ? (
-              <span className="rounded-full bg-primary px-1.5 text-[10px] font-extrabold uppercase leading-4 text-primary-foreground">OP</span>
+              <span className="rounded-full bg-primary px-1.5 text-[10px] font-extrabold uppercase leading-4 text-primary-foreground">{t("news.comment.op")}</span>
             ) : null}
             <span aria-hidden>·</span>
             <a href={`#c-${node.id}`} className="hover:text-primary">
@@ -153,7 +156,7 @@ function CommentItem({ node, depth, postId, postAuthor, signedIn }: ThreadProps 
               className="inline-flex cursor-pointer items-center gap-0.5 rounded-full border px-1.5 text-xs font-bold transition-colors hover:border-primary hover:text-primary"
             >
               {collapsed ? <Plus className="size-3" /> : <Minus className="size-3" />}
-              {collapsed ? `${node.descendants + 1} hidden` : null}
+              {collapsed ? t("news.comment.hidden", { count: node.descendants + 1 }) : null}
             </button>
           </div>
           <AnimatePresence initial={false}>
@@ -171,7 +174,7 @@ function CommentItem({ node, depth, postId, postAuthor, signedIn }: ThreadProps 
                     )}
                   >
                     <MessageCircleReply className="size-3.5 transition-transform duration-300 group-hover/reply:-rotate-12 group-hover/reply:scale-125" />
-                    Reply
+                    {t("news.comment.reply")}
                   </button>
                 ) : null}
                 <AnimatePresence initial={false}>

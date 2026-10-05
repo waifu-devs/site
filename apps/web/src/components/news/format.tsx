@@ -1,4 +1,5 @@
 import type { Comment } from "@waifu-devs/domain/api";
+import { type I18n, useI18n } from "@/i18n/react";
 
 const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ["year", 365 * 24 * 60 * 60],
@@ -8,23 +9,29 @@ const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ["hour", 60 * 60],
   ["minute", 60],
 ];
-const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const formats = new Map<string, Intl.RelativeTimeFormat>();
+const relative = (locale: string) => {
+  let format = formats.get(locale);
+  if (!format) formats.set(locale, (format = new Intl.RelativeTimeFormat(locale, { numeric: "auto" })));
+  return format;
+};
 
-/** "3 hours ago", "yesterday", "just now". */
-export function timeAgo(date: Date | string, now = Date.now()): string {
+/** "3 hours ago", "yesterday", "just now", in the page's language. */
+export function timeAgo(date: Date | string, { locale, t }: Pick<I18n, "locale" | "t">, now = Date.now()): string {
   const seconds = Math.round((now - new Date(date).getTime()) / 1000);
   for (const [unit, size] of UNITS) {
-    if (seconds >= size) return relative.format(-Math.floor(seconds / size), unit);
+    if (seconds >= size) return relative(locale).format(-Math.floor(seconds / size), unit);
   }
-  return "just now";
+  return t("news.justNow");
 }
 
 /** A relative time that shows the exact one on hover. Server and browser clocks differ, hence the warning opt-out. */
 export function TimeAgo({ date, className }: { date: Date | string; className?: string }) {
+  const i18n = useI18n();
   const d = new Date(date);
   return (
-    <time dateTime={d.toISOString()} title={d.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })} className={className} suppressHydrationWarning>
-      {timeAgo(d)}
+    <time dateTime={d.toISOString()} title={i18n.date(d, { dateStyle: "medium", timeStyle: "short" })} className={className} suppressHydrationWarning>
+      {timeAgo(d, i18n)}
     </time>
   );
 }

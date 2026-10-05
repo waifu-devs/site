@@ -1,6 +1,7 @@
 import { BUILTIN_THEMES, themeStyle } from "@waifu-devs/domain/themes";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
  */
 export function SiteVisual() {
   const reduce = useReducedMotion();
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { margin: "-15%" });
   const [i, setI] = useState(0);
@@ -41,7 +43,7 @@ export function SiteVisual() {
             </span>
             <span className="hidden h-1.5 w-10 rounded-full bg-muted-foreground/40 min-[420px]:block" />
             <span className="hidden h-1.5 w-8 rounded-full bg-muted-foreground/40 min-[420px]:block" />
-            <span className="ml-auto rounded-full bg-primary px-3 py-1 text-[0.65rem] text-primary-foreground">Sign in</span>
+            <span className="ml-auto rounded-full bg-primary px-3 py-1 text-[0.65rem] text-primary-foreground">{t("common.nav.signIn")}</span>
           </div>
 
           <div className="overflow-hidden rounded-lg border bg-card">
@@ -57,13 +59,13 @@ export function SiteVisual() {
                 <span className="grid size-full place-items-center rounded-full border-4 border-card bg-primary text-2xl text-primary-foreground">✿</span>
               </span>
               <div className="min-w-0 pb-1">
-                <p className="truncate font-extrabold">you, but cuter</p>
-                <p className="truncate text-xs text-muted-foreground">u/you · they/them</p>
+                <p className="truncate font-extrabold">{t("landing.mock.name")}</p>
+                <p className="truncate text-xs text-muted-foreground">{t("landing.mock.pronouns")}</p>
               </div>
             </div>
             <div className="flex flex-col gap-3 p-4">
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="status-dot" /> shipping something cute
+                <span className="status-dot" /> {t("projects.site.mockStatus")}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {["♡ Rem", "TypeScript", "Effect"].map((chip, n) => (
@@ -85,9 +87,9 @@ export function SiteVisual() {
 
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
-          {BUILTIN_THEMES.map((t, n) => (
+          {BUILTIN_THEMES.map((th, n) => (
             <button
-              key={t.id}
+              key={th.id}
               type="button"
               tabIndex={-1}
               onClick={() => setI(n)}
@@ -95,14 +97,14 @@ export function SiteVisual() {
                 "relative size-8 rounded-full border-2 transition-transform duration-300 hover:-translate-y-1 hover:rotate-12",
                 n === i ? "border-primary" : "border-card",
               )}
-              style={{ background: `linear-gradient(135deg, ${t.variant.tokens.background} 50%, ${t.variant.tokens.primary} 50%)` }}
+              style={{ background: `linear-gradient(135deg, ${th.variant.tokens.background} 50%, ${th.variant.tokens.primary} 50%)` }}
             >
               {n === i ? <motion.span layoutId="site-swatch-ring" className="absolute -inset-1.5 rounded-full border-2 border-primary/40" /> : null}
             </button>
           ))}
         </div>
         <p className="flex items-center gap-1.5 overflow-hidden text-sm font-bold text-muted-foreground">
-          theme:
+          {t("projects.site.themeLabel")}
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span
               key={theme.id}

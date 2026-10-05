@@ -9,10 +9,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useI18n } from "@/i18n/react";
 import { signOut } from "@/server/functions";
 import { UserAvatar } from "./Avatar";
 
 export function UserMenu({ username, name, avatar }: { username: string; name: string; avatar: string | null }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const router = useRouter();
   const callSignOut = useServerFn(signOut);
@@ -27,13 +29,13 @@ export function UserMenu({ username, name, avatar }: { username: string; name: s
         <DropdownMenuLabel className="text-muted-foreground">u/{username}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate({ to: "/u/$username", params: { username } })}>
-          <UserIcon /> My profile
+          <UserIcon /> {t("auth.menu.profile")}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/settings" })}>
-          <Settings /> Customize profile
+          <Settings /> {t("auth.menu.customize")}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/themes" })}>
-          <Palette /> Themes
+          <Palette /> {t("auth.menu.themes")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -43,7 +45,7 @@ export function UserMenu({ username, name, avatar }: { username: string; name: s
             await router.invalidate();
           }}
         >
-          <LogOut /> Sign out
+          <LogOut /> {t("auth.menu.signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

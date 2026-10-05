@@ -44,3 +44,10 @@ export function makeI18n(locale: string, dir: "ltr" | "rtl", catalog: Catalog): 
   };
 }
 
+/**
+ * One string outside React, where there's no provider to ask (page titles: a
+ * route's head() runs on its own). Pass the page's catalog, else it's English.
+ */
+export function translate(locale: string, key: Key, values?: Record<string, Value>, catalog: Catalog = english): string {
+  return makeI18n(locale, "ltr", catalog).t(key, values);
+}

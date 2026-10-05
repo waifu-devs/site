@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowDown, Database } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
 import { useEffect, type ReactNode } from "react";
+import { useI18n } from "@/i18n/react";
 import { STATUS_LABELS, type Project } from "@/lib/projects";
 import { StatusDot } from "./ProjectCard";
 
@@ -9,6 +10,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 
 export function ProjectsHero({ projects }: { projects: Project[] }) {
   const reduce = useReducedMotion();
+  const { t } = useI18n();
 
   // Arriving at /projects#fuwa, the browser scrolled to where the card was mid-swing; put it where it lands.
   useEffect(() => {
@@ -33,7 +35,7 @@ export function ProjectsHero({ projects }: { projects: Project[] }) {
             transition={{ duration: 0.6, ease: EASE }}
             className="inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1 text-sm font-bold text-primary backdrop-blur"
           >
-            <span className="heartbeat">✦</span> Open source, made by the community
+            <span className="heartbeat">✦</span> {t("projects.hero.badge")}
           </motion.p>
 
           <Headline />
@@ -44,7 +46,7 @@ export function ProjectsHero({ projects }: { projects: Project[] }) {
             transition={{ duration: 0.8, delay: 0.8, ease: EASE }}
             className="max-w-xl text-lg text-muted-foreground sm:text-xl"
           >
-            What the Waifu Devs are making together. Everything lives on GitHub, so star it, break it, and send a pull request.
+            {t("projects.hero.lede")}
           </motion.p>
 
           <ul className="flex flex-wrap gap-3">
@@ -70,7 +72,7 @@ export function ProjectsHero({ projects }: { projects: Project[] }) {
                   <span>
                     <span className="block font-extrabold">{p.name}</span>
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <StatusDot status={p.status} /> {STATUS_LABELS[p.status]}
+                      <StatusDot status={p.status} /> {t(STATUS_LABELS[p.status])}
                     </span>
                   </span>
                   <ArrowDown className="ml-1 size-4 text-muted-foreground transition-[translate,color] duration-300 group-hover:translate-y-1 group-hover:text-primary" />
@@ -100,20 +102,18 @@ function scrollToProject(slug: string, behavior: ScrollBehavior) {
 
 /** Letters rise out of a mask on a spring, then a hand-drawn underline scribbles itself under the last word. */
 function Headline() {
-  const words = [
-    { text: "Things", line: 0 },
-    { text: "we're", line: 0 },
-    { text: "building.", line: 1 },
-  ];
+  const { t } = useI18n();
+  const lines = [t("projects.hero.line1"), t("projects.hero.line2")];
+  const words = lines.flatMap((text, line) => text.split(" ").map((word) => ({ text: word, line })));
   let n = 0;
   return (
-    <h1 aria-label="Things we're building." className="text-[clamp(2.8rem,5.6vw,4.75rem)] font-extrabold leading-[0.95] tracking-tight">
+    <h1 aria-label={lines.join(" ")} className="text-[clamp(2.8rem,5.6vw,4.75rem)] font-extrabold leading-[0.95] tracking-tight">
       {[0, 1].map((line) => (
         <span key={line} aria-hidden className="block">
           {words
             .filter((w) => w.line === line)
             .map((w, wi) => (
-              <span key={w.text}>
+              <span key={wi}>
                 {wi > 0 ? " " : null}
                 <span className={line === 1 ? "relative inline-block text-primary" : "inline-block"}>
                   <span className="inline-block overflow-hidden whitespace-nowrap pb-[0.1em] align-bottom">
@@ -164,6 +164,7 @@ function Scribble() {
  */
 function Stage() {
   const reduce = useReducedMotion();
+  const { t } = useI18n();
   const px = useMotionValue(0);
   const py = useMotionValue(0);
   const x = useSpring(px, { stiffness: 60, damping: 18, mass: 0.8 });
@@ -197,9 +198,9 @@ function Stage() {
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-extrabold text-primary-foreground">A</span>
             <div className="min-w-0">
               <p className="text-xs font-extrabold text-primary">
-                aoi <span className="font-bold text-muted-foreground">in #watch-party</span>
+                aoi <span className="font-bold text-muted-foreground">{t("projects.hero.mockChannel", { channel: "#watch-party" })}</span>
               </p>
-              <p className="text-sm">ep 12 at 9pm, who's in?</p>
+              <p className="text-sm">{t("projects.fuwa.demo.club1")}</p>
             </div>
           </div>
           <div className="mt-2 flex gap-1.5 pl-10">
@@ -244,7 +245,7 @@ function Stage() {
             <span className="size-4 rounded-full border-2 border-card bg-accent" />
             <span className="size-4 rounded-full border-2 border-card bg-foreground" />
           </span>
-          theme: yours
+          {t("landing.mock.theme")}
         </div>
       </Layer>
     </div>

@@ -4,15 +4,16 @@ import { IMAGE_TYPES, type ImageKind, MAX_IMAGE_BYTES } from "@waifu-devs/domain
 import { ImageUp, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type I18n, useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 import { removeImage, uploadImage } from "@/server/functions";
 
 const MB = MAX_IMAGE_BYTES / 1024 / 1024;
 
 /** The same checks the API makes first, so obvious mistakes don't wait on an upload. */
-function problemWith(file: File): string | null {
-  if (file.type && !(IMAGE_TYPES as readonly string[]).includes(file.type)) return "Upload a JPEG, PNG, WebP or GIF image.";
-  if (file.size > MAX_IMAGE_BYTES) return `That file is over ${MB} MB.`;
+function problemWith(file: File, t: I18n["t"]): string | null {
+  if (file.type && !(IMAGE_TYPES as readonly string[]).includes(file.type)) return t("profile.upload.badType");
+  if (file.size > MAX_IMAGE_BYTES) return t("profile.upload.tooBig", { size: MB });
   return null;
 }
 
@@ -25,6 +26,7 @@ export type ImageUpload = ReturnType<typeof useImageUpload>;
  */
 export function useImageUpload(kind: ImageKind, saved: { url: string | null; custom: boolean }) {
   const router = useRouter();
+  const { t } = useI18n();
   const upload = useServerFn(uploadImage);
   const remove = useServerFn(removeImage);
   const [local, setLocal] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export function useImageUpload(kind: ImageKind, saved: { url: string | null; cus
     error: error?.message ?? null,
     errorKey: error?.at ?? 0,
     choose: async (file: File) => {
-      const problem = problemWith(file);
+      const problem = problemWith(file, t);
       if (problem) return fail(problem);
       setError(null);
       setLocal(URL.createObjectURL(file));
@@ -67,7 +69,7 @@ export function useImageUpload(kind: ImageKind, saved: { url: string | null; cus
         }
       } catch {
         setLocal(null);
-        fail("The upload didn't go through. Try again.");
+        fail(t("profile.upload.failed"));
       } finally {
         setPending(false);
       }
@@ -80,7 +82,7 @@ export function useImageUpload(kind: ImageKind, saved: { url: string | null; cus
         await router.invalidate();
         setLocal(null);
       } catch {
-        fail("That didn't work. Try again.");
+        fail(t("profile.upload.removeFailed"));
       } finally {
         setPending(false);
       }
@@ -108,6 +110,7 @@ export function ImageDrop({
   actions?: ReactNode;
 }) {
   const id = useId();
+  const { t, locale } = useI18n();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
@@ -117,7 +120,7 @@ export function ImageDrop({
       <div className="flex flex-wrap items-center gap-4">
         <motion.button
           type="button"
-          aria-label={`Upload ${label.toLowerCase()}`}
+          aria-label={t("profile.upload.button", { label: label.toLocaleLowerCase(locale) })}
           aria-describedby={`${id}-hint`}
           disabled={upload.pending}
           onClick={() => input.current?.click()}
@@ -151,7 +154,7 @@ export function ImageDrop({
             )}
           >
             {upload.pending ? <LoaderCircle className="size-5 animate-spin text-primary" /> : <ImageUp className="size-5 text-primary" />}
-            <span className="sr-only sm:not-sr-only">{upload.pending ? "Uploading" : over ? "Drop it" : "Upload"}</span>
+            <span className="sr-only sm:not-sr-only">{upload.pending ? t("profile.upload.uploading") : over ? t("profile.upload.drop") : t("profile.upload.upload")}</span>
           </span>
         </motion.button>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

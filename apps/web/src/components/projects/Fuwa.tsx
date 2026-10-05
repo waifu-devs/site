@@ -1,6 +1,7 @@
 import { CalendarClock, CircleCheck, CircleDashed, Cloud, Database, Hash, House, Laptop, LoaderCircle, Plus } from "lucide-react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { type Key, T, useI18n } from "@/i18n/react";
 import type { Project, RoadmapItem, RoadmapState } from "@/lib/projects";
 import { cn } from "@/lib/utils";
 import { ProjectCard } from "./ProjectCard";
@@ -14,7 +15,7 @@ type Server = {
   /** The server's own SQLite database. */
   file: string;
   channels: string[];
-  messages: { author: string; text: string }[];
+  messages: { author: string; text: Key }[];
 };
 
 /** Made-up servers for the demo client: one hosted, two self-hosted. */
@@ -26,9 +27,9 @@ const SERVERS: Server[] = [
     file: "waifu-dev.db",
     channels: ["general", "showcase", "help"],
     messages: [
-      { author: "mika", text: "just joined from the site ♡" },
-      { author: "ren", text: "wait, every server is its own sqlite file?" },
-      { author: "mika", text: "yep. backups are literally cp" },
+      { author: "mika", text: "projects.fuwa.demo.waifu1" },
+      { author: "ren", text: "projects.fuwa.demo.waifu2" },
+      { author: "mika", text: "projects.fuwa.demo.waifu3" },
     ],
   },
   {
@@ -38,9 +39,9 @@ const SERVERS: Server[] = [
     file: "home-lab.db",
     channels: ["builds", "general", "memes"],
     messages: [
-      { author: "you", text: "server's up on :50051 ✦" },
-      { author: "backup-bot", text: "home-lab.db copied to the NAS ✓" },
-      { author: "you", text: "zero cloud bill. just vibes" },
+      { author: "you", text: "projects.fuwa.demo.homeLab1" },
+      { author: "backup-bot", text: "projects.fuwa.demo.homeLab2" },
+      { author: "you", text: "projects.fuwa.demo.homeLab3" },
     ],
   },
   {
@@ -50,9 +51,9 @@ const SERVERS: Server[] = [
     file: "anime-club.db",
     channels: ["watch-party", "spoilers", "general"],
     messages: [
-      { author: "aoi", text: "ep 12 at 9pm, who's in?" },
-      { author: "kei", text: "me!! bringing snacks" },
-      { author: "yui", text: "no spoilers in here pls (╥﹏╥)" },
+      { author: "aoi", text: "projects.fuwa.demo.club1" },
+      { author: "kei", text: "projects.fuwa.demo.club2" },
+      { author: "yui", text: "projects.fuwa.demo.club3" },
     ],
   },
 ];
@@ -83,6 +84,7 @@ const authorColor = (name: string) =>
  */
 function Client({ active, onSelect }: { active: number; onSelect: (i: number) => void }) {
   const reduce = useReducedMotion();
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { margin: "-15%" });
   const [progress, setProgress] = useState({ server: 0, shown: 0 });
@@ -117,7 +119,7 @@ function Client({ active, onSelect }: { active: number; onSelect: (i: number) =>
           <span className="size-2.5 rounded-full bg-[#28c840]" />
           <span className="ml-3 truncate text-xs text-muted-foreground">fuwa · {server.name}</span>
           <span className="ml-auto flex shrink-0 items-center gap-2 text-[0.65rem] font-bold text-muted-foreground">
-            <span className="status-dot" /> {SERVERS.length} servers
+            <span className="status-dot" /> {t("projects.fuwa.demo.servers", { count: SERVERS.length })}
           </span>
         </div>
 
@@ -167,7 +169,7 @@ function Client({ active, onSelect }: { active: number; onSelect: (i: number) =>
                   <p className="truncate text-sm font-extrabold">{server.name}</p>
                   <p className="flex items-center gap-1 text-[0.65rem] font-bold text-muted-foreground">
                     {server.hosted ? <Cloud className="size-3" /> : <House className="size-3" />}
-                    {server.hosted ? "hosted" : "self-hosted"}
+                    {server.hosted ? t("projects.fuwa.demo.hosted") : t("projects.fuwa.demo.selfHosted")}
                   </p>
                 </div>
                 <ul className="flex flex-col gap-0.5 p-2 text-sm">
@@ -220,7 +222,7 @@ function Client({ active, onSelect }: { active: number; onSelect: (i: number) =>
                       <p className="text-xs font-extrabold" style={{ color: authorColor(m.author) }}>
                         {m.author}
                       </p>
-                      <p className="text-sm leading-snug">{m.text}</p>
+                      <p className="text-sm leading-snug">{t(m.text)}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -232,12 +234,14 @@ function Client({ active, onSelect }: { active: number; onSelect: (i: number) =>
                   <i />
                 </span>
                 <span className="truncate">
-                  <b>{typing ?? "someone"}</b> is typing
+                  <T k="projects.fuwa.demo.typing" values={{ name: <b>{typing ?? t("projects.fuwa.demo.someone")}</b> }} />
                 </span>
               </p>
             </div>
             <div className="px-3 pb-3">
-              <p className="truncate rounded-full bg-muted px-4 py-2 text-xs text-muted-foreground">Message #{server.channels[0]}</p>
+              <p className="truncate rounded-full bg-muted px-4 py-2 text-xs text-muted-foreground">
+                {t("projects.fuwa.demo.messagePlaceholder", { channel: server.channels[0] })}
+              </p>
             </div>
           </div>
         </div>
@@ -251,11 +255,12 @@ function Client({ active, onSelect }: { active: number; onSelect: (i: number) =>
  * database. Little packets run down the wires; the selected server's wire glows.
  */
 function Network({ active, onSelect }: { active: number; onSelect: (i: number) => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">How it fits together</p>
-        <h3 className="text-2xl font-extrabold tracking-tight sm:text-3xl">One client. Any server. A database each.</h3>
+        <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">{t("projects.fuwa.network.kicker")}</p>
+        <h3 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t("projects.fuwa.network.title")}</h3>
       </div>
       <div className="flex flex-col md:flex-row md:items-center">
         <motion.div
@@ -269,8 +274,8 @@ function Network({ active, onSelect }: { active: number; onSelect: (i: number) =
             <Laptop className="size-5" />
           </span>
           <span>
-            <span className="block font-extrabold">fuwa client</span>
-            <span className="block text-xs text-muted-foreground">browser or desktop</span>
+            <span className="block font-extrabold">{t("projects.fuwa.network.client")}</span>
+            <span className="block text-xs text-muted-foreground">{t("projects.fuwa.network.clientWhere")}</span>
           </span>
         </motion.div>
         <span aria-hidden className="wire wire-y ml-[2.2rem] h-8 w-0.5 md:hidden" />
@@ -313,7 +318,7 @@ function Network({ active, onSelect }: { active: number; onSelect: (i: number) =
                   <span className="block truncate text-sm font-extrabold">{s.name}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     {s.hosted ? <Cloud className="size-3 shrink-0" /> : <House className="size-3 shrink-0" />}
-                    <span className="truncate">{s.hosted ? "hosted" : "self-hosted"}</span>
+                    <span className="truncate">{s.hosted ? t("projects.fuwa.demo.hosted") : t("projects.fuwa.demo.selfHosted")}</span>
                   </span>
                 </span>
                 <span
@@ -340,12 +345,13 @@ const STATE_ICON = {
   next: <CircleDashed className="mt-px size-5 shrink-0 text-muted-foreground/60" />,
 };
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "2026-10-03" as "Oct 3", spelled out by hand so the server and the browser agree whatever their locale. */
-function shortDate(iso: string, withYear = false) {
-  const [year, month, day] = iso.split("-").map(Number);
-  return `${MONTHS[month - 1]} ${day}${withYear ? `, ${year}` : ""}`;
+/** "2026-10-03" as a short date ("Oct 3" in English), read as UTC so the server and the browser agree whatever their time zone. */
+function useShortDate() {
+  const { date } = useI18n();
+  return (iso: string, withYear = false) => {
+    const [year, month, day] = iso.split("-").map(Number);
+    return date(Date.UTC(year, month - 1, day), { month: "short", day: "numeric", year: withYear ? "numeric" : undefined, timeZone: "UTC" });
+  };
 }
 
 /**
@@ -354,17 +360,25 @@ function shortDate(iso: string, withYear = false) {
  * right now.
  */
 function Roadmap({ items, updated }: { items: RoadmapItem[]; updated?: string }) {
+  const { t } = useI18n();
+  const shortDate = useShortDate();
   const count = (state: RoadmapState) => items.filter((item) => item.state === state).length;
   const done = count("done");
   const now = count("now");
   const next = count("next");
-  const summary = [done && `${done} shipped`, now && `${now} being built`, next && `${next} up next`].filter(Boolean).join(" · ");
+  const summary = [
+    done && t("projects.fuwa.roadmap.shipped", { count: done }),
+    now && t("projects.fuwa.roadmap.building", { count: now }),
+    next && t("projects.fuwa.roadmap.upNext", { count: next }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const building = items.filter((item) => item.state === "now");
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">Roadmap</p>
-        <h3 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Where fuwa is at.</h3>
+        <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">{t("projects.fuwa.roadmap.kicker")}</p>
+        <h3 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t("projects.fuwa.roadmap.title")}</h3>
         <p className="text-sm text-muted-foreground">{summary}</p>
         {/* The track watches the viewport: a bar squashed to nothing never counts as in view. */}
         <motion.div initial="hidden" whileInView="shown" viewport={{ once: true }} className="h-2 overflow-hidden rounded-full bg-muted">
@@ -384,7 +398,7 @@ function Roadmap({ items, updated }: { items: RoadmapItem[]; updated?: string })
       </div>
       {building.length ? (
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-muted-foreground">Being built now</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-muted-foreground">{t("projects.fuwa.roadmap.buildingNow")}</p>
           <ol className="flex flex-col gap-3">
             {building.map((item, i) => (
               <motion.li
@@ -396,7 +410,7 @@ function Roadmap({ items, updated }: { items: RoadmapItem[]; updated?: string })
                 className="flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-3 text-sm font-bold"
               >
                 {STATE_ICON.now}
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </motion.li>
             ))}
           </ol>
@@ -405,7 +419,7 @@ function Roadmap({ items, updated }: { items: RoadmapItem[]; updated?: string })
       {updated ? (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <CalendarClock className="size-3.5 shrink-0" />
-          Last updated <time dateTime={updated}>{shortDate(updated, true)}</time>
+          <T k="projects.fuwa.roadmap.lastUpdated" values={{ date: <time dateTime={updated}>{shortDate(updated, true)}</time> }} />
         </p>
       ) : null}
     </div>
@@ -427,6 +441,8 @@ const LOG_CHIP = {
  * a timeline whose line draws itself down as it scrolls in.
  */
 function RoadmapLog({ items }: { items: RoadmapItem[] }) {
+  const { t } = useI18n();
+  const shortDate = useShortDate();
   const next = items.filter((item) => item.state === "next");
   const shipped = items.filter((item) => item.state === "done");
   // Newest day first, keeping each day's own order.
@@ -442,12 +458,12 @@ function RoadmapLog({ items }: { items: RoadmapItem[] }) {
     <div className="grid gap-12 border-t p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:gap-14">
       {next.length ? (
         <div className="flex flex-col gap-4">
-          <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">Up next</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">{t("projects.fuwa.roadmap.next")}</p>
           <motion.ol initial="hidden" whileInView="shown" viewport={{ once: true, margin: "-40px" }} variants={LOG_LIST} className="flex flex-col gap-3">
             {next.map((item) => (
               <motion.li key={item.label} variants={LOG_ROW} className="flex items-start gap-3 text-sm text-muted-foreground">
                 {STATE_ICON.next}
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </motion.li>
             ))}
           </motion.ol>
@@ -456,7 +472,7 @@ function RoadmapLog({ items }: { items: RoadmapItem[] }) {
 
       {days.length ? (
         <div className="flex flex-col gap-4">
-          <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">Shipped</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">{t("projects.fuwa.roadmap.done")}</p>
           {/* The list watches the viewport, so the rows and the line under them start together. */}
           <motion.ol initial="hidden" whileInView="shown" viewport={{ once: true, margin: "-40px" }} variants={LOG_LIST} className="relative flex flex-col gap-6">
             <motion.span
@@ -480,7 +496,7 @@ function RoadmapLog({ items }: { items: RoadmapItem[] }) {
                   {day.items.map((item) => (
                     <motion.li key={item.label} variants={LOG_ROW} className="flex items-start gap-2.5 text-sm">
                       <CircleCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </motion.li>
                   ))}
                 </ul>

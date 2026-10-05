@@ -2,9 +2,9 @@ import { ArrowUpRight } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
-import { Markdown } from "@/components/Markdown";
 import { Button } from "@/components/ui/button";
-import { STATUS_LABELS, type Project, type ProjectStatus } from "@/lib/projects";
+import { T, useI18n } from "@/i18n/react";
+import { type Paragraph, type Run, STATUS_LABELS, type Project, type ProjectStatus } from "@/lib/projects";
 import { cn } from "@/lib/utils";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -31,6 +31,7 @@ export function ProjectCard({
   children?: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
+  const { t } = useI18n();
   // Reduced motion flattens the scroll effects through a motion value rather than by dropping
   // the styles, so the first render always matches the server's and hydration stays clean.
   const reduce = useReducedMotion();
@@ -86,7 +87,7 @@ export function ProjectCard({
             transition={{ duration: 0.7, delay: 0.25, ease: EASE }}
             className="text-xl font-bold leading-snug"
           >
-            {project.tagline}
+            {t(project.tagline)}
           </motion.p>
 
           <motion.div
@@ -95,7 +96,7 @@ export function ProjectCard({
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.35, ease: EASE }}
           >
-            <Markdown className="leading-relaxed text-muted-foreground">{project.description}</Markdown>
+            <Description className="leading-relaxed text-muted-foreground" paragraphs={project.description} />
           </motion.div>
 
           <Stack items={project.stack} />
@@ -104,7 +105,7 @@ export function ProjectCard({
             <Magnetic strength={0.3}>
               <Button asChild className="btn h-11 rounded-full px-6 font-bold">
                 <a href={`https://github.com/${project.repo}`}>
-                  <GitHubMark className="size-4" /> View on GitHub
+                  <GitHubMark className="size-4" /> {t("projects.card.viewOnGitHub")}
                 </a>
               </Button>
             </Magnetic>
@@ -127,6 +128,32 @@ export function ProjectCard({
       {project.highlights.length ? <Highlights items={project.highlights} /> : null}
       {children}
     </motion.article>
+  );
+}
+
+/** A project's description, styled like the Markdown it used to be (the .markdown styles in app.css). */
+function Description({ paragraphs, className }: { paragraphs: Paragraph[]; className?: string }) {
+  return (
+    <div className={cn("markdown", className)}>
+      {paragraphs.map((p) => (
+        <p key={p.k}>
+          <T k={p.k} values={Object.fromEntries(Object.entries(p.values ?? {}).map(([name, run]) => [name, <RunText key={name} run={run} />]))} />
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function RunText({ run }: { run: Run }) {
+  const { t } = useI18n();
+  const text = "k" in run ? t(run.k) : run.text;
+  const styled = run.style === "strong" ? <strong>{text}</strong> : run.style === "em" ? <em>{text}</em> : run.style === "code" ? <code>{text}</code> : text;
+  return run.href ? (
+    <a href={run.href} rel="nofollow ugc noopener noreferrer" target="_blank">
+      {styled}
+    </a>
+  ) : (
+    styled
   );
 }
 
@@ -168,6 +195,7 @@ function ProjectName({ id, name }: { id: string; name: string }) {
 }
 
 export function StatusBadge({ status, className }: { status: ProjectStatus; className?: string }) {
+  const { t } = useI18n();
   return (
     <span
       className={cn(
@@ -177,7 +205,7 @@ export function StatusBadge({ status, className }: { status: ProjectStatus; clas
       )}
     >
       <StatusDot status={status} />
-      {STATUS_LABELS[status]}
+      {t(STATUS_LABELS[status])}
     </span>
   );
 }
@@ -190,8 +218,9 @@ export function StatusDot({ status }: { status: ProjectStatus }) {
 }
 
 function Stack({ items }: { items: string[] }) {
+  const { t } = useI18n();
   return (
-    <ul aria-label="Built with" className="flex flex-wrap gap-2">
+    <ul aria-label={t("projects.card.builtWith")} className="flex flex-wrap gap-2">
       {items.map((item, i) => (
         <motion.li
           key={item}
@@ -210,6 +239,7 @@ function Stack({ items }: { items: string[] }) {
 }
 
 function Highlights({ items }: { items: Project["highlights"] }) {
+  const { t } = useI18n();
   return (
     <ul className={cn("grid gap-px overflow-hidden border-t bg-border sm:grid-cols-2", HIGHLIGHT_COLS[items.length])}>
       {items.map(({ icon: Icon, title, body }, i) => (
@@ -224,8 +254,8 @@ function Highlights({ items }: { items: Project["highlights"] }) {
           <span className="group-wiggle grid size-10 place-items-center rounded-xl bg-primary/12 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
             <Icon className="size-5" />
           </span>
-          <p className="font-extrabold">{title}</p>
-          <p className="text-sm text-muted-foreground">{body}</p>
+          <p className="font-extrabold">{t(title)}</p>
+          <p className="text-sm text-muted-foreground">{t(body)}</p>
         </motion.li>
       ))}
     </ul>

@@ -1,25 +1,14 @@
 import { deriveTokens, themeStyle, type ThemeSeeds } from "@waifu-devs/domain/themes";
 import { AnimatePresence, motion, useInView, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 
 const CHAPTERS = [
-  {
-    kicker: "01 · Your profile",
-    title: "A page that's actually you.",
-    body: "Bio, pronouns, links and your favorite waifu, front and center at /u/you.",
-  },
-  {
-    kicker: "02 · Your colors",
-    title: "Paint the whole site.",
-    body: "Design a theme in the live editor. Every page follows it, for you and for anyone visiting your profile.",
-  },
-  {
-    kicker: "03 · Your people",
-    title: "Find devs who get it.",
-    body: "People who debug at 3am and still defend best girl. Borrow their colors, show off yours.",
-  },
-];
+  { kicker: "landing.story.profile.kicker", title: "landing.story.profile.title", body: "landing.story.profile.body" },
+  { kicker: "landing.story.colors.kicker", title: "landing.story.colors.title", body: "landing.story.colors.body" },
+  { kicker: "landing.story.people.kicker", title: "landing.story.people.title", body: "landing.story.people.body" },
+] as const;
 
 /**
  * Three chapters told as you scroll. On wide screens the visual stays pinned while the
@@ -91,11 +80,12 @@ function Pinned() {
 }
 
 function ChapterText({ chapter, compact = false }: { chapter: (typeof CHAPTERS)[number]; compact?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">{chapter.kicker}</p>
-      <h2 className="text-3xl font-extrabold leading-tight tracking-tight lg:text-5xl">{chapter.title}</h2>
-      <p className={cn("max-w-md text-lg text-muted-foreground transition-opacity", compact && "md:opacity-0")}>{chapter.body}</p>
+      <p className="text-xs font-extrabold uppercase tracking-[0.25em] text-primary">{t(chapter.kicker)}</p>
+      <h2 className="text-3xl font-extrabold leading-tight tracking-tight lg:text-5xl">{t(chapter.title)}</h2>
+      <p className={cn("max-w-md text-lg text-muted-foreground transition-opacity", compact && "md:opacity-0")}>{t(chapter.body)}</p>
     </div>
   );
 }
@@ -118,6 +108,7 @@ const pop = (delay: number) => ({
 
 /** A profile assembling itself piece by piece. */
 function ProfileScene() {
+  const { t } = useI18n();
   return (
     <div aria-hidden className="absolute inset-0 grid place-items-center">
       <div className="w-[82%] rounded-3xl border bg-card p-6 shadow-2xl shadow-primary/20">
@@ -127,8 +118,8 @@ function ProfileScene() {
             <span className="grid size-full place-items-center rounded-full border-4 border-card bg-primary text-3xl text-primary-foreground">✿</span>
           </motion.span>
           <motion.div {...pop(0.25)} className="pb-1">
-            <p className="text-xl font-extrabold">you, but cuter</p>
-            <p className="text-sm text-muted-foreground">u/you · they/them</p>
+            <p className="text-xl font-extrabold">{t("landing.mock.name")}</p>
+            <p className="text-sm text-muted-foreground">{t("landing.mock.pronouns")}</p>
           </motion.div>
         </div>
         <div className="mt-5 flex flex-col gap-2">
@@ -145,7 +136,7 @@ function ProfileScene() {
           ))}
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          {["♡ best girl: Rem", "github.com/you", "TypeScript"].map((b, i) => (
+          {[t("landing.mock.bestGirl"), "github.com/you", "TypeScript"].map((b, i) => (
             <motion.span
               key={b}
               {...pop(0.7 + i * 0.1)}

@@ -18,5 +18,10 @@
   "language.matchBrowserNote": "Right now that's {language}",
   "language.coverage": "{percent} translated",
   "language.draft": "Machine draft, not yet checked by a speaker",
-  "language.failed": "Couldn't switch the language. Try again?"
+  "language.failed": "Couldn't switch the language. Try again?",
+  "notFound.pageTitle": "Not found",
+  "tryAgain": "Try again",
+  "cancel": "Cancel",
+  "meta.description": "A cozy community for developers who love anime, waifus, and shipping code. (✿◕‿◕✿)",
+  "markdown.image": "image"
 }
