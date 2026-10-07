@@ -167,3 +167,73 @@ export function themeStyle(variant: ThemeVariant): Record<string, string> {
   for (const key of TOKENS) style[`--${key}`] = variant.tokens[key];
   return style;
 }
+
+// ---------------------------------------------------------------------------
+// Marketplace filters
+
+/** Whether a theme is light or dark, by its background. */
+export const THEME_MODES = ["light", "dark"] as const;
+export type ThemeMode = (typeof THEME_MODES)[number];
+
+/** Color families, by a theme's primary color; "neutral" is for grays and near-grays. */
+export const THEME_COLORS = ["red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "neutral"] as const;
+export type ThemeColor = (typeof THEME_COLORS)[number];
+
+/** A color to show for each family in the filter. */
+export const COLOR_SWATCHES: Record<ThemeColor, string> = {
+  red: "#e5484d",
+  orange: "#f76b15",
+  yellow: "#ffc53d",
+  green: "#46a758",
+  teal: "#12a594",
+  blue: "#0090ff",
+  purple: "#8e4ec6",
+  pink: "#e93d82",
+  neutral: "#8b8d98",
+};
+
+/** Corner styles, by radius (rem): under 0.375 is sharp, under 1 soft, the rest round. */
+export const THEME_CORNERS = ["sharp", "soft", "round"] as const;
+export type ThemeCorners = (typeof THEME_CORNERS)[number];
+export const CORNER_BOUNDS = { soft: 0.375, round: 1 } as const;
+
+/** How recently a theme was made. */
+export const THEME_PERIODS = ["week", "month", "year"] as const;
+export type ThemePeriod = (typeof THEME_PERIODS)[number];
+export const PERIOD_DAYS: Record<ThemePeriod, number> = { week: 7, month: 30, year: 365 };
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+
+/** Relative luminance (WCAG), 0 for black to 1 for white. */
+export function luminance(hex: string): number {
+  const [r, g, b] = rgb(hex).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function modeOf(tokens: ThemeTokens): ThemeMode {
+  return luminance(tokens.background) < 0.2 ? "dark" : "light";
+}
+
+export function colorOf(tokens: ThemeTokens): ThemeColor {
+  const [r, g, b] = rgb(tokens.primary);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (s < 0.18 || l < 0.1 || l > 0.94) return "neutral";
+  const h = (max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  const hue = (h + 360) % 360;
+  if (hue < 10 || hue >= 345) return "red";
+  if (hue < 45) return "orange";
+  if (hue < 70) return "yellow";
+  if (hue < 165) return "green";
+  if (hue < 195) return "teal";
+  if (hue < 255) return "blue";
+  if (hue < 290) return "purple";
+  return "pink";
+}
+
+export function cornersOf(radius: number): ThemeCorners {
+  return radius < CORNER_BOUNDS.soft ? "sharp" : radius < CORNER_BOUNDS.round ? "soft" : "round";
+}

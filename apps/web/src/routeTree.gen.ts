@@ -21,6 +21,7 @@ import { Route as NewsIndexRouteImport } from './routes/news/index'
 import { Route as NewsPostIdRouteImport } from './routes/news/$postId'
 import { Route as NewsSubmitRouteImport } from './routes/news/submit'
 import { Route as ThemesIndexRouteImport } from './routes/themes/index'
+import { Route as ThemesThemeIdRouteImport } from './routes/themes/$themeId'
 import { Route as ThemesNewRouteImport } from './routes/themes/new'
 import { Route as UUsernameRouteImport } from './routes/u/$username'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
@@ -86,6 +87,11 @@ const ThemesIndexRoute = ThemesIndexRouteImport.update({
   path: '/themes/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ThemesThemeIdRoute = ThemesThemeIdRouteImport.update({
+  id: '/themes/$themeId',
+  path: '/themes/$themeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ThemesNewRoute = ThemesNewRouteImport.update({
   id: '/themes/new',
   path: '/themes/new',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
   '/news/submit': typeof NewsSubmitRoute
+  '/themes/$themeId': typeof ThemesThemeIdRoute
   '/themes/new': typeof ThemesNewRoute
   '/u/$username': typeof UUsernameRoute
   '/news/': typeof NewsIndexRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
   '/news/submit': typeof NewsSubmitRoute
+  '/themes/$themeId': typeof ThemesThemeIdRoute
   '/themes/new': typeof ThemesNewRoute
   '/u/$username': typeof UUsernameRoute
   '/news': typeof NewsIndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/api/reports': typeof ApiReportsRoute
   '/news/$postId': typeof NewsPostIdRoute
   '/news/submit': typeof NewsSubmitRoute
+  '/themes/$themeId': typeof ThemesThemeIdRoute
   '/themes/new': typeof ThemesNewRoute
   '/u/$username': typeof UUsernameRoute
   '/news/': typeof NewsIndexRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/api/reports'
     | '/news/$postId'
     | '/news/submit'
+    | '/themes/$themeId'
     | '/themes/new'
     | '/u/$username'
     | '/news/'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/api/reports'
     | '/news/$postId'
     | '/news/submit'
+    | '/themes/$themeId'
     | '/themes/new'
     | '/u/$username'
     | '/news'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/api/reports'
     | '/news/$postId'
     | '/news/submit'
+    | '/themes/$themeId'
     | '/themes/new'
     | '/u/$username'
     | '/news/'
@@ -230,6 +242,7 @@ export interface RootRouteChildren {
   ApiReportsRoute: typeof ApiReportsRoute
   NewsPostIdRoute: typeof NewsPostIdRoute
   NewsSubmitRoute: typeof NewsSubmitRoute
+  ThemesThemeIdRoute: typeof ThemesThemeIdRoute
   ThemesNewRoute: typeof ThemesNewRoute
   UUsernameRoute: typeof UUsernameRoute
   NewsIndexRoute: typeof NewsIndexRoute
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ThemesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/themes/$themeId': {
+      id: '/themes/$themeId'
+      path: '/themes/$themeId'
+      fullPath: '/themes/$themeId'
+      preLoaderRoute: typeof ThemesThemeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/themes/new': {
       id: '/themes/new'
       path: '/themes/new'
@@ -366,6 +386,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsRoute: ApiReportsRoute,
   NewsPostIdRoute: NewsPostIdRoute,
   NewsSubmitRoute: NewsSubmitRoute,
+  ThemesThemeIdRoute: ThemesThemeIdRoute,
   ThemesNewRoute: ThemesNewRoute,
   UUsernameRoute: UUsernameRoute,
   NewsIndexRoute: NewsIndexRoute,

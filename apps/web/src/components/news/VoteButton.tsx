@@ -7,21 +7,29 @@ import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n/react";
 import { cn } from "@/lib/utils";
+import { voteTheme } from "@/server/market";
 import { votePost } from "@/server/news";
 
+/** What gets the heart: a news post, or a theme in the marketplace. */
+export type VoteTarget = { kind: "post" | "theme"; id: string };
+
 type Props = {
-  postId: string;
+  target: VoteTarget;
   score: number;
   voted: boolean;
-  /** The viewer wrote it: their vote is built in and can't be taken back. */
+  /**
+   * The viewer made it. A post's author's vote is built in and can't be taken back;
+   * a theme's maker can't heart it at all.
+   */
   mine: boolean;
   signedIn: boolean;
   className?: string;
 };
 
-// What the button says it'll do, by whose post it is and whether it's already hearted.
+// What the button says it'll do, by whose it is and whether it's already hearted.
 const MODES = {
   mine: { action: "news.vote.yourPost", tip: "news.vote.tipYours" },
+  mineTheme: { action: "themes.vote.yourTheme", tip: "themes.vote.tipYours" },
   on: { action: "news.vote.takeBack", tip: "news.vote.tipTakeBack" },
   off: { action: "news.vote.upvote", tip: "news.vote.tipGive" },
 } as const;
@@ -36,15 +44,15 @@ const pill =
  * A heart that upvotes. The count updates straight away and rolls to its new value;
  * if the server says no, it rolls back.
  */
-export function VoteButton({ postId, score, voted, mine, signedIn, className }: Props) {
+export function VoteButton({ target, score, voted, mine, signedIn, className }: Props) {
   const { t } = useI18n();
-  const { state, floats, dropFloat, toggle } = useVote(postId, score, voted, mine);
+  const { state, floats, dropFloat, toggle } = useVote(target, score, voted, mine);
 
   const count = <SlidingNumber number={state.score} initiallyStable className="leading-none" />;
 
   if (!signedIn) return <SignedOutVote score={state.score} count={count} className={className} />;
 
-  const mode = mine ? MODES.mine : state.voted ? MODES.on : MODES.off;
+  const mode = mine ? (target.kind === "theme" ? MODES.mineTheme : MODES.mine) : state.voted ? MODES.on : MODES.off;
 
   return (
     <Tooltip>
@@ -93,13 +101,16 @@ function PoppingHeart({ voted }: { voted: boolean }) {
 }
 
 /** The vote's optimistic state, the floating "+1"s, and the toggle that talks to the server. */
-function useVote(postId: string, score: number, voted: boolean, mine: boolean) {
+function useVote(target: VoteTarget, score: number, voted: boolean, mine: boolean) {
   const [state, setState] = useState({ score, voted });
   // Only guards against double clicks, so it never needs a redraw.
   const pending = useRef(false);
   // Each upvote floats a "+1" off the heart; keys let several overlap.
   const [floats, setFloats] = useState<number[]>([]);
-  const vote = useServerFn(votePost);
+  const onPost = useServerFn(votePost);
+  const onTheme = useServerFn(voteTheme);
+  const vote = (up: boolean) =>
+    target.kind === "theme" ? onTheme({ data: { themeId: target.id, up } }) : onPost({ data: { postId: target.id, up } });
 
   // Fresh numbers from the loader win over what we guessed.
   useEffect(() => setState({ score, voted }), [score, voted]);
@@ -112,7 +123,7 @@ function useVote(postId: string, score: number, voted: boolean, mine: boolean) {
     if (up) setFloats((f) => [...f, Date.now()]);
     pending.current = true;
     try {
-      setState(await vote({ data: { postId, up } }));
+      setState(await vote(up));
     } catch {
       setState(before);
     } finally {

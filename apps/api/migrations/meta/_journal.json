@@ -57,6 +57,13 @@
       "when": 1791067258878,
       "tag": "0007_status",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791360255907,
+      "tag": "0008_theme_market",
+      "breakpoints": true
     }
   ]
 }

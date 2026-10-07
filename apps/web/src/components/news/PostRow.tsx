@@ -50,7 +50,7 @@ export function PostRow({
           {String(rank).padStart(2, "0")}
         </span>
       ) : null}
-      <VoteButton postId={post.id} score={post.score} voted={post.voted} mine={mine} signedIn={viewerUsername !== null} />
+      <VoteButton target={{ kind: "post", id: post.id }} score={post.score} voted={post.voted} mine={mine} signedIn={viewerUsername !== null} />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 pt-0.5">
         <Title className={titleClass}>
           {post.url ? (

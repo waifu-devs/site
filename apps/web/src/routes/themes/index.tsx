@@ -1,152 +1,205 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import type { Theme } from "@waifu-devs/domain/api";
-import { BUILTIN_THEMES } from "@waifu-devs/domain/themes";
-import { Download, Trash2 } from "lucide-react";
-import { ActionForm } from "@/components/ActionForm";
-import { InlineMarkdown } from "@/components/Markdown";
-import { Tilt } from "@/components/motion";
-import { ThemeSwatch } from "@/components/ThemeSwatch";
-import { Badge } from "@/components/ui/badge";
+import { THEME_MAX_PAGE, THEME_PAGE_SIZE } from "@waifu-devs/domain/api";
+import { colorOf, cornersOf, modeOf } from "@waifu-devs/domain/themes";
+import { Plus, X } from "lucide-react";
+import { AnimatePresence, m as motion } from "motion/react";
+import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
+import { FilterBar, Pager, SearchBox, SortTabs } from "@/components/themes/MarketControls";
+import { ThemeCard } from "@/components/themes/ThemeCard";
+import { activeFilters, type MarketSearch, parseSearch, toSearch, type View } from "@/components/themes/view";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { downloadForFuwa } from "@/lib/fuwa-theme";
-import { T, useI18n } from "@/i18n/react";
+import { useI18n } from "@/i18n/react";
 import { headT, title } from "@/lib/head";
+import { cn } from "@/lib/utils";
 import { useViewer } from "@/lib/viewer";
-import { deleteTheme, getThemes, wearTheme } from "@/server/functions";
+import { getMarket } from "@/server/market";
+
+const spring = { type: "spring", stiffness: 380, damping: 32 } as const;
 
 export const Route = createFileRoute("/themes/")({
-  loader: () => getThemes(),
+  validateSearch: (search: Record<string, unknown>): MarketSearch => toSearch(parseSearch(search)),
+  loaderDeps: ({ search }) => parseSearch(search),
+  loader: ({ deps }) => getMarket({ data: deps }),
   head: ({ matches }) => ({ meta: [title(headT(matches)("themes.title"))] }),
   component: ThemesPage,
 });
 
-function ThemeCard({ theme, wearing, mine }: { theme: Theme; wearing: boolean; mine: boolean }) {
+function ThemesPage() {
+  const { themes, total, builtins, mine } = Route.useLoaderData();
+  const view = parseSearch(Route.useSearch());
+  const { sort, q, page, filters } = view;
+  const viewer = useViewer();
+  // The theme the site is dressed in: the member's, or the one this browser picked while signed out.
+  const worn = viewer.theme.id;
+  const signedIn = !!viewer.user;
   const { t } = useI18n();
+  const mineIds = new Set(mine.map((theme) => theme.id));
+  const isMine = (ownerUsername?: string) => !!ownerUsername && ownerUsername.toLowerCase() === viewer.user?.username.toLowerCase();
+  const grid = "grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
+  const filtered = activeFilters(filters) > 0;
+  // Medals only make sense for the whole marketplace's ranking.
+  const ranked = sort !== "new" && page === 1 && !q && !filtered;
+  const offset = (page - 1) * THEME_PAGE_SIZE;
+  const pages = Math.min(Math.max(1, Math.ceil(total / THEME_PAGE_SIZE)), THEME_MAX_PAGE);
+  // The built-ins that pass the look, color and corner filters (the API leaves them out for the others).
+  const shownBuiltins = builtins.filter(
+    (theme) =>
+      (!filters.mode || modeOf(theme.variant.tokens) === filters.mode) &&
+      (!filters.color || colorOf(theme.variant.tokens) === filters.color) &&
+      (!filters.corners || cornersOf(theme.variant.radius) === filters.corners),
+  );
+
   return (
-    // min-w-0: a long one-line description would otherwise widen its grid column past a phone screen.
-    <Tilt className="min-w-0 rounded-xl">
-      <Card className="h-full gap-3 p-3">
-        <ThemeSwatch theme={theme} />
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 font-bold">
-            {theme.name}
-            {theme.isPublic === false ? <Badge variant="outline">{t("themes.card.private")}</Badge> : null}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {theme.builtin || !theme.ownerUsername ? (
-              t("themes.card.builtIn")
-            ) : (
-              <Link to="/u/$username" params={{ username: theme.ownerUsername }} className="hover:text-primary">
-                {t("themes.card.by", { username: theme.ownerUsername })}
-              </Link>
-            )}
-            {theme.description ? (
-              <>
-                {" · "}
-                <InlineMarkdown>{theme.description}</InlineMarkdown>
-              </>
-            ) : null}
+    <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-12">
+      <MarketHeader signedIn={signedIn} />
+
+      <div className="rise flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SortTabs view={view} />
+        <SearchBox view={view} />
+      </div>
+
+      <FilterBar view={view} signedIn={signedIn} />
+
+      <section className="mt-2 flex flex-col gap-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="text-xl font-extrabold">{q ? t("themes.index.results", { q }) : t("themes.index.community")}</h2>
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {t("themes.index.count", { count: total })}
+            {pages > 1 ? ` · ${t("themes.index.pageOf", { page, pages })}` : null}
           </p>
         </div>
-        <div className="mt-auto flex items-center gap-2">
-          {wearing ? (
-            <Badge className="rounded-full px-3 py-1">
-              <T k="themes.card.wearing" values={{ heart: <span className="heartbeat">♡</span> }} />
-            </Badge>
-          ) : (
-            <ActionForm action={wearTheme}>
-              <input type="hidden" name="theme_id" value={theme.id} />
-              <Button size="sm" variant="outline" className="btn rounded-full font-bold" type="submit">
-                {t("themes.card.wear")}
-              </Button>
-            </ActionForm>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="ml-auto size-8 text-muted-foreground hover:text-primary [&_svg]:transition-transform hover:[&_svg]:translate-y-0.5"
-                type="button"
-                aria-label={t("themes.card.download")}
-                onClick={() => downloadForFuwa(theme)}
+        {/* The grid stays mounted (hidden while empty) so cards can animate out. */}
+        <div className={cn(grid, "empty:hidden")}>
+          <AnimatePresence mode="popLayout">
+            {themes.map((theme, i) => (
+              <motion.div
+                key={theme.id}
+                // Switching sorts and filters slides the themes both lists share into their new places.
+                layout="position"
+                initial={{ opacity: 0, y: 18, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
+                transition={{ default: { ...spring, delay: Math.min(i, 12) * 0.03 }, layout: spring }}
+                className="min-w-0"
               >
-                <Download />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("themes.card.download")}</TooltipContent>
-          </Tooltip>
-          {mine ? (
-            <ActionForm action={deleteTheme}>
-              <input type="hidden" name="theme_id" value={theme.id} />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:text-destructive" type="submit" aria-label={t("themes.card.delete")}>
-                    <Trash2 />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("themes.card.delete")}</TooltipContent>
-              </Tooltip>
-            </ActionForm>
-          ) : null}
+                <ThemeCard
+                  theme={theme}
+                  wearing={theme.id === worn}
+                  mine={isMine(theme.ownerUsername)}
+                  signedIn={signedIn}
+                  rank={ranked ? offset + i + 1 : undefined}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
-      </Card>
-    </Tilt>
+        {themes.length ? null : <NoThemes view={view} signedIn={signedIn} />}
+        {pages > 1 ? <Pager view={view} pages={pages} /> : null}
+      </section>
+
+      {/* Your themes (private ones too) and the built-ins, while browsing the first page. */}
+      {mine.length ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-extrabold">{t("themes.index.yours")}</h2>
+          <div className={cn("stagger", grid)}>
+            {mine.map((theme) => (
+              <ThemeCard key={theme.id} theme={theme} wearing={theme.id === worn} mine={mineIds.has(theme.id)} signedIn={signedIn} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {shownBuiltins.length ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-extrabold">{t("themes.index.builtIn")}</h2>
+          <div className={cn("stagger", grid)}>
+            {shownBuiltins.map((theme) => (
+              <ThemeCard key={theme.id} theme={theme} wearing={theme.id === worn} mine={false} signedIn={signedIn} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </main>
   );
 }
 
-function ThemesPage() {
-  const { user, community, mine } = Route.useLoaderData();
-  // The theme the site is dressed in: the member's, or the one this browser picked while signed out.
-  const worn = useViewer().theme.id;
+function MarketHeader({ signedIn }: { signedIn: boolean }) {
   const { t } = useI18n();
-  const mineIds = new Set(mine.map((theme) => theme.id));
-  const communityOthers = community.filter((theme) => !mineIds.has(theme.id));
-  const grid = "stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
-  const card = (theme: Theme) => <ThemeCard key={theme.id} theme={theme} wearing={theme.id === worn} mine={mineIds.has(theme.id)} />;
-
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
+    <header data-sparkle-zone className="relative isolate">
+      {/* The glows drift past the content edges; this screen-wide layer clips them at the
+          screen's edges, so they never make the page wider than a phone. */}
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-x-clip">
+        <div className="relative mx-auto h-full max-w-5xl px-4">
+          <div className="blob -left-16 -top-24 h-64 w-64" />
+          <div className="blob b2 -top-10 right-4 h-44 w-44" />
+        </div>
+      </div>
       <div className="stagger flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold">{t("themes.title")}</h1>
+        <div className="flex max-w-2xl flex-col gap-2">
+          <p className="float w-fit text-2xl text-primary">(っ◔◡◔)っ ♡</p>
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
+            <span className="gradient-text">{t("themes.index.heading")}</span>
+          </h1>
           <p className="text-muted-foreground">
-            {t("themes.index.intro")} {user ? t("themes.index.introSignedIn") : t("themes.index.introSignedOut")} {t("themes.index.introFuwa")}
+            {t("themes.index.intro")} {signedIn ? t("themes.index.introSignedIn") : t("themes.index.introSignedOut")} {t("themes.index.introFuwa")}
           </p>
         </div>
+        <Magnetic strength={0.3}>
+          <Button asChild className="btn rounded-full font-bold">
+            {signedIn ? (
+              <Link to="/themes/new">
+                <Plus /> {t("themes.index.make")}
+              </Link>
+            ) : (
+              <Link to="/login" search={{ next: "/themes/new" }}>
+                <Plus /> {t("themes.index.make")}
+              </Link>
+            )}
+          </Button>
+        </Magnetic>
+      </div>
+    </header>
+  );
+}
+
+/** Nothing to show: nothing matched, the member paged past the end, or nobody has shared a theme yet. */
+function NoThemes({ view, signedIn }: { view: View; signedIn: boolean }) {
+  const { t } = useI18n();
+  const filtered = activeFilters(view.filters) > 0;
+  const [heading, body] = view.q
+    ? [t("themes.index.noMatchTitle"), t("themes.index.noMatchBody", { q: view.q })]
+    : filtered
+      ? [t("themes.index.noMatchTitle"), t("themes.filters.noMatch")]
+      : view.page > 1
+        ? [t("themes.index.endTitle"), t("themes.index.endBody")]
+        : [t("themes.index.emptyTitle"), t("themes.index.noCommunity")];
+  return (
+    <Card className="rise items-center gap-3 px-6 py-14 text-center">
+      <p className="float text-5xl">(・_・;)</p>
+      <h3 className="text-xl font-extrabold">{heading}</h3>
+      <p className="max-w-sm text-muted-foreground">{body}</p>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
+        {filtered || view.q ? (
+          <Button asChild variant="outline" className="btn rounded-full font-bold">
+            <Link to="/themes" search={toSearch({ ...view, q: "", page: 1, filters: {} })}>
+              <X /> {view.q ? t("themes.filters.clearAll") : t("themes.filters.clear")}
+            </Link>
+          </Button>
+        ) : null}
         <Button asChild className="btn rounded-full font-bold">
-          {user ? (
-            <Link to="/themes/new">{t("themes.index.make")}</Link>
+          {signedIn ? (
+            <Link to="/themes/new">
+              <Plus /> {t("themes.index.make")}
+            </Link>
           ) : (
             <Link to="/login" search={{ next: "/themes/new" }}>
-              {t("themes.index.make")}
+              <Plus /> {t("themes.index.make")}
             </Link>
           )}
         </Button>
       </div>
-
-      {mine.length ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-xl font-extrabold">{t("themes.index.yours")}</h2>
-          <div className={grid}>{mine.map(card)}</div>
-        </section>
-      ) : null}
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-extrabold">{t("themes.index.builtIn")}</h2>
-        <div className={grid}>{BUILTIN_THEMES.map(card)}</div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-extrabold">{t("themes.index.community")}</h2>
-        {communityOthers.length ? (
-          <div className={grid}>{communityOthers.map(card)}</div>
-        ) : (
-          <p className="text-muted-foreground">{t("themes.index.noCommunity")}</p>
-        )}
-      </section>
-    </main>
+    </Card>
   );
 }

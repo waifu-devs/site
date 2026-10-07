@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { type AnyPgColumn, bigint, boolean, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { ThemeVariant } from "@waifu-devs/domain/api";
+import type { ThemeColor, ThemeMode } from "@waifu-devs/domain/themes";
 import { type Banner, DEFAULT_BANNER } from "@waifu-devs/domain/profile";
 
 // Column names are derived from the keys in snake_case (see `casing` in src/Db.ts
@@ -47,8 +48,12 @@ export const users = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  // GitHub logins are case-insensitive.
-  (t) => [uniqueIndex("users_username_lower").on(sql`lower(${t.username})`)],
+  (t) => [
+    // GitHub logins are case-insensitive.
+    uniqueIndex("users_username_lower").on(sql`lower(${t.username})`),
+    // For counting who wears each theme.
+    index("users_theme_id").on(t.themeId),
+  ],
 );
 
 /**
@@ -80,7 +85,10 @@ export const featuredRepos = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.repoId] })],
 );
 
-/** Community-made themes. Built-in themes live in code (lib/themes.ts). */
+/**
+ * Community-made themes. Built-in themes live in code (lib/themes.ts). `score` is
+ * kept in step with theme_votes (in the same transaction) so listing never counts rows.
+ */
 export const themes = pgTable(
   "themes",
   {
@@ -92,12 +100,33 @@ export const themes = pgTable(
     description: text(),
     variant: jsonb().$type<ThemeVariant>().notNull(),
     isPublic: boolean().notNull().default(true),
+    score: integer().notNull().default(0),
+    // For the marketplace's filters, worked out from the variant when it's saved
+    // (modeOf and colorOf in the domain's themes.ts). Null until the API fills them in.
+    mode: text().$type<ThemeMode>(),
+    color: text().$type<ThemeColor>(),
     createdAt: createdAt(),
   },
   (t) => [
     index("themes_owner_id").on(t.ownerId),
     index("themes_public_created").on(t.createdAt.desc()).where(sql`${t.isPublic}`),
+    index("themes_public_score").on(t.score.desc(), t.createdAt.desc()).where(sql`${t.isPublic}`),
   ],
+);
+
+/** One heart per member per theme. Members can't heart their own. */
+export const themeVotes = pgTable(
+  "theme_votes",
+  {
+    themeId: uuid()
+      .notNull()
+      .references(() => themes.id, { onDelete: "cascade" }),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.themeId, t.userId] }), index("theme_votes_user_id").on(t.userId)],
 );
 
 /**
