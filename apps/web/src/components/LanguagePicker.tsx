@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { Check, Languages } from "lucide-react";
 import { AnimatePresence, LayoutGroup, m as motion } from "motion/react";
-import { useEffect, useId, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { coverage, LANGUAGES, languageOf, loadCatalog } from "@/i18n/catalogs";
 import { useI18n } from "@/i18n/react";
 import { pickLanguage } from "@/server/functions";
@@ -150,19 +150,42 @@ export function LanguagePicker({ language }: { language: LanguageState }) {
   );
 }
 
-/** "Language: English" in the footer, for everyone, signed in or not; it opens to the picker. */
-export function LanguageFooter({ language }: { language: LanguageState }) {
+/** The globe in the top bar, for everyone, signed in or not; it opens to the picker. */
+export function LanguageMenu({ language }: { language: LanguageState }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const panel = useId();
+  const label = t("common.language.button", { language: languageOf(language.active).name });
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      root.current?.querySelector("button")?.focus();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3 px-4">
+    <div ref={root} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 underline-offset-2 hover:text-primary hover:underline"
+        aria-controls={panel}
+        aria-label={label}
+        title={label}
+        className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-bold text-muted-foreground transition-colors hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
       >
-        <Languages className="size-3.5" aria-hidden />
+        <Languages className="size-4" aria-hidden />
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
             key={language.active}
@@ -170,23 +193,24 @@ export function LanguageFooter({ language }: { language: LanguageState }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: "-0.6em" }}
             transition={SPRING}
-            className="inline-block"
+            className="inline-block text-xs uppercase"
           >
-            {t("common.language.button", { language: languageOf(language.active).name })}
+            {language.active}
           </motion.span>
         </AnimatePresence>
-        <motion.span aria-hidden animate={{ rotate: open ? 180 : 0 }} transition={SPRING} className="inline-block">
+        <motion.span aria-hidden animate={{ rotate: open ? 180 : 0 }} transition={SPRING} className="inline-block text-xs">
           ▾
         </motion.span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
+            id={panel}
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={SPRING}
-            className="w-full origin-top rounded-2xl border bg-card/80 p-1.5"
+            className="absolute end-0 top-full z-50 mt-2 max-h-[70vh] w-72 origin-top-right overflow-y-auto rounded-2xl border bg-card p-1.5 shadow-lg rtl:origin-top-left"
           >
             <LanguagePicker language={language} />
           </motion.div>
