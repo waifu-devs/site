@@ -6,7 +6,7 @@ import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware
 import { Context, type Option, Schema } from "effect";
 import { isCountryCode } from "./countries.ts";
 import { BANNERS, DEFAULT_BANNER, IMAGE_KINDS, MAX_FEATURED_REPOS, MAX_LINK_LENGTH, MAX_LINKS, MAX_SKILL_LENGTH, MAX_SKILLS } from "./profile.ts";
-import { HEX, RADIUS_MAX, RADIUS_MIN, TOKENS } from "./themes.ts";
+import { HEX, RADIUS_MAX, RADIUS_MIN, THEME_COLORS, THEME_CORNERS, THEME_MODES, THEME_PERIODS, TOKENS } from "./themes.ts";
 
 // ---------------------------------------------------------------------------
 // Themes
@@ -39,6 +39,51 @@ export const NewTheme = Schema.Struct({
   isPublic: Schema.Boolean,
 });
 export type NewTheme = typeof NewTheme.Type;
+
+/** A theme as the marketplace lists it: how loved and how worn it is. */
+export const MarketTheme = Schema.Struct({
+  ...Theme.fields,
+  /** Hearts from members (built-ins don't take any). */
+  score: Schema.Number,
+  /** How many members wear it right now. */
+  wearers: Schema.Number,
+  /** Whether the member asking has hearted it (always false when signed out). */
+  voted: Schema.Boolean,
+  /** Null for built-ins. */
+  createdAt: Schema.NullOr(Schema.Date),
+});
+export type MarketTheme = typeof MarketTheme.Type;
+
+/** Trending (hearts that decay with age), most hearts ever, most worn, or newest first. */
+export const ThemeSort = Schema.Literal("top", "loved", "worn", "new");
+export type ThemeSort = typeof ThemeSort.Type;
+
+export const THEME_PAGE_SIZE = 24;
+export const THEME_QUERY_MAX = 60;
+export const THEME_MAX_PAGE = 100;
+
+/** Narrowing the marketplace down: each one left out matches everything. */
+export const ThemeFilters = Schema.Struct({
+  mode: Schema.optional(Schema.Literal(...THEME_MODES)),
+  color: Schema.optional(Schema.Literal(...THEME_COLORS)),
+  corners: Schema.optional(Schema.Literal(...THEME_CORNERS)),
+  /** Made in the last week, month or year. */
+  period: Schema.optional(Schema.Literal(...THEME_PERIODS)),
+  /** Only themes the member asking has hearted ("1"); nothing when signed out. */
+  hearted: Schema.optional(Schema.Literal("1")),
+});
+export type ThemeFilters = typeof ThemeFilters.Type;
+
+/** A page of themes, whether there are more, and how many match in all. */
+export const ThemePage = Schema.Struct({ themes: Schema.Array(MarketTheme), hasMore: Schema.Boolean, total: Schema.Number });
+export type ThemePage = typeof ThemePage.Type;
+
+/** A theme's own page: the theme, and its maker's other public themes. */
+export const ThemeDetails = Schema.Struct({ theme: MarketTheme, more: Schema.Array(MarketTheme) });
+export type ThemeDetails = typeof ThemeDetails.Type;
+
+export const VoteResult = Schema.Struct({ score: Schema.Number, voted: Schema.Boolean });
+export type VoteResult = typeof VoteResult.Type;
 
 // ---------------------------------------------------------------------------
 // Users
@@ -212,9 +257,6 @@ export type PostSort = typeof PostSort.Type;
 export const PostPage = Schema.Struct({ posts: Schema.Array(Post), hasMore: Schema.Boolean });
 export type PostPage = typeof PostPage.Type;
 
-export const VoteResult = Schema.Struct({ score: Schema.Number, voted: Schema.Boolean });
-export type VoteResult = typeof VoteResult.Type;
-
 // ---------------------------------------------------------------------------
 // Authentication: an OpenAuth access token, sent as a bearer token.
 
@@ -308,7 +350,50 @@ export class ThemesApi extends HttpApiGroup.make("themes")
   .add(HttpApiEndpoint.get("community", "/themes").addSuccess(Schema.Array(Theme)))
   .add(HttpApiEndpoint.get("get", "/themes/:id").setPath(ThemeId).addSuccess(Theme).addError(HttpApiError.NotFound))
   .add(HttpApiEndpoint.post("create", "/themes").setPayload(NewTheme).addSuccess(Theme).middleware(Authentication))
-  .add(HttpApiEndpoint.del("delete", "/themes/:id").setPath(ThemeId).addError(HttpApiError.NotFound).middleware(Authentication)) {}
+  .add(HttpApiEndpoint.del("delete", "/themes/:id").setPath(ThemeId).addError(HttpApiError.NotFound).middleware(Authentication))
+  // Hearts: public members' themes only, and not your own.
+  .add(
+    HttpApiEndpoint.put("upvote", "/themes/:id/vote")
+      .setPath(ThemeId)
+      .addSuccess(VoteResult)
+      .addError(HttpApiError.NotFound)
+      .addError(HttpApiError.Forbidden)
+      .middleware(Authentication),
+  )
+  .add(
+    HttpApiEndpoint.del("unvote", "/themes/:id/vote")
+      .setPath(ThemeId)
+      .addSuccess(VoteResult)
+      .addError(HttpApiError.NotFound)
+      .addError(HttpApiError.Forbidden)
+      .middleware(Authentication),
+  ) {}
+
+/** The theme marketplace: public themes with their hearts and wearers, sorted and searchable. */
+export class MarketApi extends HttpApiGroup.make("market")
+  .add(
+    HttpApiEndpoint.get("themes", "/market/themes")
+      .setUrlParams(
+        Schema.Struct({
+          ...ThemeFilters.fields,
+          sort: Schema.optional(ThemeSort),
+          q: Schema.optional(Schema.String.pipe(Schema.maxLength(THEME_QUERY_MAX))),
+          page: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, THEME_MAX_PAGE))),
+        }),
+      )
+      .addSuccess(ThemePage)
+      .middleware(OptionalAuthentication),
+  )
+  // How many members wear each built-in.
+  .add(HttpApiEndpoint.get("builtins", "/market/builtins").addSuccess(Schema.Array(MarketTheme)).middleware(OptionalAuthentication))
+  // A built-in or a public theme (private ones only for their owner).
+  .add(
+    HttpApiEndpoint.get("theme", "/market/themes/:id")
+      .setPath(ThemeId)
+      .addSuccess(ThemeDetails)
+      .addError(HttpApiError.NotFound)
+      .middleware(OptionalAuthentication),
+  ) {}
 
 const PostId = Schema.Struct({ id: Schema.UUID });
 
@@ -384,6 +469,7 @@ export class Api extends HttpApi.make("waifu-devs")
   .add(UsersApi)
   .add(MeApi)
   .add(ThemesApi)
+  .add(MarketApi)
   .add(PostsApi)
   .add(SessionApi)
   .add(LinkedApi) {}

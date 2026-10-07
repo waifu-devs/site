@@ -5,18 +5,9 @@
 import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { COMMENT_MAX, type NewPost, POST_BODY_MAX, POST_TITLE_MAX, POST_URL_MAX, type PostSort } from "@waifu-devs/domain/api";
-import { Effect, Option } from "effect";
-import { ApiClient } from "./Api.ts";
-import { asUser, formData, orNotFound, text, url } from "./helpers.ts";
+import { Effect } from "effect";
+import { asUser, asViewer, formData, orNotFound, text, url } from "./helpers.ts";
 import { run } from "./runtime.ts";
-import { Session } from "./Session.ts";
-
-/** Calls the API as the viewer when signed in (so their votes show), anonymously otherwise. */
-const asViewer = Effect.gen(function* () {
-  const api = yield* ApiClient;
-  const token = yield* (yield* Session).accessToken;
-  return Option.isSome(token) ? yield* api.as(token.value) : api.anonymous;
-});
 
 export type NewsSearch = { sort: PostSort; page: number };
 

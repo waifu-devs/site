@@ -108,20 +108,6 @@ export const getMembers = createServerFn({ method: "GET" }).handler(() =>
   run(ApiClient.pipe(Effect.flatMap((api) => api.anonymous.users.list({ urlParams: { limit: 200 } })))),
 );
 
-export const getThemes = createServerFn({ method: "GET" }).handler(() =>
-  run(
-    Effect.gen(function* () {
-      const api = yield* ApiClient;
-      const user = Option.getOrNull(yield* (yield* Session).currentUser);
-      const [community, mine] = yield* Effect.all(
-        [api.anonymous.themes.community(), user ? asUser.pipe(Effect.flatMap((me) => me.me.themes())) : Effect.succeed([])],
-        { concurrency: "unbounded" },
-      );
-      return { user, community, mine };
-    }),
-  ),
-);
-
 export const getProfile = createServerFn({ method: "GET" })
   .validator((username: string) => username)
   .handler(({ data: username }) =>
@@ -351,16 +337,22 @@ export const createTheme = createServerFn({ method: "POST" })
           },
           isPublic: form.get("is_public") !== null,
         };
-        yield* (yield* asUser).themes.create({ payload });
-        return yield* Effect.die(redirect({ to: "/themes" }));
+        const theme = yield* (yield* asUser).themes.create({ payload });
+        return yield* Effect.die(redirect({ to: "/themes/$themeId", params: { themeId: theme.id } }));
       }),
     ),
   );
 
+/** Deletes one of your themes; from the theme's own page (`leave`), goes back to the marketplace. */
 export const deleteTheme = createServerFn({ method: "POST" })
   .validator(formData)
   .handler(({ data: form }) =>
-    run(asUser.pipe(Effect.flatMap((me) => me.themes.delete({ path: { id: text(form, "theme_id", 64) ?? "" } })), Effect.ignore)),
+    run(
+      Effect.gen(function* () {
+        yield* asUser.pipe(Effect.flatMap((me) => me.themes.delete({ path: { id: text(form, "theme_id", 64) ?? "" } })), Effect.ignore);
+        if (form.has("leave")) return yield* Effect.die(redirect({ to: "/themes" }));
+      }),
+    ),
   );
 
 export const signOut = createServerFn({ method: "POST" }).handler(() =>

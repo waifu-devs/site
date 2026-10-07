@@ -145,13 +145,13 @@ export function ThemeEditor({ initial }: { initial: ThemeVariant }) {
         </ActionForm>
       </Card>
 
-      <Preview variant={variant} name={name || t("themes.editor.defaultName")} />
+      <ThemePreview variant={variant} name={name || t("themes.editor.defaultName")} />
     </div>
   );
 }
 
 /** Real shadcn components rendered inside the draft variant. */
-function Preview({ variant, name }: { variant: ThemeVariant; name: string }) {
+export function ThemePreview({ variant, name }: { variant: ThemeVariant; name: string }) {
   const { t } = useI18n();
   return (
     <div

@@ -15,6 +15,13 @@ export const asUser = Effect.gen(function* () {
   return yield* (yield* ApiClient).as(token.value);
 });
 
+/** Calls the API as the viewer when signed in (so their votes show), anonymously otherwise. */
+export const asViewer = Effect.gen(function* () {
+  const api = yield* ApiClient;
+  const token = yield* (yield* Session).accessToken;
+  return Option.isSome(token) ? yield* api.as(token.value) : api.anonymous;
+});
+
 export const orNotFound = <A, E, R>(effect: Effect.Effect<A, E, R>) => effect.pipe(Effect.catchAll(() => Effect.die(notFound())));
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,9 @@ const githubOrDie = <A, E, R>(effect: Effect.Effect<A, E | GithubError, R>) =>
     Effect.catchAll((error) => (error instanceof GithubError ? Effect.fail(new GithubUnavailable()) : Effect.die(error))),
   );
 
+/** Who is asking, by id; null when signed out. */
+const viewerId = Viewer.pipe(Effect.map((viewer) => Option.getOrNull(Option.map(viewer, (user) => user.id))));
+
 const UsersLive = HttpApiBuilder.group(Api, "users", (handlers) =>
   Effect.gen(function* () {
     const users = yield* Users;
@@ -94,6 +97,15 @@ const MeLive = HttpApiBuilder.group(Api, "me", (handlers) =>
 const ThemesLive = HttpApiBuilder.group(Api, "themes", (handlers) =>
   Effect.gen(function* () {
     const themes = yield* Themes;
+
+    const vote = (id: string, up: boolean) =>
+      Effect.gen(function* () {
+        const me = yield* CurrentUser;
+        // Hearts are for other members' themes.
+        if ((yield* orNotFound(themes.heartable(id))) === me.id) return yield* new HttpApiError.Forbidden();
+        return yield* Effect.orDie(themes.vote(me.id, id, up));
+      });
+
     return handlers
       .handle("community", () => Effect.orDie(themes.community()))
       .handle("get", ({ path }) => orNotFound(themes.get(path.id)))
@@ -103,14 +115,39 @@ const ThemesLive = HttpApiBuilder.group(Api, "themes", (handlers) =>
           const me = yield* CurrentUser;
           if (!(yield* Effect.orDie(themes.remove(me.id, path.id)))) return yield* new HttpApiError.NotFound();
         }),
-      );
+      )
+      .handle("upvote", ({ path }) => vote(path.id, true))
+      .handle("unvote", ({ path }) => vote(path.id, false));
+  }),
+);
+
+const MarketLive = HttpApiBuilder.group(Api, "market", (handlers) =>
+  Effect.gen(function* () {
+    const themes = yield* Themes;
+    return handlers
+      .handle("themes", ({ urlParams }) =>
+        viewerId.pipe(
+          Effect.flatMap((viewerId) =>
+            Effect.orDie(
+              themes.market({
+                sort: urlParams.sort ?? "top",
+                q: urlParams.q ?? "",
+                page: urlParams.page ?? 1,
+                filters: { mode: urlParams.mode, color: urlParams.color, corners: urlParams.corners, period: urlParams.period, hearted: urlParams.hearted },
+                viewerId,
+              }),
+            ),
+          ),
+        ),
+      )
+      .handle("builtins", () => Effect.orDie(themes.builtins()))
+      .handle("theme", ({ path }) => viewerId.pipe(Effect.flatMap((viewerId) => orNotFound(themes.details(path.id, viewerId)))));
   }),
 );
 
 const PostsLive = HttpApiBuilder.group(Api, "posts", (handlers) =>
   Effect.gen(function* () {
     const posts = yield* Posts;
-    const viewerId = Viewer.pipe(Effect.map((viewer) => Option.getOrNull(Option.map(viewer, (user) => user.id))));
 
     const vote = (id: string, up: boolean) =>
       Effect.gen(function* () {
@@ -160,4 +197,4 @@ const SessionLive = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("revoke", ({ payload }) => Effect.orDie(revokeRefreshToken(payload.refreshToken))),
 );
 
-export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([UsersLive, MeLive, ThemesLive, PostsLive, SessionLive, LinkedLive]));
+export const HttpLive = HttpApiBuilder.api(Api).pipe(Layer.provide([UsersLive, MeLive, ThemesLive, MarketLive, PostsLive, SessionLive, LinkedLive]));
