@@ -150,6 +150,8 @@ const VIEWS = {
       hosting,
       count(DISTINCT install_id) AS installs,
       ${SNAPSHOT_TOTALS.map((column) => `sum(${column}) FILTER (latest) AS ${column}`).join(",\n      ")},
+      -- Only in the raw JSON, and null where no install that day counts its agents.
+      sum(TRY_CAST(json_extract_string(raw, '$.totals.agents') AS BIGINT)) FILTER (latest) AS agents,
       sum(messages_sent_since) AS messages_sent,
       sum(events_since) AS events
     FROM days

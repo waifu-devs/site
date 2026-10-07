@@ -24,7 +24,7 @@ export const summary = (days: number) =>
   Effect.gen(function* () {
     const lake = yield* Lake;
     const daily = yield* lake.query(
-      `SELECT CAST(day AS VARCHAR) AS day, hosting, ${DAY_COLUMNS.map((column) => `coalesce(${column}, 0)::DOUBLE AS ${column}`).join(", ")}
+      `SELECT CAST(day AS VARCHAR) AS day, hosting, ${DAY_COLUMNS.map((column) => `coalesce(${column}, 0)::DOUBLE AS ${column}`).join(", ")}, agents::DOUBLE AS agents
        FROM lake.fuwa.daily
        WHERE day > current_date - CAST($1 AS INTEGER)
        ORDER BY day DESC, hosting`,

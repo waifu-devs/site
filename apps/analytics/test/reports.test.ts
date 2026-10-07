@@ -200,6 +200,7 @@ describe("insights", () => {
     expect(body!.reports.find((row) => row.source === "fuwa")!.reports).toBeGreaterThan(0);
     expect(body!.features.some((row) => row.feature === "message.send")).toBe(true);
     expect(body!.problems.errors.length).toBeGreaterThan(0);
+    expect(body!.versions.some((row) => row.source === "fuwa" && row.app === "server" && row.installs >= 1)).toBe(true);
   });
 
   it("needs the private network or the read token", async () => {

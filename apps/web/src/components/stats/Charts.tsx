@@ -241,7 +241,8 @@ export function BarChart({ labels, series, format, height = 200, weekly, label }
   );
 }
 
-export function Legend({ series }: { series: ReadonlyArray<Pick<Series, "key" | "label" | "color">> }) {
+/** Each series' color and name, and its latest value when given. */
+export function Legend({ series }: { series: ReadonlyArray<Pick<Series, "key" | "label" | "color"> & { value?: string }> }) {
   if (series.length < 2) return null;
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -249,6 +250,7 @@ export function Legend({ series }: { series: ReadonlyArray<Pick<Series, "key" | 
         <li key={s.key} className="flex items-center gap-1.5">
           <span className="h-0.5 w-3 rounded-full" style={{ background: s.color, height: 3 }} />
           {s.label}
+          {s.value !== undefined && <b className="text-foreground tabular-nums">{s.value}</b>}
         </li>
       ))}
     </ul>

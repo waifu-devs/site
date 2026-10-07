@@ -20,7 +20,10 @@ export const Day = Schema.Struct({
   day: Schema.String,
   hosting: Schema.String,
   installs: Count,
+  /** Agents included. */
   accounts: Count,
+  /** Accounts that are agents, from the installs that count them; null when none that day does. */
+  agents: Schema.NullOr(Count),
   accounts_active_1d: Count,
   accounts_active_30d: Count,
   servers: Count,
@@ -113,6 +116,8 @@ export const Insights = Schema.Struct({
   ),
   /** The most used features, per day. */
   features: Schema.Array(Schema.Struct({ day: Schema.String, source: Schema.String, app: Schema.String, feature: Schema.String, count: Count })),
+  /** Senders whose reports carried each app in the last 7 days, by the version it runs. */
+  versions: Schema.Array(Schema.Struct({ source: Schema.String, app: Schema.String, version: Schema.String, installs: Count })),
 });
 export type Insights = typeof Insights.Type;
 
