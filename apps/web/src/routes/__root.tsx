@@ -7,7 +7,7 @@ import { UserAvatar } from "@/components/Avatar";
 import { BugReportsFooter } from "@/components/BugReports";
 import { Sparkles } from "@/components/motion";
 import { Petals } from "@/components/Petals";
-import { LanguageFooter, useSwitchingLanguage } from "@/components/LanguagePicker";
+import { LanguageMenu, useSwitchingLanguage } from "@/components/LanguagePicker";
 import { Button } from "@/components/ui/button";
 import { loadCatalog } from "@/i18n/catalogs";
 import { I18nProvider, type Messages, T, useI18n } from "@/i18n/react";
@@ -147,6 +147,7 @@ function RootLayout() {
               </Link>
             </div>
             <div className="ml-auto flex items-center gap-3 text-sm">
+              <LanguageMenu language={language} />
               {user ? (
                 <Suspense fallback={<UserMenuTrigger name={user.displayName ?? user.username} username={user.username} avatar={user.avatarUrl} />}>
                   <UserMenu username={user.username} name={user.displayName ?? user.username} avatar={user.avatarUrl} />
@@ -182,7 +183,6 @@ function RootLayout() {
               </>
             )}
           </p>
-          <LanguageFooter language={language} />
           <BugReportsFooter />
         </footer>
       </div>
