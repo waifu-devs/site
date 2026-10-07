@@ -96,8 +96,9 @@ describe("ingest", () => {
     // Delivered twice, counted once.
     expect((await post(later)).status).toBe(202);
     expect((await post(later)).status).toBe(202);
-    // Our hosted instance.
-    expect((await post(signal(ulid(), new Date(now), 10, { hosting: "hosted" }))).status).toBe(202);
+    // Our hosted instance, on a build that counts its agents.
+    const hosted = signal(ulid(), new Date(now), 10, { hosting: "hosted" });
+    expect((await post({ ...hosted, totals: { ...hosted.totals, agents: 2 } })).status).toBe(202);
 
     const body = await waitForSummary((body) => body.days.length === 2);
     const today = new Date(now).toISOString().slice(0, 10);
@@ -106,6 +107,8 @@ describe("ingest", () => {
       hosting: "self_hosted",
       installs: 1,
       accounts: 12,
+      // A build from before agents.
+      agents: null,
       accounts_active_1d: 3,
       accounts_active_30d: 9,
       servers: 2,
@@ -119,7 +122,7 @@ describe("ingest", () => {
       messages_sent: 40,
       events: 0,
     });
-    expect(body.days.find((day) => day.hosting === "hosted")?.installs).toBe(1);
+    expect(body.days.find((day) => day.hosting === "hosted")).toMatchObject({ installs: 1, accounts: 12, agents: 2 });
     expect(body.versions).toEqual([
       { version: "0.1.0", hosting: "hosted", installs: 1 },
       { version: "0.1.0", hosting: "self_hosted", installs: 1 },

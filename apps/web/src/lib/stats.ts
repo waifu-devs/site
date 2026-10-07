@@ -18,7 +18,10 @@ export type UsageDay = {
   day: string;
   hosting: string;
   installs: number;
+  /** Agents included. */
   accounts: number;
+  /** Accounts that are agents, from the installs that count them; null when none that day does. */
+  agents: number | null;
   accounts_active_1d: number;
   accounts_active_30d: number;
   servers: number;
@@ -58,6 +61,8 @@ export type Insights = {
   errors: Array<{ day: string; source: string; app: string; count: number; kinds: number }>;
   timings: Array<{ day: string; source: string; app: string; metric: string; count: number; avg_ms: number; p50_ms: number; p95_ms: number }>;
   features: Array<{ day: string; source: string; app: string; feature: string; count: number }>;
+  /** Senders whose reports carried each app in the last 7 days, by the version it runs. */
+  versions: Array<{ source: string; app: string; version: string; installs: number }>;
 };
 
 /** The apps reports come from, in the order (and so the colors) the page always uses. */

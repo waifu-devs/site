@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { type ComponentProps, useMemo, useState, type ReactNode } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/radix/tabs";
 import { BarChart, Legend, LineChart, type Series, Sparkline } from "@/components/stats/Charts";
 import { Card } from "@/components/ui/card";
@@ -145,11 +145,13 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
     // Days by hosting kind, and summed across them.
     const byDay = new Map<string, Insights["usage"]["days"]>();
     for (const row of insights.usage.days) byDay.set(row.day, [...(byDay.get(row.day) ?? []), row]);
-    const total = (key: keyof Insights["usage"]["days"][number], hosting?: string) => (day: string) => {
-      const rows = (byDay.get(day) ?? []).filter((r) => !hosting || r.hosting === hosting);
-      return rows.length ? rows.reduce((sum, r) => sum + Number(r[key]), 0) : null;
+    const total = (key: Exclude<keyof Insights["usage"]["days"][number], "day" | "hosting">, hosting?: string) => (day: string) => {
+      const values = (byDay.get(day) ?? []).filter((r) => !hosting || r.hosting === hosting).flatMap((r) => (r[key] === null ? [] : [r[key]]));
+      return values.length ? values.reduce((sum, v) => sum + v, 0) : null;
     };
-    return { total, any: insights.usage.days.length > 0 };
+    // Builds from before agents don't count them apart.
+    const agents = insights.usage.days.some((r) => r.agents !== null);
+    return { total, agents, any: insights.usage.days.length > 0 };
   }, [insights]);
 
   const charts = useMemo(() => {
@@ -159,12 +161,27 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
       { key: "self", label: t("stats.series.selfHosted"), color: "var(--series-1)", values: fold(points, total("installs", "self_hosted"), "last") },
       { key: "hosted", label: t("stats.series.hosted"), color: "var(--series-2)", values: fold(points, total("installs", "hosted"), "last") },
     ];
-    const accounts: Series[] = [
-      { key: "all", label: t("stats.series.accounts"), color: "var(--series-1)", values: fold(points, total("accounts"), "last") },
-      { key: "month", label: t("stats.series.activeMonth"), color: "var(--series-2)", values: fold(points, total("accounts_active_30d"), "last") },
-      { key: "day", label: t("stats.series.activeDay"), color: "var(--series-3)", values: fold(points, total("accounts_active_1d"), "last") },
+    const allAccounts = fold(points, total("accounts"), "last");
+    const agents = fold(points, total("agents"), "last");
+    const accounts: Series[] = usage.agents
+      ? [
+          {
+            key: "users",
+            label: t("stats.series.users"),
+            color: "var(--series-3)",
+            values: allAccounts.map((n, i) => (n === null ? null : Math.max(0, n - (agents[i] ?? 0)))),
+          },
+          { key: "agents", label: t("stats.series.agents"), color: "var(--series-4)", values: agents },
+        ]
+      : [{ key: "all", label: t("stats.series.accounts"), color: "var(--series-3)", values: allAccounts }];
+    const active: Series[] = [
+      { key: "month", label: t("stats.series.activeMonth"), color: "var(--series-1)", values: fold(points, total("accounts_active_30d"), "last") },
+      { key: "day", label: t("stats.series.activeDay"), color: "var(--series-2)", values: fold(points, total("accounts_active_1d"), "last") },
     ];
-    const servers: Series[] = [{ key: "servers", label: t("stats.series.servers"), color: "var(--series-1)", values: fold(points, total("servers"), "last") }];
+    const servers: Series[] = [
+      { key: "self", label: t("stats.series.selfHosted"), color: "var(--series-1)", values: fold(points, total("servers", "self_hosted"), "last") },
+      { key: "hosted", label: t("stats.series.hosted"), color: "var(--series-2)", values: fold(points, total("servers", "hosted"), "last") },
+    ];
     const messages: Series[] = [{ key: "sent", label: t("stats.series.messagesSent"), color: "var(--series-1)", values: fold(points, total("messages_sent"), "sum") }];
     const storage: Series[] = [{ key: "storage", label: t("stats.series.storage"), color: "var(--series-1)", values: fold(points, total("storage_bytes"), "last") }];
 
@@ -203,13 +220,26 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
       })
       .sort((a, b) => b.total - a.total);
 
-    return { installs, accounts, servers, messages, storage, errors, slow, features };
+    return { installs, accounts, active, servers, messages, storage, errors, slow, features };
   }, [insights, points, usage, app, t]);
 
   const sum = (values: ReadonlyArray<number | null>) => values.reduce<number>((a, b) => a + (b ?? 0), 0);
   const last = (values: ReadonlyArray<number | null>) => [...values].reverse().find((v) => v !== null) ?? null;
   const first = (values: ReadonlyArray<number | null>) => values.find((v) => v !== null) ?? null;
-  const installsTotal = labels.map((_, i) => (charts.installs[0]!.values[i] ?? 0) + (charts.installs[1]!.values[i] ?? 0) || null);
+  /** Stacked series added up per point; null where none has a value. */
+  const stacked = (series: readonly Series[]) => labels.map((_, i) => (series.some((s) => s.values[i] != null) ? series.reduce((n, s) => n + (s.values[i] ?? 0), 0) : null));
+  /** The last point any of the series has a value at, so a total and its parts are from the same day. */
+  const latestAt = (series: readonly Series[]) => stacked(series).findLastIndex((v) => v !== null);
+  /** Each series' value at that point, for a legend. */
+  const latest = (series: readonly Series[]) => {
+    const at = latestAt(series);
+    return series.map((s) => ({ ...s, value: s.values[at] == null ? "–" : compact(s.values[at]!) }));
+  };
+  const latestTotal = (series: readonly Series[]) => {
+    const at = latestAt(series);
+    return at < 0 ? undefined : compact(stacked(series)[at]!);
+  };
+  const installsTotal = stacked(charts.installs);
   const change = (values: ReadonlyArray<number | null>) => {
     const a = first(values);
     const b = last(values);
@@ -226,8 +256,8 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
   return (
     <div className="flex flex-col gap-10">
       <section className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label={t("stats.tile.installs")} value={last(installsTotal)} note={change(installsTotal)} values={installsTotal} />
-        <Tile label={t("stats.tile.activeAccounts")} value={last(charts.accounts[1]!.values)} note={change(charts.accounts[1]!.values)} values={charts.accounts[1]!.values} />
+        <Tile label={t("stats.tile.installs")} value={last(installsTotal)} note={change(installsTotal)} values={installsTotal} parts={latest(charts.installs)} />
+        <Tile label={t("stats.tile.activeAccounts")} value={last(charts.active[0]!.values)} note={change(charts.active[0]!.values)} values={charts.active[0]!.values} />
         <Tile label={t("stats.tile.messages")} value={sum(charts.messages[0]!.values)} note={lastRange} values={charts.messages[0]!.values} />
         <Tile
           label={app === "all" ? t("stats.tile.problems") : t("stats.tile.problemsIn", { app: appLabel(app, t) })}
@@ -235,32 +265,44 @@ function Dashboard({ insights, today, days, grain, app }: { insights: Insights; 
           note={lastRange}
           values={errorDaily}
           color="var(--series-2)"
+          parts={app === "all" ? charts.errors.map((s) => ({ ...s, value: compact(sum(s.values)) })) : undefined}
         />
       </section>
 
       <Section title={t("stats.fuwa.title")} blurb={t("stats.fuwa.blurb")}>
         {usage.any ? (
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title={t("stats.fuwa.installs")} note={t("stats.fuwa.installsNote")} legend={charts.installs}>
+            <ChartCard title={t("stats.fuwa.installs")} value={latestTotal(charts.installs)} note={t("stats.fuwa.installsNote")} legend={latest(charts.installs)}>
               <BarChart labels={labels} series={charts.installs} format={compact} weekly={weekly} label={t("stats.fuwa.installsChart")} />
             </ChartCard>
-            <ChartCard title={t("stats.fuwa.accounts")} note={t("stats.fuwa.accountsNote")} legend={charts.accounts}>
-              <LineChart labels={labels} series={charts.accounts} format={compact} weekly={weekly} label={t("stats.fuwa.accountsChart")} />
+            <ChartCard title={t("stats.fuwa.servers")} value={latestTotal(charts.servers)} note={t("stats.fuwa.serversNote")} legend={latest(charts.servers)}>
+              <BarChart labels={labels} series={charts.servers} format={compact} weekly={weekly} label={t("stats.fuwa.serversChart")} />
+            </ChartCard>
+            <ChartCard
+              title={t("stats.fuwa.accounts")}
+              value={latestTotal(charts.accounts)}
+              note={usage.agents ? t("stats.fuwa.accountsNote") : t("stats.fuwa.accountsNoAgents")}
+              legend={latest(charts.accounts)}
+            >
+              <BarChart labels={labels} series={charts.accounts} format={compact} weekly={weekly} label={t("stats.fuwa.accountsChart")} />
+            </ChartCard>
+            <ChartCard title={t("stats.fuwa.active")} note={t("stats.fuwa.activeNote")} legend={latest(charts.active)}>
+              <LineChart labels={labels} series={charts.active} format={compact} weekly={weekly} label={t("stats.fuwa.activeChart")} />
             </ChartCard>
             <ChartCard title={weekly ? t("stats.fuwa.messagesWeek") : t("stats.fuwa.messagesDay")}>
               <BarChart labels={labels} series={charts.messages} format={compact} weekly={weekly} label={t("stats.fuwa.messagesChart")} />
             </ChartCard>
-            <ChartCard title={t("stats.fuwa.servers")} note={t("stats.fuwa.serversNote")}>
-              <LineChart labels={labels} series={charts.servers} format={compact} weekly={weekly} label={t("stats.fuwa.serversChart")} />
-            </ChartCard>
             <ChartCard title={t("stats.fuwa.storage")} note={t("stats.fuwa.storageNote")}>
               <LineChart labels={labels} series={charts.storage} format={bytes} weekly={weekly} label={t("stats.fuwa.storageChart")} />
             </ChartCard>
-            <Versions versions={insights.usage.versions} />
           </div>
         ) : (
           <Empty>{t("stats.fuwa.empty")}</Empty>
         )}
+      </Section>
+
+      <Section title={t("stats.versions.title")} blurb={t("stats.versions.blurb")}>
+        <Versions insights={insights} app={app} />
       </Section>
 
       <Section title={t("stats.health.title")} blurb={t("stats.health.blurb")}>
@@ -317,12 +359,28 @@ function Section({ title, blurb, children }: { title: string; blurb: string; chi
   );
 }
 
-function ChartCard({ title, note, legend, children }: { title: string; note?: string; legend?: readonly Series[]; children: ReactNode }) {
+function ChartCard({
+  title,
+  value,
+  note,
+  legend,
+  children,
+}: {
+  title: string;
+  /** The latest total, beside the title. */
+  value?: string;
+  note?: string;
+  legend?: ComponentProps<typeof Legend>["series"];
+  children: ReactNode;
+}) {
   return (
     <Card className="rise min-w-0 gap-3 px-4 py-5 sm:px-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div>
-          <h3 className="font-bold">{title}</h3>
+          <h3 className="font-bold">
+            {title}
+            {value !== undefined && <span className="ml-2 tabular-nums text-muted-foreground">{value}</span>}
+          </h3>
           {note && <p className="text-xs text-muted-foreground">{note}</p>}
         </div>
         {legend && <Legend series={legend} />}
@@ -332,47 +390,110 @@ function ChartCard({ title, note, legend, children }: { title: string; note?: st
   );
 }
 
-function Tile({ label, value, note, values, color }: { label: string; value: number | null; note: string | null; values: ReadonlyArray<number | null>; color?: string }) {
+function Tile({
+  label,
+  value,
+  note,
+  values,
+  color,
+  parts,
+}: {
+  label: string;
+  value: number | null;
+  note: string | null;
+  values: ReadonlyArray<number | null>;
+  color?: string;
+  /** What the value is made of, each with its color. */
+  parts?: ReadonlyArray<{ key: string; label: string; color: string; value: string }>;
+}) {
   const { t } = useI18n();
   const { compact } = useFormats();
   return (
     <Card className="card-pop min-w-0 gap-2 px-4 py-4">
       <p className="truncate text-xs font-bold text-muted-foreground">{label}</p>
       <p className="text-3xl font-extrabold tabular-nums">{value === null ? "–" : compact(value)}</p>
+      {parts && parts.length > 1 && (
+        <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+          {parts.map((p) => (
+            <li key={p.key} className="flex items-center gap-1">
+              <span className="size-2 rounded-full" style={{ background: p.color }} />
+              <b className="text-foreground tabular-nums">{p.value}</b> {p.label}
+            </li>
+          ))}
+        </ul>
+      )}
       <Sparkline values={values} color={color} />
       <p className="truncate text-xs text-muted-foreground">{note ?? t("stats.tile.nothingYet")}</p>
     </Card>
   );
 }
 
-function Versions({ versions }: { versions: Insights["usage"]["versions"] }) {
+/** The versions each app runs: fuwa servers from their usage signal, the other apps from the reports they're in. */
+function Versions({ insights, app }: { insights: Insights; app: string }) {
   const { t } = useI18n();
   const { compact } = useFormats();
-  const byVersion = new Map<string, number>();
-  for (const v of versions) byVersion.set(v.version, (byVersion.get(v.version) ?? 0) + v.installs);
-  const rows = [...byVersion].sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const max = Math.max(1, ...rows.map(([, n]) => n));
+  const groups = useMemo(() => {
+    const byApp = new Map<string, Map<string, { installs: number; hosted: number }>>();
+    const add = (key: string, version: string, installs: number, hosted: number) => {
+      const versions = byApp.get(key) ?? new Map();
+      const held = versions.get(version) ?? { installs: 0, hosted: 0 };
+      versions.set(version, { installs: held.installs + installs, hosted: held.hosted + hosted });
+      byApp.set(key, versions);
+    };
+    for (const v of insights.usage.versions) add("fuwa:server", v.version, v.installs, v.hosting === "hosted" ? v.installs : 0);
+    // A fuwa server's own reports only count when no signal says what it runs.
+    const signals = byApp.has("fuwa:server");
+    for (const v of insights.versions) if (!(signals && appKey(v) === "fuwa:server")) add(appKey(v), v.version, v.installs, 0);
+    const known: string[] = APPS.map((a) => a.key);
+    return [...byApp]
+      .filter(([key]) => app === "all" || key === app)
+      .sort(([a], [b]) => (known.indexOf(a) + 1 || known.length + 1) - (known.indexOf(b) + 1 || known.length + 1))
+      .map(([key, versions]) => ({ key, rows: [...versions].sort((a, b) => b[1].installs - a[1].installs).slice(0, 6) }));
+  }, [insights, app]);
+
   return (
-    <ChartCard title={t("stats.versions.title")} note={t("stats.versions.note")}>
-      {rows.length ? (
-        <ul className="flex flex-col gap-2">
-          {rows.map(([version, n], i) => (
-            <li key={version} className="grid grid-cols-[5rem_minmax(0,1fr)_3rem] items-center gap-3 text-sm">
-              <span className="truncate font-mono font-bold">{version}</span>
-              <span className="h-3 overflow-hidden rounded-r-[4px]">
-                <span
-                  className="viz-hbar block h-full rounded-r-[4px]"
-                  style={{ width: `${(n / max) * 100}%`, background: "var(--series-1)", ["--i" as string]: i * 8 }}
-                />
-              </span>
-              <span className="text-right tabular-nums">{compact(n)}</span>
-            </li>
-          ))}
-        </ul>
+    <Card className="rise min-w-0 gap-4 px-4 py-5 sm:px-5">
+      <p className="text-xs text-muted-foreground">{t("stats.versions.note")}</p>
+      {groups.length ? (
+        <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+          {groups.map(({ key, rows }) => {
+            const max = Math.max(1, ...rows.map(([, n]) => n.installs));
+            const color = APP_COLOR[key] ?? "var(--series-1)";
+            return (
+              <div key={key} className="flex min-w-0 flex-col gap-2">
+                <h3 className="flex items-center gap-2 text-sm font-bold">
+                  <span className="size-2.5 rounded-full" style={{ background: color }} />
+                  {appLabel(key, t)}
+                </h3>
+                <ul className="flex flex-col gap-2">
+                  {rows.map(([version, n], i) => (
+                    <li key={version} className="grid grid-cols-[minmax(5rem,auto)_minmax(0,1fr)_3rem] items-center gap-3 text-sm">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span className="font-mono font-bold">{version}</span>
+                        {n.hosted > 0 && (
+                          <span className="rounded-full border px-1.5 text-[10px] font-bold text-muted-foreground" title={t("stats.versions.hostedTitle")}>
+                            {t("stats.series.hosted")}
+                          </span>
+                        )}
+                      </span>
+                      <span className="h-3 overflow-hidden rounded-r-[4px]">
+                        <span
+                          className="viz-hbar block h-full rounded-r-[4px]"
+                          style={{ width: `${(n.installs / max) * 100}%`, background: color, ["--i" as string]: i * 8 }}
+                        />
+                      </span>
+                      <span className="text-right tabular-nums">{compact(n.installs)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <Empty>{t("stats.versions.empty")}</Empty>
       )}
-    </ChartCard>
+    </Card>
   );
 }
 

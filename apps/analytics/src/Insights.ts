@@ -63,6 +63,15 @@ export const insights = (days: number) =>
       params,
     );
 
+    const recent = `sent_at > now() - INTERVAL 7 DAYS`;
+    const versions = yield* lake.query(
+      `SELECT source, app, version, count(DISTINCT coalesce(install_id, source || ':' || part))::DOUBLE AS installs
+       FROM (
+         ${["errors", "timings", "usage"].map((table) => `SELECT source, app, version, install_id, part FROM lake.reports.${table}_unique WHERE ${recent}`).join(" UNION ALL ")}
+       )
+       GROUP BY ALL ORDER BY installs DESC, version DESC`,
+    );
+
     // Each timed thing's day: its bucket counts summed, then its percentiles.
     const keyOf = (row: Record<string, unknown>) => `${row.day}\n${row.source}\n${row.app}\n${row.metric}\n${row.bounds}`;
     const summed = new Map<string, number[]>();
@@ -91,5 +100,5 @@ export const insights = (days: number) =>
 
     const usage = yield* summary(days);
     const problems = yield* reportSummary(days, undefined);
-    return yield* Schema.decodeUnknown(Insights)({ days, usage, problems, reports, errors, timings, features });
+    return yield* Schema.decodeUnknown(Insights)({ days, usage, problems, reports, errors, timings, features, versions });
   });

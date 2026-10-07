@@ -49,7 +49,10 @@ export const Signal = Schema.Struct({
     limits_configured: Schema.Boolean,
   }),
   totals: Schema.Struct({
+    /** Every account, agents included. */
     accounts: Count,
+    /** Accounts that are agents (bots and apps). Builds from before agents leave it out. */
+    agents: Schema.optional(Count),
     accounts_active_1d: Count,
     accounts_active_30d: Count,
     servers: Count,
