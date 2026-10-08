@@ -1,6 +1,5 @@
 {
   "title": "Stats",
-  "adminsOnly": "Only admins can see this",
   "intro": "How fuwa and waifu.dev are doing over time, from the anonymous usage signals and bug reports our apps send. Every number is a total across installs; nothing here is about a person. Days are UTC.",
   "range.year": "1 year",
   "range.days": {

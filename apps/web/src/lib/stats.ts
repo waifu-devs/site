@@ -5,11 +5,6 @@ import type { I18n, Key } from "@/i18n/i18n";
  * GET /v1/insights). Every number is a sum over many installs or reports.
  */
 
-/** Who may open /stats while it's private: GitHub account ids, which never change hands (Juan's). */
-export const STATS_ADMINS: readonly number[] = [21351290];
-/** Flip to true to let everyone see /stats. */
-export const STATS_PUBLIC = false;
-
 /** Ranges the page offers, in days. */
 export const RANGES = [30, 90, 365] as const;
 export type Range = (typeof RANGES)[number];
