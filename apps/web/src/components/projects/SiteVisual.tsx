@@ -68,7 +68,7 @@ export function SiteVisual() {
                 <span className="status-dot" /> {t("projects.site.mockStatus")}
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {["♡ Rem", "TypeScript", "Effect"].map((chip, n) => (
+                {["♡ open source", "TypeScript", "Effect"].map((chip, n) => (
                   <span
                     key={chip}
                     className={cn(

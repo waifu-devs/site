@@ -13,8 +13,10 @@ import { BubbleBackground } from "@/components/animate-ui/components/backgrounds
 import { Magnetic } from "@/components/animate-ui/primitives/effects/magnetic";
 import { RotatingText, RotatingTextContainer } from "@/components/animate-ui/primitives/texts/rotating";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
+import { GitHubMark } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { type Key, T, useI18n } from "@/i18n/react";
+import { PROJECTS } from "@/lib/projects";
 import { useViewer } from "@/lib/viewer";
 
 const LINES: Key[] = ["landing.hero.line1", "landing.hero.line2"];
@@ -75,7 +77,7 @@ export function Hero({ memberCount }: { memberCount: number }) {
             </Magnetic>
             <Magnetic strength={0.35}>
               <Button asChild size="lg" variant="outline" className="btn h-12 rounded-full bg-card/80 px-7 text-base font-bold backdrop-blur">
-                <Link to="/themes/new">{t("landing.hero.paintTheme")}</Link>
+                <Link to="/projects">{t("landing.hero.seeProjects")}</Link>
               </Button>
             </Magnetic>
           </motion.div>
@@ -141,7 +143,7 @@ function KineticHeadline() {
 }
 
 /**
- * The hero's right side: a code window, a profile card and a theme chip at different depths.
+ * The hero's right side: a code window, a repo card and a theme chip at different depths.
  * They drift with the pointer like layers of a parallax shot.
  */
 function Stage() {
@@ -179,7 +181,7 @@ function Stage() {
         <CodeWindow />
       </Layer>
       <Layer x={x} y={y} depth={46} className="absolute bottom-[2%] left-0 w-[72%] sm:w-[58%]">
-        <ProfileCard />
+        <RepoCard />
       </Layer>
       <Layer x={x} y={y} depth={70} className="absolute right-0 top-[50%]">
         <ThemeChip />
@@ -223,10 +225,10 @@ const CODE: Token[][] = [
   [["import", "kw"], [" { "], ["join", "fn"], [" } "], ["from", "kw"], [" "], ['"waifu-devs"', "str"]],
   [],
   [["const", "kw"], [" me = "], ["await", "kw"], [" "], ["join", "fn"], ["({ with: "], ['"github"', "str"], [" })"]],
-  [["me.bestGirl = "], ['"Rem"', "str"], ["  "], ["// non-negotiable", "cm"]],
-  [["me.theme = "], ["paint", "fn"], ["("], ['"yours"', "str"], [")"], ["  "], ["// everywhere", "cm"]],
+  [["me."], ["fork", "fn"], ["("], ['"fuwa"', "str"], [")"], ["  "], ["// or bring yours", "cm"]],
+  [["me."], ["review", "fn"], ["(pr)"], ["  "], ["// kindly", "cm"]],
   [],
-  [["ship", "fn"], ["(me)"], ["  "], ["// ♡", "cm"]],
+  [["ship", "fn"], ["(me)"], ["  "], ["// in the open ♡", "cm"]],
 ];
 const lineLength = (line: Token[]) => line.reduce((sum, [text]) => sum + text.length, 0);
 // Every line plus the newline after it, except the last.
@@ -283,21 +285,19 @@ function CodeWindow() {
   );
 }
 
-function ProfileCard() {
+/** fuwa's repo card, the way GitHub would show it. */
+function RepoCard() {
   const { t } = useI18n();
+  const fuwa = PROJECTS[0];
   return (
     <div className="float rounded-2xl border bg-card p-4 shadow-2xl shadow-primary/25" style={{ animationDuration: "6s" }}>
-      <div className="flex items-center gap-3">
-        <span className="avatar-ring grid size-14 shrink-0 place-items-center rounded-full p-[3px]">
-          <span className="grid size-full place-items-center rounded-full bg-primary text-2xl text-primary-foreground">✿</span>
-        </span>
-        <div className="min-w-0">
-          <p className="truncate font-extrabold">{t("landing.mock.name")}</p>
-          <p className="truncate text-xs text-muted-foreground">{t("landing.mock.joined")}</p>
-        </div>
-      </div>
+      <p className="flex items-center gap-2 truncate text-xs font-bold text-muted-foreground">
+        <GitHubMark className="size-3.5 shrink-0" /> {fuwa.repo}
+      </p>
+      <p className="mt-1.5 text-lg font-extrabold">{fuwa.name}</p>
+      <p className="line-clamp-2 text-xs text-muted-foreground">{t(fuwa.tagline)}</p>
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {["♡ Rem", "she/her", "TypeScript"].map((b, i) => (
+        {fuwa.stack.slice(0, 3).map((b, i) => (
           <motion.span
             key={b}
             initial={{ opacity: 0, scale: 0.4, y: 8 }}
