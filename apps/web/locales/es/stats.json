@@ -1,6 +1,5 @@
 {
   "title": "Estadísticas",
-  "adminsOnly": "Solo los admins pueden ver esto",
   "intro": "Cómo les va a fuwa y a waifu.dev con el tiempo, según las señales de uso anónimas y los informes de errores que envían nuestras apps. Cada número es un total de todas las instalaciones; nada de esto es sobre una persona. Los días están en UTC.",
   "range.year": "1 año",
   "range.days": {

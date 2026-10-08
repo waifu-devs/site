@@ -13,7 +13,6 @@ import { loadCatalog } from "@/i18n/catalogs";
 import { I18nProvider, type Messages, T, useI18n } from "@/i18n/react";
 import { headT, title } from "@/lib/head";
 import { pageChange, startReports } from "@/lib/reports";
-import { STATS_ADMINS, STATS_PUBLIC } from "@/lib/stats";
 import { getViewer } from "@/server/functions";
 import appCss from "@/styles/app.css?url";
 import fontsCss from "@/styles/fonts.css?url";
@@ -173,15 +172,11 @@ function RootLayout() {
             <a className="underline hover:text-primary" href="https://status.waifu.dev">
               {t("common.footer.status")}
             </a>
-            {(STATS_PUBLIC || (user?.githubId != null && STATS_ADMINS.includes(user.githubId))) && (
-              <>
-                {" "}
-                ·{" "}
-                <Link to="/stats" className="underline hover:text-primary">
-                  {t("common.footer.stats")}
-                </Link>
-              </>
-            )}
+            {" "}
+            ·{" "}
+            <Link to="/stats" className="underline hover:text-primary">
+              {t("common.footer.stats")}
+            </Link>
           </p>
           <BugReportsFooter />
         </footer>

@@ -1,12 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Lock } from "lucide-react";
 import { type ComponentProps, useMemo, useState, type ReactNode } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/radix/tabs";
 import { BarChart, Legend, LineChart, type Series, Sparkline } from "@/components/stats/Charts";
 import { Card } from "@/components/ui/card";
 import { T, useI18n } from "@/i18n/react";
 import { headT, title } from "@/lib/head";
-import { APPS, appKey, appLabel, type Insights, RANGES, type Range, STATS_PUBLIC } from "@/lib/stats";
+import { APPS, appKey, appLabel, type Insights, RANGES, type Range } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 import { addDays, useDarkTheme, useFormats } from "@/lib/viz";
 import { getStats } from "@/server/insights";
@@ -18,7 +17,7 @@ export const Route = createFileRoute("/stats")({
   },
   loaderDeps: ({ search }) => ({ days: search.days ?? 90 }),
   loader: ({ deps }) => getStats({ data: deps.days }),
-  head: ({ matches }) => ({ meta: [title(headT(matches)("stats.title")), { name: "robots", content: "noindex" }] }),
+  head: ({ matches }) => ({ meta: [title(headT(matches)("stats.title"))] }),
   component: StatsPage,
 });
 
@@ -70,14 +69,7 @@ function StatsPage() {
   return (
     <main className={cn("viz mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12", dark && "viz-dark")}>
       <header className="rise flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-extrabold sm:text-4xl">{t("stats.title")}</h1>
-          {!STATS_PUBLIC && (
-            <span className="flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
-              <Lock className="size-3" /> {t("stats.adminsOnly")}
-            </span>
-          )}
-        </div>
+        <h1 className="text-3xl font-extrabold sm:text-4xl">{t("stats.title")}</h1>
         <p className="max-w-2xl text-muted-foreground">
           {t("stats.intro")}
         </p>

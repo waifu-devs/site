@@ -3,25 +3,15 @@
  * Railway's private network (ANALYTICS_INTERNAL_URL), so no token or address
  * ever reaches a browser and the browser never talks to analytics.
  */
-import { notFound, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Option } from "effect";
-import { type Insights, RANGES, type Range, STATS_ADMINS, STATS_PUBLIC } from "@/lib/stats";
+import { type Insights, RANGES, type Range } from "@/lib/stats";
 import { serverError, serverTiming } from "./reports.ts";
 import { run } from "./runtime.ts";
-import { Session } from "./Session.ts";
-
-/** Who may see the stats: everyone once STATS_PUBLIC is on, until then only STATS_ADMINS. */
-const mayRead = Effect.gen(function* () {
-  if (STATS_PUBLIC) return true;
-  const user = yield* (yield* Session).currentUser;
-  if (Option.isNone(user)) return yield* Effect.die(redirect({ to: "/login", search: { next: "/stats" } }));
-  return user.value.githubId !== null && STATS_ADMINS.includes(user.value.githubId);
-});
 
 /** How long a range's history is reused. The year's queries are the heaviest, and the data changes daily. */
 const FRESH_MS = 5 * 60_000;
-/** The latest history per range, shared by everyone who may see it; one fetch at a time per range. */
+/** The latest history per range, shared by every visitor; one fetch at a time per range. */
 const cache = new Map<Range, { at: number; insights: Promise<Insights> }>();
 
 function history(base: string, days: Range): Promise<Insights> {
@@ -44,8 +34,6 @@ export const getStats = createServerFn({ method: "GET" })
   .handler(({ data: days }) =>
     run(
       Effect.gen(function* () {
-        // Anyone else sees the same page as for an address that doesn't exist.
-        if (!(yield* mayRead)) return yield* Effect.die(notFound());
         const base = process.env.ANALYTICS_INTERNAL_URL;
         const today = new Date().toISOString().slice(0, 10);
         if (!base) return { days, today, insights: null };
