@@ -12,7 +12,7 @@ import {
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
-const WORDS = ["TypeScript", "Rem", "Rust", "Asuna", "Go", "Zero Two", "Effect", "Kurisu", "Zig", "Megumin", "Haskell", "Marin"];
+const WORDS = ["TypeScript", "Rust", "fuwa", "Go", "Effect", "React", "Zig", "Postgres", "Haskell", "WebRTC", "GPUI", "Frieren"];
 
 /** Two tilted tapes of words running opposite ways. They drift on their own, speed up with scroll speed and flip with scroll direction. */
 export function Marquee() {

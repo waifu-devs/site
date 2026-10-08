@@ -1,6 +1,6 @@
-# Waifu Devs community site (✿◕‿◕✿)
+# Waifu Devs community site
 
-The community site for Waifu Devs: GitHub sign-in, member profiles, custom themes that restyle the whole site, and a Hacker News style news board.
+Waifu Devs is an open community of developers making cool, sometimes even useful, open-source projects (plenty of us also like anime). This is its site: GitHub sign-in, member profiles, custom themes that restyle the whole site, and a Hacker News style news board.
 
 It's a pnpm monorepo with a separate API and web app, both written with [Effect](https://effect.website), hosted on [Railway](https://railway.com) and described as code in [`.railway/railway.ts`](.railway/railway.ts).
 

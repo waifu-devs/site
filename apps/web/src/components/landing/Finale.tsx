@@ -42,7 +42,7 @@ export function Finale({ memberCount }: { memberCount: number }) {
         </p>
         <Magnetic strength={0.4}>
           <Button asChild size="lg" className="btn h-14 rounded-full px-9 text-lg font-bold">
-            {user ? <Link to="/settings">{t("landing.finale.makeItYours")}</Link> : <Link to="/login">{t("landing.finale.join")}</Link>}
+            {user ? <Link to="/projects">{t("landing.finale.findProject")}</Link> : <Link to="/login">{t("landing.finale.join")}</Link>}
           </Button>
         </Magnetic>
       </motion.div>

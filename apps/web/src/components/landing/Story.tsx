@@ -1,13 +1,15 @@
 import { deriveTokens, themeStyle, type ThemeSeeds } from "@waifu-devs/domain/themes";
 import { AnimatePresence, m as motion, useInView, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { GitHubMark, StatusDot } from "@/components/projects/ProjectCard";
 import { useI18n } from "@/i18n/react";
+import { PROJECTS } from "@/lib/projects";
 import { cn } from "@/lib/utils";
 
 const CHAPTERS = [
-  { kicker: "landing.story.profile.kicker", title: "landing.story.profile.title", body: "landing.story.profile.body" },
-  { kicker: "landing.story.colors.kicker", title: "landing.story.colors.title", body: "landing.story.colors.body" },
+  { kicker: "landing.story.projects.kicker", title: "landing.story.projects.title", body: "landing.story.projects.body" },
   { kicker: "landing.story.people.kicker", title: "landing.story.people.title", body: "landing.story.people.body" },
+  { kicker: "landing.story.yours.kicker", title: "landing.story.yours.title", body: "landing.story.yours.body" },
 ] as const;
 
 /**
@@ -94,7 +96,7 @@ function Visual({ step }: { step: number }) {
   return (
     <div className="relative aspect-[4/3.2] w-full">
       <div aria-hidden className="absolute inset-[10%] rounded-full bg-primary/25 blur-3xl" />
-      {step === 0 ? <ProfileScene /> : step === 1 ? <PaintScene /> : <PeopleScene />}
+      {step === 0 ? <ProjectsScene /> : step === 1 ? <PeopleScene /> : <PaintScene />}
     </div>
   );
 }
@@ -106,50 +108,46 @@ const pop = (delay: number) => ({
   transition: { type: "spring" as const, stiffness: 380, damping: 20, delay },
 });
 
-/** A profile assembling itself piece by piece. */
-function ProfileScene() {
+const SHOWN = PROJECTS.slice(0, 3);
+/** Where card `i` of `n` sits in the fan, centered on the scene. */
+const fan = (i: number, n: number) => {
+  const d = i - (n - 1) / 2;
+  return { x: d * 48, y: d * 180, rotate: d * -4 };
+};
+
+/** The community's projects, fanned out like cards on a table. */
+function ProjectsScene() {
   const { t } = useI18n();
   return (
     <div aria-hidden className="absolute inset-0 grid place-items-center">
-      <div className="w-[82%] rounded-3xl border bg-card p-6 shadow-2xl shadow-primary/20">
-        <div className="-mx-6 -mt-6 mb-4 h-20 rounded-t-3xl bg-[linear-gradient(120deg,var(--primary),color-mix(in_srgb,var(--primary)_40%,#a78bfa))]" />
-        <div className="-mt-14 flex items-end gap-4">
-          <motion.span {...pop(0.1)} className="avatar-ring grid size-20 shrink-0 place-items-center rounded-full p-1">
-            <span className="grid size-full place-items-center rounded-full border-4 border-card bg-primary text-3xl text-primary-foreground">✿</span>
-          </motion.span>
-          <motion.div {...pop(0.25)} className="pb-1">
-            <p className="text-xl font-extrabold">{t("landing.mock.name")}</p>
-            <p className="text-sm text-muted-foreground">{t("landing.mock.pronouns")}</p>
-          </motion.div>
-        </div>
-        <div className="mt-5 flex flex-col gap-2">
-          {["92%", "74%", "83%"].map((w, i) => (
-            <motion.div
-              key={w}
-              initial={{ scaleX: 0 }}
-              whileInView={{ scaleX: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.4 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-              style={{ width: w }}
-              className="h-2.5 origin-left rounded-full bg-muted"
-            />
-          ))}
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {[t("landing.mock.bestGirl"), "github.com/you", "TypeScript"].map((b, i) => (
-            <motion.span
-              key={b}
-              {...pop(0.7 + i * 0.1)}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-bold",
-                i === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground",
-              )}
-            >
-              {b}
-            </motion.span>
-          ))}
-        </div>
-      </div>
+      {SHOWN.map((p, i, all) => (
+        <motion.div
+          key={p.slug}
+          initial={{ opacity: 0, y: 40, rotate: 0 }}
+          whileInView={{ opacity: 1, ...fan(i, all.length) }}
+          viewport={{ once: true }}
+          transition={{ type: "spring", stiffness: 160, damping: 20, delay: 0.1 + i * 0.15 }}
+          className="absolute w-[74%] overflow-hidden rounded-3xl border bg-card p-5 shadow-2xl shadow-primary/20"
+          style={{ zIndex: i }}
+        >
+          <span className="text-outline pointer-events-none absolute -right-2 -top-4 text-7xl font-extrabold opacity-40">{p.glyph}</span>
+          <p className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+            <GitHubMark className="size-3.5" /> {p.repo}
+            <span className="ml-1 flex items-center">
+              <StatusDot status={p.status} />
+            </span>
+          </p>
+          <p className="mt-2 text-2xl font-extrabold">{p.name}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{t(p.tagline)}</p>
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {p.stack.slice(0, 4).map((item) => (
+              <span key={item} className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold text-secondary-foreground">
+                {item}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+      ))}
     </div>
   );
 }
