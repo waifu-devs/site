@@ -106,7 +106,7 @@ export class Themes extends Effect.Service<Themes>()("Themes", {
             return Option.isSome(variant) ? Effect.asVoid(db.update(themes).set(classify(variant.value)).where(eq(themes.id, row.id))) : Effect.void;
           }),
         ),
-        Effect.catchAllCause((cause) => Effect.logWarning("Couldn't classify themes for the marketplace's filters", cause)),
+        Effect.catchAllCause(() => Effect.logWarning("Couldn't classify themes for the marketplace's filters")),
         Effect.forkDaemon,
       );
 

@@ -93,7 +93,7 @@ export class Repos extends Effect.Service<Repos>()("Repos", {
           ),
         { concurrency: 3, discard: true },
       ).pipe(
-        Effect.catchAll((error) => Effect.logWarning("Couldn't refresh featured repos", error)),
+        Effect.catchAll(() => Effect.logWarning("Couldn't refresh featured repos")),
         Effect.ensuring(Effect.sync(() => refreshing.delete(userId))),
         Effect.withSpan("Repos.refresh"),
       );

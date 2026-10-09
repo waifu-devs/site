@@ -5,6 +5,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Option } from "effect";
+import { publicInsights } from "@/lib/public-stats";
 import { type Insights, RANGES, type Range } from "@/lib/stats";
 import { serverError, serverTiming } from "./reports.ts";
 import { run } from "./runtime.ts";
@@ -28,7 +29,7 @@ function history(base: string, days: Range): Promise<Insights> {
   return insights;
 }
 
-/** The stats page's history over `days`; null data when analytics can't be reached. */
+/** The stats page's history over `days`, without any self-hoster's own numbers; null data when analytics can't be reached. */
 export const getStats = createServerFn({ method: "GET" })
   .validator((days: unknown): Range => (RANGES.includes(days as Range) ? (days as Range) : 90))
   .handler(({ data: days }) =>
@@ -43,7 +44,7 @@ export const getStats = createServerFn({ method: "GET" })
           Effect.option,
         );
         serverTiming("load:/stats", performance.now() - started);
-        return { days, today, insights: Option.getOrNull(insights) };
+        return { days, today, insights: Option.getOrNull(Option.map(insights, publicInsights)) };
       }),
     ),
   );
