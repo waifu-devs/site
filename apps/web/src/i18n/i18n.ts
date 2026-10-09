@@ -16,20 +16,30 @@ export type I18n = {
   date: (value: Date | number, options?: Intl.DateTimeFormatOptions) => string;
 };
 
-const formats = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>();
-function cached<F extends Intl.NumberFormat | Intl.DateTimeFormat>(kind: string, locale: string, options: object | undefined, make: () => F): F {
-  const id = `${kind}|${locale}|${JSON.stringify(options ?? {})}`;
-  let format = formats.get(id) as F | undefined;
-  if (!format) formats.set(id, (format = make()));
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const idOf = (locale: string, options: object | undefined) => `${locale}|${JSON.stringify(options ?? {})}`;
+function remember<F>(formats: Map<string, F>, id: string, format: F): F {
+  formats.set(id, format);
   return format;
+}
+
+/** `locale`'s number format with `options`, built once and reused. */
+export function numberFormat(locale: string, options?: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const id = idOf(locale, options);
+  return numberFormats.get(id) ?? remember(numberFormats, id, new Intl.NumberFormat(locale, options));
+}
+
+/** `locale`'s date format with `options`, built once and reused. */
+export function dateFormat(locale: string, options?: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const id = idOf(locale, options);
+  return dateFormats.get(id) ?? remember(dateFormats, id, new Intl.DateTimeFormat(locale, options));
 }
 
 /** Strings, numbers and dates in one language, falling back to English per key. */
 export function makeI18n(locale: string, dir: "ltr" | "rtl", catalog: Catalog): I18n {
-  const number = (value: number, options?: Intl.NumberFormatOptions) =>
-    cached("n", locale, options, () => new Intl.NumberFormat(locale, options)).format(value);
-  const date = (value: Date | number, options?: Intl.DateTimeFormatOptions) =>
-    cached("d", locale, options, () => new Intl.DateTimeFormat(locale, options)).format(value);
+  const number = (value: number, options?: Intl.NumberFormatOptions) => numberFormat(locale, options).format(value);
+  const date = (value: Date | number, options?: Intl.DateTimeFormatOptions) => dateFormat(locale, options).format(value);
   const strings = (values: Record<string, Value> = {}) =>
     Object.fromEntries(Object.entries(values).map(([name, v]) => [name, typeof v === "number" ? number(v) : v]));
   return {

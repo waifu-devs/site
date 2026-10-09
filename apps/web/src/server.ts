@@ -8,7 +8,9 @@ import { isProbe, PROBE_RESPONSE } from "@waifu-devs/domain/probes";
 import { contentSecurityPolicy, MAX_BODY_BYTES, SECURITY_HEADERS } from "./security.ts";
 
 // Pictures are served by the API (see components/Avatar.tsx).
-const apiOrigin = new URL(process.env.API_URL ?? "http://localhost:4000").origin;
+const apiUrl = process.env.API_URL ?? "http://localhost:4000";
+if (!URL.canParse(apiUrl)) throw new Error("API_URL isn't a URL.");
+const apiOrigin = new URL(apiUrl).origin;
 
 // Vite's dev server injects its own inline scripts, which carry no nonce.
 const csp = (nonce?: string) => (import.meta.env.DEV ? undefined : contentSecurityPolicy({ nonce, apiOrigin }));

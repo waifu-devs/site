@@ -1,5 +1,6 @@
 /** Small helpers for the stats page. */
 import { useMemo } from "react";
+import { dateFormat, numberFormat } from "@/i18n/i18n";
 import { useI18n } from "@/i18n/react";
 import { useViewer } from "./viewer";
 
@@ -10,18 +11,10 @@ export function useDarkTheme(): boolean {
   return 0.2126 * r! + 0.7152 * g! + 0.0722 * b! < 0.4;
 }
 
-const formats = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>();
-function cached<F extends Intl.NumberFormat | Intl.DateTimeFormat>(id: string, make: () => F): F {
-  let format = formats.get(id) as F | undefined;
-  if (!format) formats.set(id, (format = make()));
-  return format;
-}
-
 /** "Oct 3" from "2026-10-03", in `locale`. Read as UTC, so server and browser agree. */
 export function shortDay(day: string, locale: string): string {
   const [y, m, d] = day.split("-").map(Number);
-  const format = cached(`day|${locale}`, () => new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", timeZone: "UTC" }));
-  return format.format(Date.UTC(y!, m! - 1, d!));
+  return dateFormat(locale, { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.UTC(y!, m! - 1, d!));
 }
 
 /** The UTC day `n` days before `day`. */
@@ -34,13 +27,13 @@ export function addDays(day: string, n: number): string {
 /** A number with at most one decimal under 100 and none above, in `locale`'s digits. */
 function trim(n: number, locale: string): string {
   const digits = Math.abs(n) >= 100 ? 0 : 1;
-  return cached(`trim|${locale}|${digits}`, () => new Intl.NumberFormat(locale, { maximumFractionDigits: digits })).format(n);
+  return numberFormat(locale, { maximumFractionDigits: digits }).format(n);
 }
 
 /** 1234 -> "1,234", 12345 -> "12.3K", 1500000 -> "1.5M" (in English). */
 export function compact(n: number, locale: string): string {
-  if (Math.abs(n) < 1e4) return cached(`int|${locale}`, () => new Intl.NumberFormat(locale)).format(Math.round(n));
-  return cached(`compact|${locale}`, () => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 })).format(n);
+  if (Math.abs(n) < 1e4) return numberFormat(locale).format(Math.round(n));
+  return numberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(n);
 }
 
 /** Bytes as "12 MB". */
