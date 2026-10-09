@@ -127,6 +127,8 @@ function SubmitPage() {
                 await submit({ data: new FormData(event.currentTarget) });
               } catch {
                 setError(t("news.submit.failed"));
+              } finally {
+                // After a success this runs once the new post has opened.
                 setPending(false);
               }
             }}

@@ -29,12 +29,21 @@ export function useImageUpload(kind: ImageKind, saved: { url: string | null; cus
   const { t } = useI18n();
   const upload = useServerFn(uploadImage);
   const remove = useServerFn(removeImage);
-  const [local, setLocal] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ message: string; at: number } | null>(null);
 
-  // Local previews are object URLs; let the browser free the old ones.
-  useEffect(() => () => void (local && URL.revokeObjectURL(local)), [local]);
+  // The picked file shows from an object URL, freed once it's replaced or gone.
+  const [picked, setPicked] = useState<File | null>(null);
+  const [local, setLocal] = useState<string | null>(null);
+  useEffect(() => {
+    if (!picked) {
+      setLocal(null);
+      return;
+    }
+    const url = URL.createObjectURL(picked);
+    setLocal(url);
+    return () => URL.revokeObjectURL(url);
+  }, [picked]);
 
   const fail = (message: string) => setError({ message, at: Date.now() });
   const form = (file?: File) => {
@@ -57,18 +66,18 @@ export function useImageUpload(kind: ImageKind, saved: { url: string | null; cus
       const problem = problemWith(file, t);
       if (problem) return fail(problem);
       setError(null);
-      setLocal(URL.createObjectURL(file));
+      setPicked(file);
       setPending(true);
       try {
         const result = await upload({ data: form(file) });
         if (result.error) {
-          setLocal(null);
+          setPicked(null);
           fail(result.error);
         } else {
           await router.invalidate();
         }
       } catch {
-        setLocal(null);
+        setPicked(null);
         fail(t("profile.upload.failed"));
       } finally {
         setPending(false);
@@ -80,7 +89,7 @@ export function useImageUpload(kind: ImageKind, saved: { url: string | null; cus
       try {
         await remove({ data: form() });
         await router.invalidate();
-        setLocal(null);
+        setPicked(null);
       } catch {
         fail(t("profile.upload.removeFailed"));
       } finally {
