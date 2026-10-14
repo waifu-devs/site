@@ -1,0 +1,35 @@
+{
+  "hero.memberCount": {
+    "other": "{number}人の開発者が参加中、まだまだ増加中"
+  },
+  "hero.line1": "オープンに作る",
+  "hero.line2": "開発者たち",
+  "hero.phrase1": "みんなでリリース。",
+  "hero.phrase2": "深夜3時にデバッグ。",
+  "hero.phrase3": "お互いの PR をレビュー。",
+  "hero.phrase4": "Rust で書き直し。",
+  "hero.phrase5": "ビルドの合間にアニメ鑑賞。",
+  "hero.lede": "クールで、ときには役にも立つオープンソースプロジェクトを作る開発者のためのオープンなコミュニティです。すべては GitHub 上にあり、誰でも歓迎。そして、そう、アニメ好きもたくさんいます。",
+  "hero.viewProfile": "マイプロフィールを見る",
+  "hero.join": "GitHub で参加 ♡",
+  "hero.seeProjects": "プロジェクトを見る",
+  "hero.scroll": "スクロール",
+  "mock.name": "あなた",
+  "mock.pronouns": "u/you · they/them",
+  "mock.theme": "テーマ：あなた好み",
+  "story.projects.kicker": "01 · 作っているもの",
+  "story.projects.title": "オープンに作る、オープンソースプロジェクト。",
+  "story.projects.body": "セルフホストできるチャットアプリ fuwa、このサイト自体、そして誰かが次に始めるもの。スターを付けたり、壊してみたり、プルリクエストを送ったりしてください。",
+  "story.people.kicker": "02 · 仲間",
+  "story.people.title": "一緒に作る仲間を見つけよう。",
+  "story.people.body": "サイドプロジェクトをリリースし、お互いのコードをレビューし、深夜3時にデバッグする開発者たち。Issue を手に取るのも、自分のプロジェクトを持ち込むのも大歓迎です。",
+  "story.yours.kicker": "03 · あなたの居場所",
+  "story.yours.title": "自分の家みたいにくつろごう。",
+  "story.yours.body": "注目のリポジトリを並べるプロフィール。お好みなら、サイト全体の見た目を変えるテーマも。",
+  "finale.title": "あなたの席、あたためてあります。",
+  "finale.memberCount": {
+    "other": "すでに{number}人の開発者が参加しています。"
+  },
+  "finale.findProject": "プロジェクトを探す ✦",
+  "finale.join": "GitHub で参加 ♡"
+}

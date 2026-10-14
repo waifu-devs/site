@@ -1,0 +1,37 @@
+{
+  "hero.memberCount": {
+    "one": "{number} dev e contando",
+    "other": "{number} devs e contando"
+  },
+  "hero.line1": "Devs que",
+  "hero.line2": "criam em público",
+  "hero.phrase1": "lançam juntos.",
+  "hero.phrase2": "debugam às 3 da manhã.",
+  "hero.phrase3": "revisam os PRs uns dos outros.",
+  "hero.phrase4": "reescrevem em Rust.",
+  "hero.phrase5": "assistem anime entre um build e outro.",
+  "hero.lede": "Uma comunidade aberta para devs criando projetos open source legais e, às vezes, até úteis. Tudo fica no GitHub, todo mundo é bem-vindo e, sim, muitos de nós curtem anime.",
+  "hero.viewProfile": "Ver meu perfil",
+  "hero.join": "Entrar com GitHub ♡",
+  "hero.seeProjects": "Ver os projetos",
+  "hero.scroll": "role",
+  "mock.name": "você",
+  "mock.pronouns": "u/você · elu/delu",
+  "mock.theme": "tema: o seu",
+  "story.projects.kicker": "01 · O que fazemos",
+  "story.projects.title": "Projetos open source, criados em público.",
+  "story.projects.body": "fuwa, um app de chat que você mesmo hospeda, este próprio site e o que alguém começar em seguida. Dê estrela, quebre, mande um pull request.",
+  "story.people.kicker": "02 · Sua galera",
+  "story.people.title": "Encontre gente para criar junto.",
+  "story.people.body": "Devs que lançam projetos paralelos, revisam o código uns dos outros e debugam às 3 da manhã. Pegue uma issue, ou traga um projeto seu.",
+  "story.yours.kicker": "03 · Seu cantinho",
+  "story.yours.title": "Deixe com cara de casa.",
+  "story.yours.body": "Um perfil para os seus repositórios em destaque e, se você curtir, um tema que muda o visual do site inteiro.",
+  "finale.title": "Seu lugar está te esperando.",
+  "finale.memberCount": {
+    "one": "{number} dev já está aqui.",
+    "other": "{number} devs já estão aqui."
+  },
+  "finale.findProject": "Encontrar um projeto ✦",
+  "finale.join": "Entrar com GitHub ♡"
+}
