@@ -1,0 +1,37 @@
+{
+  "hero.memberCount": {
+    "one": "{number} dev e continuiamo a crescere",
+    "other": "{number} dev e continuiamo a crescere"
+  },
+  "hero.line1": "Dev che",
+  "hero.line2": "sviluppano allo scoperto",
+  "hero.phrase1": "pubblicano insieme.",
+  "hero.phrase2": "fanno debug alle 3 di notte.",
+  "hero.phrase3": "si rivedono le PR a vicenda.",
+  "hero.phrase4": "riscrivono tutto in Rust.",
+  "hero.phrase5": "guardano anime tra una build e l'altra.",
+  "hero.lede": "Una community aperta per sviluppatori che creano progetti open source fighi, a volte persino utili. Tutto vive su GitHub, chiunque è benvenuto e sì, a molti di noi piacciono gli anime.",
+  "hero.viewProfile": "Vedi il mio profilo",
+  "hero.join": "Unisciti con GitHub ♡",
+  "hero.seeProjects": "Guarda i progetti",
+  "hero.scroll": "scorri",
+  "mock.name": "tu",
+  "mock.pronouns": "u/tu · loro",
+  "mock.theme": "tema: il tuo",
+  "story.projects.kicker": "01 · Cosa creiamo",
+  "story.projects.title": "Progetti open source, sviluppati allo scoperto.",
+  "story.projects.body": "fuwa, un'app di chat che puoi ospitare in autonomia, questo stesso sito, e qualunque cosa qualcuno inizi dopo. Metti una stella, rompili, manda una pull request.",
+  "story.people.kicker": "02 · La tua gente",
+  "story.people.title": "Trova persone con cui sviluppare.",
+  "story.people.body": "Dev che pubblicano progetti personali, si rivedono il codice a vicenda e fanno debug alle 3 di notte. Prendi una issue, o porta un tuo progetto.",
+  "story.yours.kicker": "03 · Il tuo angolo",
+  "story.yours.title": "Sentiti a casa.",
+  "story.yours.body": "Un profilo per i tuoi repo in evidenza e, se ti va, un tema che cambia lo stile di tutto il sito.",
+  "finale.title": "Il tuo posto ti aspetta.",
+  "finale.memberCount": {
+    "one": "C'è già {number} dev.",
+    "other": "Ci sono già {number} dev."
+  },
+  "finale.findProject": "Trova un progetto ✦",
+  "finale.join": "Unisciti con GitHub ♡"
+}

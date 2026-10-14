@@ -1,0 +1,37 @@
+{
+  "hero.memberCount": {
+    "one": "{number} dev et ça continue",
+    "other": "{number} devs et ça continue"
+  },
+  "hero.line1": "Des devs qui",
+  "hero.line2": "construisent en public",
+  "hero.phrase1": "livrent ensemble.",
+  "hero.phrase2": "déboguent à 3 h du matin.",
+  "hero.phrase3": "relisent les PR des autres.",
+  "hero.phrase4": "réécrivent tout en Rust.",
+  "hero.phrase5": "regardent des animés entre deux builds.",
+  "hero.lede": "Une communauté ouverte pour les développeurs qui créent des projets open source sympas, et parfois même utiles. Tout se passe sur GitHub, tout le monde est le bienvenu, et oui, beaucoup d’entre nous aiment les animés.",
+  "hero.viewProfile": "Voir mon profil",
+  "hero.join": "Rejoindre avec GitHub ♡",
+  "hero.seeProjects": "Voir les projets",
+  "hero.scroll": "défiler",
+  "mock.name": "toi",
+  "mock.pronouns": "u/toi · iel",
+  "mock.theme": "thème : le tien",
+  "story.projects.kicker": "01 · Ce qu’on crée",
+  "story.projects.title": "Des projets open source, construits en public.",
+  "story.projects.body": "fuwa, une app de chat que tu peux héberger toi-même, ce site même, et tout ce que quelqu’un lancera ensuite. Mets-leur une étoile, casse-les, envoie une pull request.",
+  "story.people.kicker": "02 · Ta bande",
+  "story.people.title": "Trouve des gens avec qui construire.",
+  "story.people.body": "Des devs qui sortent des projets perso, relisent le code des autres et déboguent à 3 h du matin. Prends une issue, ou amène ton propre projet.",
+  "story.yours.kicker": "03 · Ton coin",
+  "story.yours.title": "Fais-en ton chez-toi.",
+  "story.yours.body": "Un profil pour tes dépôts mis en avant et, si ça te dit, un thème qui relooke tout le site.",
+  "finale.title": "Ta place t’attend.",
+  "finale.memberCount": {
+    "one": "{number} dev est déjà là.",
+    "other": "{number} devs sont déjà là."
+  },
+  "finale.findProject": "Trouver un projet ✦",
+  "finale.join": "Rejoindre avec GitHub ♡"
+}
