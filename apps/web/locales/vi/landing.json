@@ -1,0 +1,35 @@
+{
+  "hero.memberCount": {
+    "other": "{number} dev và vẫn đang tăng"
+  },
+  "hero.line1": "Những dev",
+  "hero.line2": "xây dựng công khai",
+  "hero.phrase1": "cùng nhau phát hành.",
+  "hero.phrase2": "debug lúc 3 giờ sáng.",
+  "hero.phrase3": "review PR cho nhau.",
+  "hero.phrase4": "viết lại bằng Rust.",
+  "hero.phrase5": "xem anime giữa các lần build.",
+  "hero.lede": "Một cộng đồng mở dành cho các nhà phát triển làm ra những dự án mã nguồn mở thú vị, đôi khi còn hữu ích nữa. Mọi thứ đều ở trên GitHub, ai cũng được chào đón, và đúng vậy, nhiều người trong chúng tôi thích anime.",
+  "hero.viewProfile": "Xem hồ sơ của tôi",
+  "hero.join": "Tham gia bằng GitHub ♡",
+  "hero.seeProjects": "Xem các dự án",
+  "hero.scroll": "cuộn",
+  "mock.name": "bạn",
+  "mock.pronouns": "u/you · they/them",
+  "mock.theme": "giao diện: của bạn",
+  "story.projects.kicker": "01 · Chúng tôi làm gì",
+  "story.projects.title": "Dự án mã nguồn mở, xây dựng công khai.",
+  "story.projects.body": "fuwa, ứng dụng chat bạn có thể tự lưu trữ, chính trang web này, và bất cứ thứ gì ai đó bắt đầu tiếp theo. Gắn sao, phá thử, gửi pull request.",
+  "story.people.kicker": "02 · Những người bạn đồng hành",
+  "story.people.title": "Tìm người cùng xây dựng.",
+  "story.people.body": "Những dev làm dự án phụ, review code cho nhau và debug lúc 3 giờ sáng. Nhận một issue, hoặc mang theo dự án của riêng bạn.",
+  "story.yours.kicker": "03 · Góc của bạn",
+  "story.yours.title": "Biến nơi đây thành nhà.",
+  "story.yours.body": "Một hồ sơ cho các repo nổi bật của bạn, và nếu thích, một giao diện thay đổi phong cách cả trang web.",
+  "finale.title": "Chỗ của bạn vẫn đang chờ.",
+  "finale.memberCount": {
+    "other": "Đã có {number} dev ở đây."
+  },
+  "finale.findProject": "Tìm dự án ✦",
+  "finale.join": "Tham gia bằng GitHub ♡"
+}
