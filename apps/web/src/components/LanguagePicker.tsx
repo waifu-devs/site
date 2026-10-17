@@ -1,8 +1,8 @@
 import { useRouter } from "@tanstack/react-router";
-import { Check, Languages } from "lucide-react";
+import { Check, Globe, Languages } from "lucide-react";
 import { AnimatePresence, LayoutGroup, m as motion } from "motion/react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
-import { coverage, LANGUAGES, languageOf, loadCatalog } from "@/i18n/catalogs";
+import { coverage, flagOf, LANGUAGES, languageOf, loadCatalog } from "@/i18n/catalogs";
 import { useI18n } from "@/i18n/react";
 import { pickLanguage } from "@/server/functions";
 
@@ -65,7 +65,7 @@ function useCoverage() {
   return shares;
 }
 
-type Row = { id: string; name: string; note: string | null; warn: string | null };
+type Row = { id: string; name: string; note: string | null; flag: string | null };
 
 /** Every language the site ships, by its own name, with "match my browser" first. */
 export function LanguagePicker({ language }: { language: LanguageState }) {
@@ -79,12 +79,12 @@ export function LanguagePicker({ language }: { language: LanguageState }) {
       id: "auto",
       name: t("common.language.matchBrowser"),
       note: t("common.language.matchBrowserNote", { language: languageOf(language.detected).name }),
-      warn: null,
+      flag: null,
     },
     ...LANGUAGES.map((l) => {
       const share = shares[l.code];
       const notes = [l.english !== l.name ? l.english : null, share !== undefined && share < 1 ? t("common.language.coverage", { percent: number(share, { style: "percent" }) }) : null];
-      return { id: l.code, name: l.name, note: notes.filter(Boolean).join(" · ") || null, warn: l.reviewed ? null : t("common.language.draft") };
+      return { id: l.code, name: l.name, note: notes.filter(Boolean).join(" · ") || null, flag: flagOf(l.code) ?? null };
     }),
   ];
   const selected = pending ?? language.choice;
@@ -106,10 +106,14 @@ export function LanguagePicker({ language }: { language: LanguageState }) {
                 className="relative flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-start transition-colors hover:bg-muted/60 disabled:cursor-progress"
               >
                 {on && <motion.span layoutId="language-highlight" transition={SPRING} className="absolute inset-0 rounded-xl bg-primary/10 ring-1 ring-primary/30" />}
+                {row.flag ? (
+                  <img src={row.flag} alt="" className="relative h-[15px] w-5 shrink-0 rounded-[2px] object-cover shadow-[0_0_0_1px_rgb(0_0_0/0.15)]" />
+                ) : (
+                  <Globe className="relative size-5 shrink-0 text-muted-foreground" aria-hidden />
+                )}
                 <span className="relative grid min-w-0 flex-1 gap-0.5">
                   <span className="text-sm font-bold">{row.name}</span>
                   {row.note && <span className="text-xs text-muted-foreground">{row.note}</span>}
-                  {row.warn && <span className="text-xs text-amber-600 dark:text-amber-400">{row.warn}</span>}
                 </span>
                 <span className="relative grid size-5 shrink-0 place-items-center">
                   <AnimatePresence initial={false}>

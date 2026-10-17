@@ -17,7 +17,6 @@
   "language.matchBrowser": "Wie mein Browser",
   "language.matchBrowserNote": "Gerade ist das {language}",
   "language.coverage": "{percent} übersetzt",
-  "language.draft": "Maschineller Entwurf, noch nicht von Muttersprachlern geprüft",
   "language.failed": "Die Sprache konnte nicht gewechselt werden. Noch mal versuchen?",
   "notFound.pageTitle": "Nicht gefunden",
   "tryAgain": "Erneut versuchen",

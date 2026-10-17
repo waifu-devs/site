@@ -17,7 +17,6 @@
   "language.matchBrowser": "Match my browser",
   "language.matchBrowserNote": "Right now that's {language}",
   "language.coverage": "{percent} translated",
-  "language.draft": "Machine draft, not yet checked by a speaker",
   "language.failed": "Couldn't switch the language. Try again?",
   "notFound.pageTitle": "Not found",
   "tryAgain": "Try again",

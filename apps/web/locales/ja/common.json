@@ -17,7 +17,6 @@
   "language.matchBrowser": "ブラウザーに合わせる",
   "language.matchBrowserNote": "現在は{language}です",
   "language.coverage": "{percent}翻訳済み",
-  "language.draft": "機械翻訳の下書きです（ネイティブスピーカーによる確認前）",
   "language.failed": "言語を切り替えられませんでした。もう一度お試しください。",
   "notFound.pageTitle": "見つかりません",
   "tryAgain": "再試行",

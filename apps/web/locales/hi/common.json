@@ -17,7 +17,6 @@
   "language.matchBrowser": "मेरे ब्राउज़र जैसी",
   "language.matchBrowserNote": "अभी वह {language} है",
   "language.coverage": "{percent} अनुवादित",
-  "language.draft": "मशीन ड्राफ़्ट, अभी किसी भाषी ने जांचा नहीं",
   "language.failed": "भाषा नहीं बदली जा सकी। फिर से कोशिश करें?",
   "notFound.pageTitle": "नहीं मिला",
   "tryAgain": "फिर से कोशिश करें",

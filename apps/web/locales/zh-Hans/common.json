@@ -17,7 +17,6 @@
   "language.matchBrowser": "跟随浏览器",
   "language.matchBrowserNote": "当前为 {language}",
   "language.coverage": "已翻译 {percent}",
-  "language.draft": "机器翻译草稿，尚未经过母语者校对",
   "language.failed": "无法切换语言。要重试吗？",
   "notFound.pageTitle": "未找到",
   "tryAgain": "重试",

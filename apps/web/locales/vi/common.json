@@ -17,7 +17,6 @@
   "language.matchBrowser": "Theo trình duyệt",
   "language.matchBrowserNote": "Hiện tại là {language}",
   "language.coverage": "Đã dịch {percent}",
-  "language.draft": "Bản dịch máy, chưa được người bản ngữ kiểm tra",
   "language.failed": "Không đổi được ngôn ngữ. Thử lại?",
   "notFound.pageTitle": "Không tìm thấy",
   "tryAgain": "Thử lại",

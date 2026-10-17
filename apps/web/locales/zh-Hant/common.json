@@ -17,7 +17,6 @@
   "language.matchBrowser": "與瀏覽器相同",
   "language.matchBrowserNote": "目前為 {language}",
   "language.coverage": "已翻譯 {percent}",
-  "language.draft": "機器翻譯草稿，尚未經母語人士校對",
   "language.failed": "無法切換語言，要再試一次嗎？",
   "notFound.pageTitle": "找不到頁面",
   "tryAgain": "重試",
