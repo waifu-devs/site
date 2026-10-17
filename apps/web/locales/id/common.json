@@ -17,7 +17,6 @@
   "language.matchBrowser": "Ikuti browser saya",
   "language.matchBrowserNote": "Saat ini: {language}",
   "language.coverage": "{percent} diterjemahkan",
-  "language.draft": "Draf mesin, belum diperiksa penutur asli",
   "language.failed": "Gagal mengganti bahasa. Coba lagi?",
   "notFound.pageTitle": "Tidak ditemukan",
   "tryAgain": "Coba lagi",

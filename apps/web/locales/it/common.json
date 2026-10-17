@@ -17,7 +17,6 @@
   "language.matchBrowser": "Come il mio browser",
   "language.matchBrowserNote": "Al momento è {language}",
   "language.coverage": "{percent} tradotto",
-  "language.draft": "Bozza automatica, non ancora controllata da un madrelingua",
   "language.failed": "Impossibile cambiare lingua. Riprovare?",
   "notFound.pageTitle": "Non trovata",
   "tryAgain": "Riprova",

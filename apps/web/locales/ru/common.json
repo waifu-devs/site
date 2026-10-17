@@ -17,7 +17,6 @@
   "language.matchBrowser": "Как в браузере",
   "language.matchBrowserNote": "Сейчас это {language}",
   "language.coverage": "Переведено: {percent}",
-  "language.draft": "Машинный черновик, носитель языка ещё не проверял",
   "language.failed": "Не удалось сменить язык. Попробовать ещё раз?",
   "notFound.pageTitle": "Не найдено",
   "tryAgain": "Попробовать ещё раз",

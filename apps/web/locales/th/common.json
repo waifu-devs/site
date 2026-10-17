@@ -17,7 +17,6 @@
   "language.matchBrowser": "ตามเบราว์เซอร์ของฉัน",
   "language.matchBrowserNote": "ตอนนี้คือ {language}",
   "language.coverage": "แปลแล้ว {percent}",
-  "language.draft": "ฉบับร่างจากเครื่องแปล ยังไม่ได้ตรวจสอบโดยเจ้าของภาษา",
   "language.failed": "เปลี่ยนภาษาไม่ได้ ลองอีกครั้งไหม?",
   "notFound.pageTitle": "ไม่พบหน้า",
   "tryAgain": "ลองอีกครั้ง",
