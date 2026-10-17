@@ -1,0 +1,35 @@
+{
+  "hero.memberCount": {
+    "other": "已有 {number} 位开发者，还在增加"
+  },
+  "hero.line1": "公开构建的",
+  "hero.line2": "开发者们",
+  "hero.phrase1": "一起发布。",
+  "hero.phrase2": "凌晨三点还在调试。",
+  "hero.phrase3": "互相审查 PR。",
+  "hero.phrase4": "用 Rust 重写。",
+  "hero.phrase5": "编译间隙看动漫。",
+  "hero.lede": "一个开放的开发者社区，大家一起做酷炫的、有时甚至还挺实用的开源项目。一切都在 GitHub 上，欢迎所有人加入。没错，我们中有很多人喜欢动漫。",
+  "hero.viewProfile": "查看我的个人资料",
+  "hero.join": "使用 GitHub 加入 ♡",
+  "hero.seeProjects": "查看项目",
+  "hero.scroll": "向下滚动",
+  "mock.name": "你",
+  "mock.pronouns": "u/you · they/them",
+  "mock.theme": "主题：你的",
+  "story.projects.kicker": "01 · 我们做什么",
+  "story.projects.title": "开源项目，公开构建。",
+  "story.projects.body": "fuwa，一款可以自己托管的聊天应用；还有你现在看到的这个网站，以及下一个人发起的任何项目。给它们点星、把它们玩坏、提交 Pull Request 吧。",
+  "story.people.kicker": "02 · 你的伙伴",
+  "story.people.title": "找到一起构建的伙伴。",
+  "story.people.body": "做业余项目、互相审查代码、凌晨三点还在调试的开发者们。认领一个 Issue，或者带上你自己的项目。",
+  "story.yours.kicker": "03 · 你的角落",
+  "story.yours.title": "让这里像家一样。",
+  "story.yours.body": "一个展示你精选仓库的个人资料页；如果你喜欢，还可以用一款主题改变整个网站的风格。",
+  "finale.title": "你的位置已经暖好了。",
+  "finale.memberCount": {
+    "other": "已有 {number} 位开发者在这里。"
+  },
+  "finale.findProject": "找个项目 ✦",
+  "finale.join": "使用 GitHub 加入 ♡"
+}

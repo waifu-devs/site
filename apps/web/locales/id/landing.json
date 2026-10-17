@@ -1,0 +1,35 @@
+{
+  "hero.memberCount": {
+    "other": "{number} developer dan terus bertambah"
+  },
+  "hero.line1": "Developer yang",
+  "hero.line2": "berkarya secara terbuka",
+  "hero.phrase1": "rilis bersama.",
+  "hero.phrase2": "debug jam 3 pagi.",
+  "hero.phrase3": "saling meninjau PR.",
+  "hero.phrase4": "menulis ulang dengan Rust.",
+  "hero.phrase5": "nonton anime sambil menunggu build.",
+  "hero.lede": "Komunitas terbuka bagi developer yang membuat proyek open source yang keren, dan kadang bahkan berguna. Semuanya ada di GitHub, semua orang diterima, dan ya, banyak dari kami suka anime.",
+  "hero.viewProfile": "Lihat profil saya",
+  "hero.join": "Gabung dengan GitHub ♡",
+  "hero.seeProjects": "Lihat proyeknya",
+  "hero.scroll": "gulir",
+  "mock.name": "Anda",
+  "mock.pronouns": "u/anda · they/them",
+  "mock.theme": "tema: milik Anda",
+  "story.projects.kicker": "01 · Yang kami buat",
+  "story.projects.title": "Proyek open source, dibangun secara terbuka.",
+  "story.projects.body": "fuwa, aplikasi chat yang bisa Anda host sendiri, situs ini sendiri, dan apa pun yang dimulai seseorang berikutnya. Beri bintang, coba rusak, kirim pull request.",
+  "story.people.kicker": "02 · Teman-teman Anda",
+  "story.people.title": "Temukan teman untuk berkarya bersama.",
+  "story.people.body": "Developer yang merilis proyek sampingan, saling meninjau kode, dan debug jam 3 pagi. Ambil sebuah issue, atau bawa proyek Anda sendiri.",
+  "story.yours.kicker": "03 · Sudut Anda",
+  "story.yours.title": "Buat terasa seperti rumah.",
+  "story.yours.body": "Profil untuk repo unggulan Anda, dan kalau mau, tema yang mengubah tampilan seluruh situs.",
+  "finale.title": "Tempat Anda sudah menunggu.",
+  "finale.memberCount": {
+    "other": "{number} developer sudah ada di sini."
+  },
+  "finale.findProject": "Cari proyek ✦",
+  "finale.join": "Gabung dengan GitHub ♡"
+}

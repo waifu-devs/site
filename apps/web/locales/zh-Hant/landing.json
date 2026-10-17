@@ -1,0 +1,35 @@
+{
+  "hero.memberCount": {
+    "other": "已有 {number} 位開發者，持續增加中"
+  },
+  "hero.line1": "公開打造作品的",
+  "hero.line2": "開發者們",
+  "hero.phrase1": "一起發布作品。",
+  "hero.phrase2": "凌晨三點還在除錯。",
+  "hero.phrase3": "互相審查 PR。",
+  "hero.phrase4": "用 Rust 重寫一切。",
+  "hero.phrase5": "在編譯空檔追動漫。",
+  "hero.lede": "一個開放的社群，讓開發者一起打造酷炫、有時甚至還挺實用的開源專案。所有東西都放在 GitHub 上，歡迎所有人加入，而且沒錯，我們之中有不少人喜歡動漫。",
+  "hero.viewProfile": "查看我的個人檔案",
+  "hero.join": "使用 GitHub 加入 ♡",
+  "hero.seeProjects": "看看專案",
+  "hero.scroll": "捲動",
+  "mock.name": "你",
+  "mock.pronouns": "u/you · they/them",
+  "mock.theme": "主題：你的風格",
+  "story.projects.kicker": "01 · 我們的作品",
+  "story.projects.title": "公開打造的開源專案。",
+  "story.projects.body": "fuwa，一款可以自行架設的聊天 App；你正在看的這個網站；以及下一個人開始的任何專案。給它們星星、把它們玩壞、送出 pull request 吧。",
+  "story.people.kicker": "02 · 你的夥伴",
+  "story.people.title": "找到一起打造作品的夥伴。",
+  "story.people.body": "做 side project、互相審查程式碼、凌晨三點還在除錯的開發者。認領一個 issue，或帶來你自己的專案。",
+  "story.yours.kicker": "03 · 你的角落",
+  "story.yours.title": "讓這裡有家的感覺。",
+  "story.yours.body": "一個展示你精選儲存庫的個人檔案，如果你喜歡，還有能改變整個網站樣式的主題。",
+  "finale.title": "你的位置已經準備好了。",
+  "finale.memberCount": {
+    "other": "已經有 {number} 位開發者在這裡了。"
+  },
+  "finale.findProject": "找個專案 ✦",
+  "finale.join": "使用 GitHub 加入 ♡"
+}

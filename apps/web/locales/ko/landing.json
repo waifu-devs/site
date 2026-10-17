@@ -1,0 +1,35 @@
+{
+  "hero.memberCount": {
+    "other": "{number}명의 개발자가 함께하고 있어요"
+  },
+  "hero.line1": "오픈소스로 만드는",
+  "hero.line2": "개발자들",
+  "hero.phrase1": "함께 출시해요.",
+  "hero.phrase2": "새벽 3시에 디버깅해요.",
+  "hero.phrase3": "서로의 PR을 리뷰해요.",
+  "hero.phrase4": "Rust로 다시 짜요.",
+  "hero.phrase5": "빌드 사이사이 애니를 봐요.",
+  "hero.lede": "멋지고, 가끔은 쓸모도 있는 오픈소스 프로젝트를 만드는 개발자들의 열린 커뮤니티예요. 모든 것은 GitHub에 있고, 누구나 환영이에요. 그리고 네, 애니를 좋아하는 사람도 많아요.",
+  "hero.viewProfile": "내 프로필 보기",
+  "hero.join": "GitHub로 참여하기 ♡",
+  "hero.seeProjects": "프로젝트 보기",
+  "hero.scroll": "스크롤",
+  "mock.name": "나",
+  "mock.pronouns": "u/you · they/them",
+  "mock.theme": "테마: 내 테마",
+  "story.projects.kicker": "01 · 우리가 만드는 것",
+  "story.projects.title": "공개적으로 만드는 오픈소스 프로젝트.",
+  "story.projects.body": "직접 호스팅할 수 있는 채팅 앱 fuwa, 지금 보고 있는 이 사이트, 그리고 누군가 다음에 시작할 무언가까지. 스타를 누르고, 부숴 보고, 풀 리퀘스트를 보내 주세요.",
+  "story.people.kicker": "02 · 나의 동료",
+  "story.people.title": "함께 만들 사람을 찾아보세요.",
+  "story.people.body": "사이드 프로젝트를 출시하고, 서로 코드를 리뷰하고, 새벽 3시에 디버깅하는 개발자들. 이슈를 하나 맡거나, 내 프로젝트를 가져오세요.",
+  "story.yours.kicker": "03 · 나만의 공간",
+  "story.yours.title": "내 집처럼 편하게.",
+  "story.yours.body": "추천 저장소를 보여 주는 프로필, 그리고 원한다면 사이트 전체를 바꾸는 테마까지.",
+  "finale.title": "당신의 자리가 기다리고 있어요.",
+  "finale.memberCount": {
+    "other": "이미 {number}명의 개발자가 여기 있어요."
+  },
+  "finale.findProject": "프로젝트 찾기 ✦",
+  "finale.join": "GitHub로 참여하기 ♡"
+}
