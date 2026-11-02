@@ -1,6 +1,6 @@
 import { DeleteObjectCommand, GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { FetchHttpClient, FileSystem, HttpApiBuilder, HttpClient, HttpClientRequest, HttpRouter, HttpServerResponse } from "@effect/platform";
-import { NodeFileSystem } from "@effect/platform-node";
+import { BunFileSystem } from "@effect/platform-bun";
 import { ImageRejected, type ImageKind } from "@waifu-devs/domain/api";
 import { IMAGE_SIZES, MAX_IMAGE_BYTES } from "@waifu-devs/domain/profile";
 import { sql } from "drizzle-orm";
@@ -84,7 +84,7 @@ export const MediaStoreLive = Layer.effect(
     yield* Effect.logWarning("S3_BUCKET is not set; storing uploaded pictures in a local directory.");
     return yield* directoryStore;
   }),
-).pipe(Layer.provide(NodeFileSystem.layer));
+).pipe(Layer.provide(BunFileSystem.layer));
 
 /** Stored pictures are served by this api (the OpenAuth issuer) at /media/<key>. */
 const mediaBase = Config.string("ISSUER_URL").pipe(Config.map((url) => `${url.replace(/\/$/, "")}/media/`));

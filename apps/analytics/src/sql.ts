@@ -3,10 +3,10 @@
  * is the default, so `FROM daily` works. On Railway, where the lake is reachable:
  *
  *   railway ssh --service analytics
- *   node apps/analytics/dist/sql.js "FROM daily ORDER BY day DESC LIMIT 14"
- *   node apps/analytics/dist/sql.js "FROM reports.errors_unique ORDER BY sent_at DESC LIMIT 20"
+ *   bun apps/analytics/dist/sql.js "FROM daily ORDER BY day DESC LIMIT 14"
+ *   bun apps/analytics/dist/sql.js "FROM reports.errors_unique ORDER BY sent_at DESC LIMIT 20"
  */
-import { NodeRuntime } from "@effect/platform-node";
+import { BunRuntime } from "@effect/platform-bun";
 import { Console, Effect } from "effect";
 import { makeLake } from "./Lake.ts";
 
@@ -20,4 +20,4 @@ const program = Effect.gen(function* () {
   yield* Console.table(rows);
 }).pipe(Effect.scoped);
 
-NodeRuntime.runMain(program);
+BunRuntime.runMain(program);

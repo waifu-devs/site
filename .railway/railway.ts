@@ -34,6 +34,12 @@ const ANALYTICS_DOMAIN = "analytics.waifu.dev";
 /** The status page for fuwa.chat and this site. */
 const STATUS_DOMAIN = "status.waifu.dev";
 const API_URL = `https://${API_DOMAIN}`;
+/**
+ * The four services run on Bun. Railpack installs it next to Node (which pnpm and the
+ * builds still use) because the root package.json has a script that calls bun; this
+ * pins which Bun, the one CI checks with (.github/workflows/ci.yml).
+ */
+const BUN_VERSION = "1.4.4";
 const WEB_URL = `https://${WEB_DOMAIN}`;
 
 export default defineRailway((ctx) => {
@@ -53,12 +59,13 @@ export default defineRailway((ctx) => {
     // Migrations, then the database roles (apps/api/src/roles.ts), such as the status
     // service's own role that can only reach the status tables.
     preDeploy: "pnpm --filter @waifu-devs/api db:setup",
-    start: "node apps/api/dist/main.js",
+    start: "bun apps/api/dist/main.js",
     healthcheck: "/health",
     regions: { [REGION]: 1 },
     domains: [{ domain: API_DOMAIN, port: 4000 }],
     env: {
       NODE_ENV: "production",
+      RAILPACK_BUN_VERSION: BUN_VERSION,
       PORT: "4000",
       DATABASE_URL: db.env.DATABASE_URL,
       // The API is the OpenAuth issuer; tokens carry this URL as `iss`.
@@ -85,13 +92,16 @@ export default defineRailway((ctx) => {
       buildCommand: "pnpm --filter @waifu-devs/web build",
       watchPatterns: ["apps/web/**", "packages/domain/**", "pnpm-lock.yaml"],
     },
-    start: "node apps/web/.output/server/index.mjs",
+    start: "bun apps/web/.output/server/index.mjs",
     healthcheck: "/api/health",
     regions: { [REGION]: 1 },
     domains: [{ domain: WEB_DOMAIN, port: 3000 }],
     env: {
       NODE_ENV: "production",
+      RAILPACK_BUN_VERSION: BUN_VERSION,
       PORT: "3000",
+      // Bun listens on IPv4 alone unless told; "::" takes both, like the other services.
+      HOST: "::",
       WEB_URL,
       // The browser goes to the API's public URL to sign in...
       API_URL,
@@ -114,7 +124,7 @@ export default defineRailway((ctx) => {
       buildCommand: "pnpm --filter @waifu-devs/analytics build",
       watchPatterns: ["apps/analytics/**", "packages/domain/**", "pnpm-lock.yaml"],
     },
-    start: "node apps/analytics/dist/main.js",
+    start: "bun apps/analytics/dist/main.js",
     healthcheck: "/health",
     regions: { [REGION]: 1 },
     // Added in the dashboard first (Railway configuration can't register a new custom
@@ -126,6 +136,7 @@ export default defineRailway((ctx) => {
     deploy: { drainingSeconds: 30 },
     env: {
       NODE_ENV: "production",
+      RAILPACK_BUN_VERSION: BUN_VERSION,
       PORT: "4100",
       DATABASE_URL: db.env.DATABASE_URL,
       S3_ENDPOINT: ref(lake, "ENDPOINT"),
@@ -149,7 +160,7 @@ export default defineRailway((ctx) => {
       buildCommand: "pnpm --filter @waifu-devs/status build",
       watchPatterns: ["apps/status/**", "packages/domain/**", "pnpm-lock.yaml"],
     },
-    start: "node apps/status/dist/main.js",
+    start: "bun apps/status/dist/main.js",
     healthcheck: "/health",
     regions: { [REGION]: 1 },
     // Added in the dashboard first (Railway configuration can't register a new custom
@@ -157,6 +168,7 @@ export default defineRailway((ctx) => {
     domains: [{ domain: STATUS_DOMAIN, port: 4200 }],
     env: {
       NODE_ENV: "production",
+      RAILPACK_BUN_VERSION: BUN_VERSION,
       PORT: "4200",
       // Its own role, which can only read and write the status tables (set up by the
       // api's deploys, apps/api/src/roles.ts), never the owner's login.

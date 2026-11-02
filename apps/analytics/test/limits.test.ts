@@ -1,7 +1,6 @@
 import { HttpApiBuilder, HttpServer } from "@effect/platform";
-import { NodeHttpServer } from "@effect/platform-node";
+import { BunHttpServer } from "@effect/platform-bun";
 import { ConfigProvider, Effect, HashMap, Layer, List, Logger, ManagedRuntime } from "effect";
-import { createServer } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { HttpLive, ReadAccessLive } from "../src/Http.ts";
 import { Ingest } from "../src/Ingest.ts";
@@ -36,14 +35,14 @@ const CaptureLogs = Logger.replace(
   }),
 );
 
-// The real Node server, as in production: body limits are enforced where Node reads the body.
+// The real Bun server, as in production, so the body limits are checked against how it hands bodies over.
 let runtime: ManagedRuntime.ManagedRuntime<HttpServer.HttpServer, unknown>;
 let base: string;
 beforeAll(async () => {
   runtime = ManagedRuntime.make(
     HttpApiBuilder.serve(harden).pipe(
       Layer.provide(HttpLive.pipe(Layer.provide(ReadAccessLive), Layer.provide(Ingest.Default), Layer.provide(DownLake))),
-      Layer.provideMerge(NodeHttpServer.layer(createServer, { port: 0, host: "127.0.0.1" })),
+      Layer.provideMerge(BunHttpServer.layer({ port: 0, hostname: "127.0.0.1" })),
       Layer.provide(CaptureLogs),
       Layer.provide(Layer.setConfigProvider(config)),
     ),
@@ -101,9 +100,8 @@ describe("limits", () => {
   it("turns away bodies over 8 KB unread, unknown fields included", async () => {
     const big = JSON.stringify(signal({ notes: "x".repeat(9 * 1024) }));
     expect((await post(big)).status).toBe(413);
-    // Without a Content-Length, reading stops at the limit and the connection is dropped.
-    const streamedStatus = await post(streamed(big)).then((response) => response.status, () => "closed");
-    expect([413, "closed"]).toContain(streamedStatus);
+    // Without a Content-Length, reading stops at the limit (src/Body.ts).
+    expect((await post(streamed(big))).status).toBe(413);
     // A signal under the limit still gets in the same way.
     expect((await post(streamed(JSON.stringify(signal())))).status).toBe(202);
   });

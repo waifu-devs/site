@@ -39,9 +39,9 @@ export default defineConfig(({ mode }) => {
     server: { port: 3000 },
     css: { postcss: { plugins: [lateFonts] } },
     resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
-    // Nitro turns the app into a standalone Node server: .output/server/index.mjs.
+    // Nitro turns the app into a standalone Bun server: .output/server/index.mjs.
     // The security headers go on static files too; pages and server functions also get them in src/server.ts.
-    plugins: [tailwindcss(), tanstackStart(), nitro({ routeRules: { "/**": { headers: SECURITY_HEADERS } } }), viteReact()],
+    plugins: [tailwindcss(), tanstackStart(), nitro({ preset: "bun", routeRules: { "/**": { headers: SECURITY_HEADERS } } }), viteReact()],
     // Fonts stay separate files: inlined, every slice of the Japanese font (used or not)
     // would ride inside the stylesheet that holds back the first paint.
     build: { assetsInlineLimit: (file: string) => (/\.woff2?$/.test(file) ? false : undefined) },

@@ -2,11 +2,11 @@
 
 Waifu Devs is an open community of developers making cool, sometimes even useful, open-source projects (plenty of us also like anime). This is its site: GitHub sign-in, member profiles, custom themes that restyle the whole site, and a Hacker News style news board.
 
-It's a pnpm monorepo with a separate API and web app, both written with [Effect](https://effect.website), hosted on [Railway](https://railway.com) and described as code in [`.railway/railway.ts`](.railway/railway.ts).
+It's a pnpm monorepo with a separate API and web app, both written with [Effect](https://effect.website), hosted on [Railway](https://railway.com) and described as code in [`.railway/railway.ts`](.railway/railway.ts). Every service runs on [Bun](https://bun.sh); pnpm, Vite and the type checks run on Node.
 
 | Path | What |
 | --- | --- |
-| `apps/api` | The API: an Effect `HttpApi` server on Node, Drizzle on Postgres, and the [OpenAuth](https://openauth.js.org) issuer for GitHub sign-in |
+| `apps/api` | The API: an Effect `HttpApi` server on Bun, Drizzle on Postgres, and the [OpenAuth](https://openauth.js.org) issuer for GitHub sign-in |
 | `apps/analytics` | Anonymous usage signals from fuwa servers, stored in a [DuckLake](https://ducklake.select) with DuckDB (see [Analytics](#analytics)) |
 | `apps/web` | The site: [TanStack Start](https://tanstack.com/start) (React, SSR), shadcn/ui and [Animate UI](https://animate-ui.com); its server side calls the API through a typed Effect client |
 | `apps/status` | [status.waifu.dev](https://status.waifu.dev): checks fuwa.chat and this site every minute from outside and serves the 90 day history (see [Status and stats](#status-and-stats)) |
@@ -73,7 +73,7 @@ Accepted signals are buffered and written every 30 seconds as one lake snapshot,
 Reading it:
 
 - `GET /v1/fuwa/summary?days=30` with `Authorization: Bearer $ANALYTICS_READ_TOKEN` returns installs, totals and activity per day and kind of hosting, plus which versions installs run.
-- For any other question, open a read-only SQL console next to the lake with `railway ssh --service analytics`, then `node apps/analytics/dist/sql.js "FROM daily ORDER BY day DESC"`. The views are `signals_unique`, `installs` (each install as of its last signal), `activity` (each signal with what happened since the previous one) and `daily`.
+- For any other question, open a read-only SQL console next to the lake with `railway ssh --service analytics`, then `bun apps/analytics/dist/sql.js "FROM daily ORDER BY day DESC"`. The views are `signals_unique`, `installs` (each install as of its last signal), `activity` (each signal with what happened since the previous one) and `daily`.
 
 ### Bug and performance reports
 
@@ -91,7 +91,7 @@ Reports (up to 256 KB) go through the same buffer as signals, into the `reports`
 `/v1/site/reports` only takes requests that come over Railway's private network: one addressed to the public domain, or carrying any header Railway's edge adds, gets `403`. Each sender may send 30 signals or reports an hour (`INGEST_MAX_PER_SENDER_HOUR`), counted by its install id (or, without one, by source), never by address, and everyone together 300 a minute (`INGEST_MAX_PER_MINUTE`); past either, `429`, and that report is dropped. Platforms and OS families are lowercase family names and versions look like `0.1.0`, so neither can hold an address or an email. Fields a report adds beyond v1 are kept in `raw` only while they're under 2 KB together.
 
 - `GET /v1/reports/summary?days=7&source=fuwa` (same bearer token; `source` is optional) returns the most frequent errors (with how many installs saw them, on which platforms and OSes, first and last seen), the slowest timings by p95 (with p50, p99, average and how many took over a second), and feature use.
-- `node apps/analytics/dist/sql.js "FROM reports.errors_unique ORDER BY sent_at DESC LIMIT 20"` for anything else.
+- `bun apps/analytics/dist/sql.js "FROM reports.errors_unique ORDER BY sent_at DESC LIMIT 20"` for anything else.
 
 ## How sign-in works
 
@@ -114,7 +114,7 @@ The server trades the code for an access token made out to it (`aud` is its clie
 
 ## Local development
 
-You need Node 22 and a local Postgres (`postgres://postgres:postgres@localhost:5432/waifu`).
+You need Node 22, [Bun](https://bun.sh) 1.4 and a local Postgres (`postgres://postgres:postgres@localhost:5432/waifu`).
 
 1. Create a GitHub OAuth app for development at <https://github.com/settings/developers> with
    - Homepage URL: `http://localhost:3000`
