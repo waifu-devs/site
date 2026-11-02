@@ -1,5 +1,6 @@
 import { HttpMiddleware, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Layer, Option, Schedule } from "effect";
+import { boundBody } from "./Body.ts";
 import { HttpLive, ReadAccessLive } from "./Http.ts";
 import { Ingest } from "./Ingest.ts";
 import { Lake } from "./Lake.ts";
@@ -26,6 +27,8 @@ export const limitBody = HttpMiddleware.make((app) =>
     const request = yield* HttpServerRequest.HttpServerRequest;
     const limit = request.url.split("?")[0]!.endsWith("/reports") ? MAX_REPORT_BYTES : MAX_BODY_BYTES;
     if (Number(request.headers["content-length"] ?? 0) > limit) return HttpServerResponse.empty({ status: 413 });
-    return yield* HttpServerRequest.withMaxBodySize(app, Option.some(limit));
+    const bounded = yield* boundBody(request, limit);
+    if (HttpServerResponse.isServerResponse(bounded)) return bounded;
+    return yield* app.pipe(Effect.provideService(HttpServerRequest.HttpServerRequest, bounded));
   }),
 );

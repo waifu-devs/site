@@ -191,7 +191,7 @@ export class Issuer extends Effect.Service<Issuer>()("Issuer", {
       for (const name of ["host", "x-forwarded-host", "x-forwarded-proto", "x-forwarded-port"]) headers.delete(name);
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await readLimited(request, MAX_ISSUER_BODY);
       if (body === null) return new Response("Too big.", { status: 413 });
-      const response = await app.fetch(new Request(new URL(url.pathname + url.search, issuerUrl), { method: request.method, headers, body }));
+      const response = await app.fetch(new Request(new URL(url.pathname + url.search, issuerUrl).href, { method: request.method, headers, body }));
       if (!clearCookie) return response;
       // The consent is spent.
       const spent = new Response(response.body, response);

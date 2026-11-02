@@ -61,7 +61,7 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
   main().catch(() => {
     console.error(JSON.stringify({ message: "Setting database roles failed" }));
     process.exit(1);

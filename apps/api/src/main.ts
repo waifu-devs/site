@@ -1,12 +1,11 @@
 import { FetchHttpClient, HttpApiBuilder, HttpServer } from "@effect/platform";
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { Config, Layer } from "effect";
-import { createServer } from "node:http";
+import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
+import { Config, Effect, Layer } from "effect";
 import { AuthenticationLive, Issuer, IssuerRoutes, LinkedAuthenticationLive, OptionalAuthenticationLive } from "./Auth.ts";
 import { DbLive } from "./Db.ts";
 import { HttpLive } from "./Http.ts";
 import { MediaRoutes, MediaStoreLive } from "./Media.ts";
-import { harden } from "./Middleware.ts";
+import { harden, MAX_BODY_BYTES } from "./Middleware.ts";
 import { Posts } from "./Posts.ts";
 import { Repos } from "./Repos.ts";
 import { Themes } from "./Themes.ts";
@@ -26,12 +25,25 @@ const ServerLive = HttpApiBuilder.serve(harden).pipe(
   Layer.provide(IssuerLive),
   HttpServer.withLogAddress,
   Layer.provide(
-    NodeHttpServer.layerConfig(createServer, {
-      port: Config.integer("PORT").pipe(Config.withDefault(4000)),
-      // "::" also accepts IPv4, and Railway's private network is IPv6.
-      host: Config.string("HOST").pipe(Config.withDefault("::")),
-    }),
+    Layer.unwrapEffect(
+      Effect.gen(function* () {
+        const port = yield* Config.integer("PORT").pipe(Config.withDefault(4000));
+        // "::" also accepts IPv4, and Railway's private network is IPv6.
+        const hostname = yield* Config.string("HOST").pipe(Config.withDefault("::"));
+        return BunHttpServer.layer({
+          port,
+          hostname,
+          // The app holds bodies to MAX_BODY_BYTES (limitBody in Middleware.ts);
+          // this is Bun's own stop, past it.
+          maxRequestBodySize: 2 * MAX_BODY_BYTES,
+          // Bun closes a connection that's quiet this long (10 seconds unless told),
+          // even while its answer is being worked out, as when GitHub is slow.
+          // 255 seconds is as long as it goes, near Node's 300 a request.
+          idleTimeout: 255,
+        });
+      }),
+    ),
   ),
 );
 
-Layer.launch(ServerLive).pipe(NodeRuntime.runMain);
+Layer.launch(ServerLive).pipe(BunRuntime.runMain);

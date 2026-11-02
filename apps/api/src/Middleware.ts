@@ -1,6 +1,7 @@
 import { HttpApp, HttpMiddleware, HttpServerError, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { isProbe, PROBE_RESPONSE } from "@waifu-devs/domain/probes";
 import { Cause, Effect, Exit, Option } from "effect";
+import { boundBody } from "./Body.ts";
 
 /**
  * What every response carries: HTTPS only from now on, no sniffing content
@@ -29,13 +30,15 @@ export const MAX_BODY_BYTES = 6 * 1024 * 1024;
 
 /**
  * Turns away bodies over MAX_BODY_BYTES: unread when Content-Length says so, else
- * as soon as reading one passes the limit.
+ * as soon as reading one passes the limit (src/Body.ts).
  */
 export const limitBody = HttpMiddleware.make((app) =>
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     if (Number(request.headers["content-length"] ?? 0) > MAX_BODY_BYTES) return HttpServerResponse.empty({ status: 413 });
-    return yield* HttpServerRequest.withMaxBodySize(app, Option.some(MAX_BODY_BYTES));
+    const bounded = yield* boundBody(request, MAX_BODY_BYTES);
+    if (HttpServerResponse.isServerResponse(bounded)) return bounded;
+    return yield* app.pipe(Effect.provideService(HttpServerRequest.HttpServerRequest, bounded));
   }),
 );
 

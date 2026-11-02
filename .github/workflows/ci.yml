@@ -52,6 +52,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      # The services build, test and run on Bun; pnpm, Vite and the type checks stay on Node.
+      # Same version as Railway runs (BUN_VERSION in .railway/railway.ts).
+      - if: steps.changes.outputs.run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
       - if: steps.changes.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
       - if: steps.changes.outputs.run == 'true'

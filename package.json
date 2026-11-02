@@ -8,7 +8,8 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @waifu-devs/api db:generate",
-    "db:migrate": "pnpm --filter @waifu-devs/api db:migrate"
+    "db:migrate": "pnpm --filter @waifu-devs/api db:migrate",
+    "sql": "bun apps/analytics/dist/sql.js"
   },
   "devDependencies": {
     "railway": "^3.11.0"

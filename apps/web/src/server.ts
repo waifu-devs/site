@@ -69,8 +69,15 @@ function withSecurityHeaders(response: Response): Response {
   return secured;
 }
 
+/** What Bun's server hands Nitro along with each request. */
+type OnBun = { runtime?: { bun?: { server?: { timeout(request: Request, seconds: number): void } } } };
+
 export default createServerEntry({
   async fetch(request: Request) {
+    // Bun closes a connection that's quiet for 10 seconds, even while its page is
+    // being made (as when the API is slow); give each request as long as Bun lets
+    // one have, near Node's 300 seconds.
+    (request as Request & OnBun).runtime?.bun?.server?.timeout(request, 255);
     // Scanners' guesses (/.env, /wp-login.php...) get a 404 before the router sees them.
     if (isProbe(new URL(request.url).pathname)) {
       return withSecurityHeaders(new Response(PROBE_RESPONSE.body, { status: PROBE_RESPONSE.status, headers: PROBE_RESPONSE.headers }));
